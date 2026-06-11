@@ -1,0 +1,43 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cursor (keep rules folder, ignore local-only state)
+.cursor/agents/
+.cursor/cache/
+
+# Node / Expo / pnpm (anticipated for apps/mobile, services/api, packages/shared)
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+.expo/
+.expo-shared/
+dist/
+build/
+out/
+coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Adobe Illustrator working files
+# (kept tracked in identity/ and mocs/ for now; uncomment to exclude)
+# *.ai
