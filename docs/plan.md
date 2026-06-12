@@ -29,6 +29,15 @@ todos:
   - id: phase2-rovas-grant
     content: "Phase 2: rules_proxy_claim_vat_receipt + OAuth login in Expo + API claim flow on dev.rovas.app"
     status: pending
+  - id: receipt-sharing-design
+    content: "Approve split-claims UX (search, memory, always-share, default equal split, override) and atomic multi-beneficiary claim contract — see §7"
+    status: pending
+  - id: receipt-sharing-impl
+    content: "Phase 2: ship split-claims end-to-end — /users/search + claim shares array + receipt_claim_shares table + multi-beneficiary rules_proxy_claim_vat_receipt + mobile split UI on screen 2"
+    status: pending
+  - id: mockup-split-claims
+    content: "Extend mocs/civic-mockup.canvas.tsx with the split-claims sub-screens (recipient picker, search, memory list, share editor) before Phase 2 starts"
+    status: pending
   - id: phase3-polish-deploy
     content: "Phase 3: history dashboard, SK i18n, API deployment, EAS store prep"
     status: pending
@@ -54,7 +63,7 @@ Build **Civic**, a Slovak-first mobile app that lets users see and grow their **
 
 Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**). Every path converts an act of economic value-surrender into the same Merit unit so a single dashboard can show the user's contribution mix.
 
-**v1 implementation strategy:** the **VAT-receipt path is built end-to-end**. The other two paths (charity, volunteer) plus the investment side-path ship as **navigational stubs that hyperlink to existing Rovas project pages** — so the full information architecture is visible to users while the heavier Rovas-side endpoints (charity list, volunteer-report proxy, ME aggregates) are designed in later phases. See §8 for the screen-by-screen v1 status and §14 for the phase plan.
+**v1 implementation strategy:** the **VAT-receipt path is built end-to-end**. The other two paths (charity, volunteer) plus the investment side-path ship as **navigational stubs that hyperlink to existing Rovas project pages** — so the full information architecture is visible to users while the heavier Rovas-side endpoints (charity list, volunteer-report proxy, ME aggregates) are designed in later phases. See §9 for the screen-by-screen v1 status and §15 for the phase plan.
 
 **Out of scope for v1:**
 
@@ -245,7 +254,7 @@ flowchart LR
 ### Caveats
 
 - **Undocumented API** — no official developer program; may change or rate-limit without notice.
-- **Not buyer-bound** — registry confirms the sale happened, not who paid (§10).
+- **Not buyer-bound** — registry confirms the sale happened, not who paid (§11).
 - **Header sensitivity** — bare requests may be WAF-blocked; send `Origin` / `Referer` as OPD portal does.
 
 **Gate:** Phase 1 starts after spike confirms `receipt/find` works for real UIDs and VAT totals are usable.
@@ -274,6 +283,10 @@ Store `hourly_wage_eur` and `formula_version` on each claim for auditability whe
 
 Storage and the `merits` API field keep two decimal places (`round(..., 2)`) for auditability. The mobile UI **always rounds Merit totals and EUR equivalents to whole numbers** when displaying them on screen (home dashboard, profile, community lookup, receipt history ME column, investment yields, etc.). Show units explicitly (`ME`, `€`) rather than implied; per-receipt VAT amounts in EUR keep their original precision because they are actual payments, not equivalents. Investment yields are presented per-year (whole-number ME) rather than fractional per-month.
 
+### Splitting across multiple recipients
+
+When a single receipt is claimed for multiple Rovas users (§7), the **total** is derived from the FS receipt exactly as above; per-share Merits are `floor(total * share_pct / 100, 2)` and any rounding residue is assigned to the scanner so the sum of per-share Merits equals the receipt total exactly. The receipt's `merits` API field always reports that total; per-share amounts live in the `shares[]` response array.
+
 ---
 
 ## 6. Civic API design
@@ -285,18 +298,19 @@ Storage and the `merits` API field keep two decimal places (`round(..., 2)`) for
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
 | POST | `/receipts/verify` | Rovas Bearer optional | Extract UID, call FS `receipt/find`; return verified preview (no grant) |
-| POST | `/receipts/claim` | Rovas Bearer required | Verify, dedup, grant Merits via Rovas, persist claim |
+| POST | `/receipts/claim` | Rovas Bearer required | Verify, dedup, grant Merits via Rovas, persist claim. Body accepts an optional `shares: [{ rovas_uid, share_pct }]` array (defaults to `[{ caller, 100 }]`) — see §7 |
+| GET | `/users/search` | Rovas Bearer required | Typeahead for split-claim recipients (§7). `?q=<≥3 chars>`; returns up to 10 `{ rovas_uid, username, display_name }` rows. Proxies the new Rovas search endpoint (§8c). Separate from `/users/lookup` |
 | GET | `/users/me/summary` | Rovas Bearer required | Total VAT claimed, total ME, receipt count, Rovas profile hint |
-| GET | `/receipts` | Rovas Bearer required | Paginated claim history for authenticated `rovas_uid` |
+| GET | `/receipts` | Rovas Bearer required | Paginated claim history for authenticated `rovas_uid` — returns shares the caller received plus, in a secondary view, receipts they submitted (§7) |
 | GET | `/me/contributions/summary` | Rovas Bearer required | Per-category ME breakdown for screen 0 (taxes, charity, volunteer); v1 reads taxes only — charity/volunteer counts are 0 until those paths ship |
 | GET | `/community/contributions/summary` | Public | Aggregate ME totals + per-category breakdown for the logged-out screen 0 |
-| GET | `/charities/projects` | Public | Proxies the new Rovas charity-projects endpoint (§7c); query param `?type=charity\|invest` differentiates screens 3 and 5; each item carries a canonical `rovas_url` for v1 hyperlink-out |
+| GET | `/charities/projects` | Public | Proxies the new Rovas charity-projects endpoint (§8c); query param `?type=charity\|invest` differentiates screens 3 and 5; each item carries a canonical `rovas_url` for v1 hyperlink-out |
 | GET | `/rank/distribution` | Public (Rovas Bearer optional) | Proxies the existing **Rovas Merit Distribution** module Services endpoint; returns log-scale buckets `[{ label, count }]` for the histogram on screen 0. With a Bearer token, the response also returns `user_bucket_index` so the mobile app can highlight the caller's bucket and label it with their Rovas username |
 | GET | `/users/lookup` | Rovas Bearer required | **Phase 3+ stub** — `?username=<rovas_username>` returns a minimal public profile (`rovas_uid`, `display_name`, totals, percentile) for the Komunita screen. v1 returns 501 Not Implemented |
 
 No local auth endpoints — login happens entirely via Rovas OAuth in the Expo app.
 
-Endpoints marked **stub** in §8 are backed by `/charities/projects`, `/community/contributions/summary`, `/rank/distribution`, and `/users/lookup`. They never write — they only read and forward to Rovas.
+Endpoints marked **stub** in §9 are backed by `/charities/projects`, `/community/contributions/summary`, `/rank/distribution`, and `/users/lookup`. They never write — they only read and forward to Rovas.
 
 ### Claim flow (server-side)
 
@@ -333,23 +347,141 @@ sequenceDiagram
 
 ### Data model (MVP)
 
-**receipt_claims** — id, receipt_uid (UNIQUE globally), rovas_uid, vat_eur, merits_awarded, merchant_name, purchase_at, hourly_wage_eur, formula_version, buyer_identifier (nullable), payment_method (nullable), fs_verified_at, created_at
+**receipt_claims** (one row per receipt) — id, receipt_uid (UNIQUE globally), submitted_by_rovas_uid, vat_eur, total_merits_awarded, merchant_name, purchase_at, hourly_wage_eur, formula_version, buyer_identifier (nullable), payment_method (nullable), fs_verified_at, created_at
 
-**claim_attempts** — id, receipt_uid, rovas_uid, outcome (`claimed` | `duplicate` | `rejected_window` | `rejected_rate` | `error`), created_at — used for strike counting and audit
+**receipt_claim_shares** (one row per beneficiary, ≥ 1 per claim — see §7) — id, claim_id (FK → receipt_claims), beneficiary_rovas_uid, share_pct, merits_awarded, rounding_residue, created_at. UNIQUE (claim_id, beneficiary_rovas_uid). Solo claims still create exactly one share row at 100%.
 
-**user_strikes** — rovas_uid, strike_count, blocked_until (nullable), updated_at — optional; can derive from claim_attempts if preferred
+**claim_attempts** — id, receipt_uid, submitted_by_rovas_uid, outcome (`claimed` | `duplicate` | `rejected_window` | `rejected_rate` | `rejected_shares` | `error`), created_at — used for strike counting and audit. Strikes always attach to the scanner, not to recipients.
 
-Global UNIQUE on `receipt_uid` prevents double-claim across users. Index on `rovas_uid` for history queries.
+**user_strikes** — rovas_uid, strike_count, blocked_until (nullable), updated_at — optional; can derive from claim_attempts if preferred.
 
-No local `users` or `rovas_links` tables — identity comes from the OAuth token.
+Global UNIQUE on `receipt_uid` prevents double-claim across users. Indexes on `submitted_by_rovas_uid` (scanner history) and `receipt_claim_shares.beneficiary_rovas_uid` (per-user "my Merit credits" history).
+
+No local `users` or `rovas_links` tables — identity comes from the OAuth token. The per-device recipient memory for split claims lives only on the client (§7).
 
 ---
 
-## 7. Rovas integration (rovas repo)
+## 7. Receipt sharing (split claims)
+
+**Motivation.** Many real purchases are paid from a shared household budget — one person scans the receipt, but the VAT effectively came from multiple Rovas users (typically a family). v1 makes this explicit: at claim time the scanner can split a receipt's Merits across several Rovas users, instead of forcing a "first to scan keeps everything" race or after-the-fact corrections.
+
+### User flow (screen 2, between verify and claim)
+
+```mermaid
+flowchart LR
+    Verified[Verified receipt<br/>+ Merit preview] --> Default[Default: 100% to scanner<br/>+ always-share recipients]
+    Default --> Add["+ Pridať osobu"]
+    Add --> Search[Search Rovas user]
+    Add --> Recent[Pick from previously-shared list]
+    Search --> Rebalance[Auto equal split]
+    Recent --> Rebalance
+    Rebalance --> Override[Optional: override per row]
+    Override --> Claim[Claim — single FS verify,<br/>atomic multi-beneficiary grant]
+```
+
+Defaults and constraints:
+
+- A fresh scan starts at **100% to the scanner**, plus any **vždy zdieľať** (always share) recipients pre-populated from local memory; the initial split is recalculated to be **equal across all included recipients**.
+- Adding or removing a recipient triggers automatic equal-share recalculation across the new set; users can then override any row. The UI rebalances remaining rows so percentages always sum to 100 within rounding tolerance (server still validates).
+- Each row shows: avatar, Rovas display name + `@username`, share %, remove icon, and — for memorised rows — a **vždy zdieľať** toggle.
+- **The scanner is always included** as one of the recipients in v1 (cannot drop themselves to 0). Pure delegation/transfer of a receipt to other users is out of scope.
+- A claim must have **at least one recipient** (always the scanner in solo mode) and **no duplicate recipients**.
+
+### Recipient discovery
+
+| Source | Behaviour |
+|--------|-----------|
+| **Search** | Autocomplete against `/users/search?q=<prefix>` (≥ 3 chars). Returns up to 10 `{ rovas_uid, username, display_name }` matches. Backed by new Rovas endpoint (§8c). |
+| **Memory (local)** | Recently-selected recipients persisted on-device (e.g. `AsyncStorage`; OAuth tokens still use `expo-secure-store`). Sorted by last-used, capped at ~20 entries; LRU eviction. |
+| **Always-share** | Subset of memory the user has flagged. Auto-included on every new scan (and visible/removable in that scan's split list). Toggling off removes the auto-include but keeps the user in memory. |
+
+Memory is purely client-side in v1 — there is no server-side address book. The server only ever sees the final `shares` array for the claim being submitted. Uninstalling the app erases the memory.
+
+### Split rounding (UI + server)
+
+- UI surfaces whole-percent values to the user, but `share_pct` is stored and transmitted with up to 2 decimal places.
+- Per-share Merit amount: `floor(total_merits * share_pct / 100, 2)`; any **rounding residue is assigned to the scanner** so the sum of per-share Merits equals the receipt total exactly. The residue is recorded on the scanner's share row (`rounding_residue`) for auditability.
+- Server validates `sum(share_pct) == 100 ± 0.01`; otherwise rejects with `rejected_shares` (no Rovas call made).
+
+### API changes (Civic API, §6)
+
+| Method | Path | Change |
+|--------|------|--------|
+| POST | `/receipts/claim` | Body now accepts `shares?: [{ rovas_uid, share_pct }]`. Omitted → defaults to `[{ rovas_uid: caller, share_pct: 100 }]`. Validation: ≥ 1 share, scanner included, distinct `rovas_uid`s, sum ≈ 100. Response now contains `total_merits` plus a `shares[]` array with per-beneficiary `merits_awarded`. |
+| GET | `/users/search` | **New.** Bearer required. `?q=<≥3 chars>` returns up to 10 `{ rovas_uid, username, display_name }` rows. Lightweight typeahead — distinct from the heavier `/users/lookup` (Phase 3+ public-profile endpoint for screen 6). |
+
+### Data model addition (§6)
+
+Receipt persistence becomes parent + children:
+
+- **receipt_claims** — one row per receipt, keyed by `receipt_uid`, owned by `submitted_by_rovas_uid`, with `total_merits_awarded`.
+- **receipt_claim_shares** — one row per beneficiary, FK to claim, with `share_pct`, `merits_awarded`, `rounding_residue`. UNIQUE on `(claim_id, beneficiary_rovas_uid)`. Solo claims still create exactly one share row at 100%.
+
+History queries:
+
+- "Moje merity z bločkov" (Merits I received) = `receipt_claim_shares` joined to `receipt_claims` where `beneficiary_rovas_uid = caller` — shows per-share Merit credit plus the originating receipt and the scanner.
+- "Moje naskenované bločky" (receipts I submitted) = `receipt_claims.submitted_by_rovas_uid = caller` — secondary tab on screen 2.
+
+### Server-side claim flow (amended)
+
+```mermaid
+sequenceDiagram
+    participant App as Expo
+    participant API as CivicAPI
+    participant FS as ekasa.financnasprava.sk
+    participant Rovas as dev.rovas.app
+
+    App->>API: POST /receipts/claim {qr, shares[]}
+    API->>API: validate shares (sum ≈ 100, distinct uids,<br/>scanner included)
+    API->>FS: receipt/find (once)
+    FS-->>API: verified receipt + VAT
+    API->>API: global UID dedup
+    API->>API: compute per-share merits + residue
+    API->>Rovas: rules_proxy_claim_vat_receipt {uid, shares[]}
+    Rovas-->>API: per-beneficiary grant outcomes
+    alt any grant fails
+        API->>API: rollback claim + shares (transaction)
+        API-->>App: 5xx — no partial credit
+    else all granted
+        API->>API: persist claim + shares
+        API-->>App: total_merits + shares[]
+    end
+```
+
+Atomicity is mandatory: either every share gets credited on Rovas and recorded in `receipt_claim_shares`, or nothing does. The Rovas rule must run all `rules_give_merits_to_user` calls inside a single Drupal transaction (§8b).
+
+### Privacy and consent
+
+- v1 treats included recipients as **implicitly consenting** — the canonical use case is family members sharing a household budget, where explicit per-receipt confirmation would be friction without value. Recipients see the Merit credit in their Rovas account and can flag abuse out-of-band.
+- The scanner only sees public Rovas fields (`username`, `display_name`) via `/users/search` — no email, no balance, no contributions.
+- Recipient memory lives only on the scanner's device; uninstalling the app erases it.
+- **Phase 3+:** Rovas-side opt-out preference ("Don't include me in others' split claims"); when set, the user is filtered from `/users/search` results and any submitted claim including them is rejected (`rejected_shares`).
+
+### Fraud impact (cross-reference §11)
+
+- Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to passive recipients.
+- Per-recipient monthly Merit cap (Tier 2) applies to the credited beneficiary, not the scanner — so a scanner cannot dump unlimited Merits onto one recipient.
+- Per-(scanner → recipient) monthly Merit cap (Tier 2) limits how much one user can route to another, deterring Merit-laundering rings. Default is high enough not to interfere with normal family use.
+- Failed share validation increments `claim_attempts` with outcome `rejected_shares`.
+
+### Rovas changes summary (cross-reference §8)
+
+- `rules_proxy_claim_vat_receipt` accepts a `shares` array; loops `rules_give_merits_to_user` atomically per beneficiary; solo claims are just a one-entry array (§8b).
+- New `GET /rovas/users/search?q=` Services endpoint returns minimal public-profile rows for typeahead — separate from the heavier `/users/lookup` planned for Phase 3+ (§8c).
+
+### Phasing
+
+- **Phase 1** — not present (no claim flow yet; verify-preview only).
+- **Phase 2** — ships split claims end-to-end together with the basic claim flow, so v1 production never has a "solo-only" claim phase. Includes Rovas `/users/search`, the multi-beneficiary rule, the `receipt_claim_shares` table, and the mobile split UI on screen 2.
+- **Phase 3** — opt-out preference, server-side address book if user research justifies one, possible recipient-side notifications.
+
+---
+
+## 8. Rovas integration (rovas repo)
 
 Rovas changes fall into two tracks: **OAuth server** (new, for login) and **Merit grant API** (new rule).
 
-### 7a. Rovas OAuth2 server (oauth2_server contrib)
+### 8a. Rovas OAuth2 server (oauth2_server contrib)
 
 Rovas today uses HybridAuth only as an **OAuth client** (login via Google, Facebook, Nabezky, etc.). There is **no OAuth server** in the repo yet.
 
@@ -375,7 +507,7 @@ Add a thin custom module **`rovas_oauth`** (depends on `oauth2_server`) for Rova
 
 **Partner API (`rovas_partner_user`)** remains for other integrations, not Civic login.
 
-### 7b. Merit grant and read APIs
+### 8b. Merit grant and read APIs
 
 | Endpoint | Role |
 |----------|------|
@@ -388,10 +520,15 @@ Dev target: **`https://dev.rovas.app`**
 
 **Logic (summary):**
 
-1. Resolve caller via **OAuth Bearer** (preferred) or legacy API-KEY/TOKEN
+1. Resolve caller (the scanner) via **OAuth Bearer** (preferred) or legacy API-KEY/TOKEN
 2. Reject if `receipt_uid` already in `{civic_claims}` table on Rovas — belt-and-suspenders with API dedup
-3. Compute merits; invoke `rules_give_merits_to_user`
-4. Return `{ merits_awarded, total_merits, result, result_explain }`
+3. Validate the incoming `shares` array (§7): non-empty, distinct `beneficiary_rovas_uid` values, percentages sum to 100 (± rounding tolerance), each beneficiary resolves to a real Rovas user, scanner is included
+4. Compute total merits, then per-share Merit amounts (`floor(total * share_pct / 100, 2)`, scanner absorbs rounding residue)
+5. Inside a single Drupal transaction, invoke `rules_give_merits_to_user` once per beneficiary — **atomic**: any failure rolls the whole claim back so partial Merit credit is impossible
+6. Persist the claim + per-beneficiary rows in `{civic_claims}` / `{civic_claim_shares}`
+7. Return `{ total_merits_awarded, shares: [{ beneficiary_rovas_uid, merits_awarded }], result, result_explain }`
+
+A solo claim is just a shares array of one entry at 100%, so this same code path covers both flows.
 
 **Expose via Services:** `POST /rovas/rules/rules_proxy_claim_vat_receipt`
 
@@ -405,7 +542,7 @@ Dev target: **`https://dev.rovas.app`**
 - Prototype **rovas_oauth** authorize page with Google + Facebook HybridAuth
 - Confirm Bearer token resolves to `rovas_uid` for Services rules
 
-### 7c. Rovas read endpoints used by Civic
+### 8c. Rovas read endpoints used by Civic
 
 Civic's home, earn-hub, and community screens consume read-only signals from Rovas. Some are existing module endpoints we just need to expose / expose-via-Services; others are new and gated behind later phases.
 
@@ -415,6 +552,7 @@ Civic's home, earn-hub, and community screens consume read-only signals from Rov
 | `GET /rovas/projects?type=charity` | Screen 3 (Charitatívne projekty) | Project list with `id, title, organization, summary, rovas_url, currency_amount_collected` | Phase 2 stretch |
 | `GET /rovas/projects?type=invest` | Screen 5 (Investičné projekty) | Same shape; `expected_yield_me_per_month` extension | Phase 2 stretch |
 | `GET /rovas/contributions/aggregate` | Screen 0 logged-out + per-user position calc | `{ total_me, by_category: { taxes, charity, volunteer } }`, plus optional `user_percentile` when called with Bearer | Phase 2 stretch |
+| `GET /rovas/users/search?q=…` | Screen 2 (split-claim recipient picker, §7) | Minimal `[{ rovas_uid, username, display_name }]` for typeahead. `q` ≥ 3 chars, ≤ 10 results, public fields only. Honours per-user "not searchable" preference (Phase 3+). | **Phase 2** — ships with the multi-beneficiary claim rule. Separate from `/users/lookup`. |
 | `GET /rovas/users/lookup?username=…` | Screen 6 (Komunita) | Public-profile shape for a Rovas user: `rovas_uid, display_name, total_me, by_category, percentile, public_projects[]`. Honours each Rovas user's privacy preferences. | **Phase 3+** — implemented later, after the broader v1 ships. |
 | `POST /rovas/rules/rules_proxy_volunteer_report` | Screen 4 (Dobrovoľnícka práca) | Submits a simplified volunteer report (project, date, hours, description) and returns Merit grant outcome | Phase 3 |
 
@@ -430,7 +568,7 @@ Promotion path: when each Rovas endpoint ships, swap the corresponding Civic API
 
 ---
 
-## 8. Expo mobile app
+## 9. Expo mobile app
 
 ### Stack
 
@@ -447,13 +585,13 @@ Slovak labels are the user-facing source of truth (see §3 Language strategy). R
 
 | # | Route | Slovak label (UI) | English (dev) | v1 status |
 |---|-------|-------------------|---------------|-----------|
-| 0 | `/(tabs)/index` | Váš príspevok spoločnosti | Home / contribution dashboard | **Fully built** — logged-in: user ME total (rounded, whole-number) + EUR equivalent + **rank histogram** (sourced from existing Rovas Merit Distribution module, §7c) with the user's bucket highlighted and username labelled + community-position callout (the word "komunite" deep-links to screen 6). Logged-out: aggregate community total + same rank histogram without highlight + sign-in/register CTAs. |
+| 0 | `/(tabs)/index` | Váš príspevok spoločnosti | Home / contribution dashboard | **Fully built** — logged-in: user ME total (rounded, whole-number) + EUR equivalent + **rank histogram** (sourced from existing Rovas Merit Distribution module, §8c) with the user's bucket highlighted and username labelled + community-position callout (the word "komunite" deep-links to screen 6). Logged-out: aggregate community total + same rank histogram without highlight + sign-in/register CTAs. |
 | 1 | `/(tabs)/earn` | Získať merity | Earn hub | **Fully built** — three numbered cards routing to children |
-| 2 | `/(tabs)/earn/receipts` | Bločky | Receipts | **Fully built** — eKasa scan + claim history (the §4 / §6 receipt flow lives here) |
+| 2 | `/(tabs)/earn/receipts` | Bločky | Receipts | **Fully built** — eKasa scan + claim history (the §4 / §6 receipt flow lives here). After verify and before claim, the user can **split the Merits across multiple Rovas users** (§7): the scanner is pre-seeded at 100% plus any "vždy zdieľať" recipients from local memory; recipients are added via a Rovas-user search dialog or picked from a previously-shared list; shares default to equal split with per-row override. History tabs show both "Moje merity z bločkov" (shares the user received) and "Moje naskenované bločky" (receipts the user submitted). |
 | 3 | `/(tabs)/earn/charity` | Charitatívne projekty | Charity projects | **Stub** — list backed by `/charities/projects?type=charity`; each item hyperlinks to `rovas.app/project/<id>` |
-| 4 | `/(tabs)/earn/volunteer` | Dobrovoľnícka práca | Volunteer report | **Stub** — form skeleton mirroring the simplified Rovas form; submit disabled with "coming soon" until §7c proxy ships |
+| 4 | `/(tabs)/earn/volunteer` | Dobrovoľnícka práca | Volunteer report | **Stub** — form skeleton mirroring the simplified Rovas form; submit disabled with "coming soon" until §8c proxy ships |
 | 5 | `/(tabs)/earn/invest` | Investičné projekty | Investment projects | **Stub** — list backed by `/charities/projects?type=invest`; each item hyperlinks to `rovas.app/project/<id>` |
-| 6 | `/(tabs)/community` | Komunita | Community / user lookup by Rovas username | **Stub** — disabled search input + skeleton recents table; promoted in Phase 3+ once `/users/lookup` (§7c) ships |
+| 6 | `/(tabs)/community` | Komunita | Community / user lookup by Rovas username | **Stub** — disabled search input + skeleton recents table; promoted in Phase 3+ once `/users/lookup` (§8c) ships |
 | — | `/(auth)/login` | Prihlásenie | Login | **Fully built** — Rovas OAuth (Google / Facebook / Rovas) |
 | — | `/(auth)/register` | Registrácia | Registration | **Fully built** — same OAuth providers, framed for first-time users; HybridAuth auto-creates the Rovas account |
 | — | `/(tabs)/profile` | Profil | Profile | **Fully built** — Rovas user info, Merit balance, sign out |
@@ -469,7 +607,7 @@ The earn-hub child routes (`/earn/receipts`, `/earn/charity`, `/earn/volunteer`,
 
 ---
 
-## 9. Authentication model
+## 10. Authentication model
 
 **No separate app account.** User identity is the **Rovas user** established through OAuth.
 
@@ -496,7 +634,7 @@ sequenceDiagram
 
 ---
 
-## 10. Receipt fraud mitigation
+## 11. Receipt fraud mitigation
 
 **Threat:** Anyone can pick up a discarded receipt, scan the QR, and claim Merits they did not earn. eKasa receipts are **not inherently buyer-bound** — registry verification proves a sale happened, not who paid.
 
@@ -521,9 +659,10 @@ Phase 0 spike must record which payment/buyer fields appear in FS JSON.
 ### Tier 2 — v1 recommended
 
 - **30-day claim window** from receipt timestamp
-- Rate limits (e.g. 20/day, 200/month)
+- Rate limits (e.g. 20/day, 200/month) — counted **per scanner** (`submitted_by_rovas_uid`)
 - Minimum Rovas account age (24h)
-- Monthly Merit cap
+- Monthly Merit cap — enforced **per recipient** so a scanner cannot dump unlimited Merits onto another user via split claims (§7)
+- Per-(scanner → recipient) monthly Merit cap — extra guard against using split claims as a Merit-laundering channel; default high enough not to interfere with normal family use
 
 ### Tier 3 — v1.1 if spike confirms buyer ID
 
@@ -533,28 +672,36 @@ Phase 0 spike must record which payment/buyer fields appear in FS JSON.
 
 Bank/card matching, geolocation, photo proof, e-receipt to verified email (v2).
 
+### Strike attribution for split claims
+
+Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to passive recipients. A user who simply received a share from someone else's bogus claim is not penalised. The Civic API logs every rejected share-validation outcome (`rejected_shares`) in `claim_attempts` so abuse patterns surface in audit.
+
 ### Testing fraud controls
 
 - [ ] User A claims UID → success; user B → 409
 - [ ] User B × 3 duplicates → block
 - [ ] Receipt older than window → rejected
 - [ ] Daily rate exceeded → rejected
+- [ ] Split claim with shares summing to 99 or 101 → rejected with clear error (no Rovas calls made)
+- [ ] Split claim where one beneficiary fails on Rovas → entire claim rolled back; scanner sees error; no partial Merit credit recorded
 
 ---
 
-## 11. Security and privacy
+## 12. Security and privacy
 
 | Risk | Mitigation |
 |------|------------|
 | OAuth token theft | PKCE, secure-store, short-lived tokens |
-| Trashcan receipt fraud | §10 dedup, strikes, window, rate limits |
+| Trashcan receipt fraud | §11 dedup, strikes, window, rate limits |
 | Fake receipts | FS `receipt/find` must return verified receipt before claim |
 | Merit farming | Monthly cap; server-side VAT-only computation from FS response |
-| GDPR | Claims keyed by `rovas_uid`; privacy policy |
+| Split-claim Merit dumping | Per-recipient + per-(scanner → recipient) monthly caps (§11); recipients always free to flag abuse |
+| Recipient privacy in split-claim search | `/users/search` returns only `username` + `display_name` (no email, no balance); honours per-user "not searchable" preference (Phase 3+); recipient memory is device-local only |
+| GDPR | Claims keyed by `rovas_uid`; privacy policy; split-claim recipient memory stays on the scanner's device |
 
 ---
 
-## 12. Testing strategy
+## 13. Testing strategy
 
 - [x] FS `receipt/find` returns VAT for sample UID
 - [ ] API verify same UID → VAT matches printed receipt
@@ -567,7 +714,7 @@ Bank/card matching, geolocation, photo proof, e-receipt to verified email (v2).
 
 ---
 
-## 13. Deployment (high level)
+## 14. Deployment (high level)
 
 | Component | MVP | Production |
 |-----------|-----|------------|
@@ -578,7 +725,7 @@ Bank/card matching, geolocation, photo proof, e-receipt to verified email (v2).
 
 ---
 
-## 14. Phased delivery
+## 15. Phased delivery
 
 ### Phase 0 — Spikes + mockup approval
 
@@ -586,23 +733,28 @@ Bank/card matching, geolocation, photo proof, e-receipt to verified email (v2).
 - Rovas OAuth + PKCE on dev; register **civic** client
 - Hourly wage source chosen
 - 6-screen mockup reviewed against the user-supplied Slovak outline (`mocs/civic-mockup.canvas.tsx`)
+- Split-claim sub-screens added to the mockup (recipient picker, search dialog, memory list, share editor with auto-rebalance) and signed off (§7)
 
-**Exit gate:** Receipt UID verifies via `receipt/find`; OAuth returns usable Bearer token; mockup signed off.
+**Exit gate:** Receipt UID verifies via `receipt/find`; OAuth returns usable Bearer token; mockup signed off including split-claim flow.
 
 ### Phase 1 — Navigational shell + verify-preview
 
 - Scaffold **civic** monorepo and locale files (`sk` primary, `en` fallback)
-- All 6 screens from §8 ship in the Expo app:
+- All 6 screens from §9 ship in the Expo app:
   - Screens 0, 1, 2 are fully built against live data
-  - Screens 3, 4, 5 ship as **stubs** with the static curated project list (§7c) and the disabled volunteer form
+  - Screens 3, 4, 5 ship as **stubs** with the static curated project list (§8c) and the disabled volunteer form
 - API: `/receipts/verify`, `/me/contributions/summary` (taxes-only), `/community/contributions/summary` (placeholder), `/charities/projects` (static config)
 - No claim or OAuth yet — preview only
 
-### Phase 2 — Rovas Merits + OAuth
+### Phase 2 — Rovas Merits + OAuth + split claims
 
 - OAuth server, claim rule, fraud controls, Expo login + claim
-- `/me/contributions/summary` reads real Merit history per category
-- **Stretch:** if the new Rovas read endpoints from §7c land, swap `/charities/projects` and `/community/contributions/summary` from static config to live proxies
+- **Split claims (§7) ship end-to-end in this phase** so v1 never has a "solo-only" production claim flow:
+  - Rovas: `rules_proxy_claim_vat_receipt` accepts a `shares` array atomically; new `GET /rovas/users/search` Services endpoint exposed
+  - Civic API: `POST /receipts/claim` accepts `shares`; `GET /users/search` proxies the Rovas search; `receipt_claim_shares` table added; per-recipient and per-(scanner → recipient) caps enforced
+  - Mobile: screen 2 split UI (search, memory, always-share toggle, default equal split with override, auto-rebalance, sum-to-100 validation); history split into "received Merits" vs "submitted receipts"
+- `/me/contributions/summary` reads real Merit history per category, aggregating across received shares
+- **Stretch:** if the new Rovas read endpoints from §8c land, swap `/charities/projects` and `/community/contributions/summary` from static config to live proxies
 
 ### Phase 3 — Polish + stores + stub promotion
 
@@ -611,23 +763,24 @@ Bank/card matching, geolocation, photo proof, e-receipt to verified email (v2).
 
 ---
 
-## 15. What we defer
+## 16. What we defer
 
 - Bank/card matching, offline OKP receipts, buyer-ID binding until spike confirms fields
 - Auto-deduct Merits as fraud punishment, slovensko.sk login, Merit leaderboard in app
 
 ---
 
-## 16. Approval checklist
+## 17. Approval checklist
 
 1. Plan scope approved
 2. Hourly wage basis for Merit formula
 3. OAuth providers: Google + Facebook + Drupal login
 4. FS lookup via undocumented `receipt/find` API — acceptable for v1 (see §4)
 5. Fraud defaults: 30d window, daily limits, 3-strike block duration
-6. Three-path framing approved — receipts only fully built in v1; charity / volunteer / invest ship as Rovas-hyperlink stubs (§7c, §8)
+6. Three-path framing approved — receipts only fully built in v1; charity / volunteer / invest ship as Rovas-hyperlink stubs (§8c, §9)
 7. Slovak primary / English secondary i18n strategy approved (§3 Language strategy)
 8. 6-screen mockup at `mocs/civic-mockup.canvas.tsx` reviewed and signed off
+9. Split-claims approved (§7): scanner is always included; default equal share with override; client-side recipient memory with optional "vždy zdieľať"; atomic multi-beneficiary claim; per-recipient + per-(scanner → recipient) monthly Merit caps
 
 ---
 
