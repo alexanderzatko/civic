@@ -12,6 +12,8 @@ Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**).
 
 > **Status:** Pre-implementation. The repository currently holds the plan, brand identity, and UI mockups. No application code yet.
 
+> **NeoFund docs:** When writing product copy or defining Merits, Chrons, funds, or volunteer flows, consult the **NeoFund f.o.** project documentation at [`~/Documents/Business/NeoFund_NP`](../../Business/NeoFund_NP) — especially [`glossary.md`](../../Business/NeoFund_NP/glossary.md), [`about-us.md`](../../Business/NeoFund_NP/about-us.md) / [`about-us-sk.md`](../../Business/NeoFund_NP/about-us-sk.md), and [`neofund-site-rewrite-brief.md`](../../Business/NeoFund_NP/neofund-site-rewrite-brief.md). Those definitions take precedence over older Rovas UI strings.
+
 ## Repository layout
 
 | Path | Contents |

@@ -12,7 +12,7 @@ todos:
     content: "Spike: confirm FS receipt/find contract on real UIDs; document error notifications in ekasa-receipt-api.md"
     status: pending
   - id: fraud-mitigation-v1
-    content: "Implement v1 fraud controls: global UID dedup, claim_attempts log, 3-strike policy, claim window + rate limits"
+    content: "Implement v1 fraud controls: global UID dedup, claim_attempts log, 3-strike policy, claim window + rate limits, location travel-consistency heuristics"
     status: pending
   - id: spike-rovas-oauth
     content: "Spike: install oauth2_server contrib on dev; verify PKCE (patch drupal.org#3015065 if needed); register civic OAuth client; HybridAuth on authorize page"
@@ -250,6 +250,7 @@ flowchart LR
 2. Map `notification` values when `receipt` is null (offline pending, not found, etc.).
 3. Confirm VAT recap handling when summary rows are incomplete (FS notice re Jan 2025 DPH rates).
 4. Test WAF behaviour from Civic API server IP; document required headers.
+5. Record merchant address fields in FS JSON (`organization` name, street, city) for merchant-proximity geocoding (§11).
 
 ### Caveats
 
@@ -297,8 +298,8 @@ When a single receipt is claimed for multiple Rovas users (§7), the **total** i
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| POST | `/receipts/verify` | Rovas Bearer optional | Extract UID, call FS `receipt/find`; return verified preview (no grant) |
-| POST | `/receipts/claim` | Rovas Bearer required | Verify, dedup, grant Merits via Rovas, persist claim. Body accepts an optional `shares: [{ rovas_uid, share_pct }]` array (defaults to `[{ caller, 100 }]`) — see §7 |
+| POST | `/receipts/verify` | Rovas Bearer optional | Extract UID, call FS `receipt/find`; return verified preview (no grant). Optional `location` in body — stored ephemerally (session/cache) for verify→claim drift check (§11) |
+| POST | `/receipts/claim` | Rovas Bearer required | Verify, dedup, location + heuristic fraud checks (§11), grant Merits via Rovas, persist claim. Body: `qr_or_uid`, optional `shares[]`, required `location: { lat, lng, accuracy_m? }` from device GPS at claim time — see §7 |
 | GET | `/users/search` | Rovas Bearer required | Typeahead for split-claim recipients (§7). `?q=<≥3 chars>`; returns up to 10 `{ rovas_uid, username, display_name }` rows. Proxies the new Rovas search endpoint (§8c). Separate from `/users/lookup` |
 | GET | `/users/me/summary` | Rovas Bearer required | Total VAT claimed, total ME, receipt count, Rovas profile hint |
 | GET | `/receipts` | Rovas Bearer required | Paginated claim history for authenticated `rovas_uid` — returns shares the caller received plus, in a secondary view, receipts they submitted (§7) |
@@ -322,7 +323,7 @@ sequenceDiagram
     participant DB as DedupDB
     participant Rovas as dev.rovas.app
 
-    App->>API: POST /receipts/claim {qr_or_uid}<br/>Authorization Bearer rovas_token
+    App->>API: POST /receipts/claim {qr_or_uid, location}<br/>Authorization Bearer rovas_token
     API->>Rovas: introspect or validate JWT
     Rovas-->>API: rovas_uid
     API->>API: parse QR → receiptId
@@ -331,27 +332,32 @@ sequenceDiagram
     alt not verified
         API-->>App: 404 or 422 Receipt not found
     else verified
-        API->>DB: INSERT uid IF NOT EXISTS
-        alt uid already claimed
-            DB-->>API: conflict
-            API-->>App: 409 Already claimed
-        else new uid
-            API->>API: compute merits
-            API->>Rovas: POST rules_proxy_claim_vat_receipt<br/>Bearer same token
-            Rovas-->>API: merits_awarded, total_merits
-            API->>DB: save claim record
-            API-->>App: success + balance
+        API->>API: location + heuristic fraud checks (§11)
+        alt rejected (travel / merchant / etc.)
+            API-->>App: 422 Fraud check failed
+        else passed checks
+            API->>DB: INSERT uid IF NOT EXISTS
+            alt uid already claimed
+                DB-->>API: conflict
+                API-->>App: 409 Already claimed
+            else new uid
+                API->>API: compute merits
+                API->>Rovas: POST rules_proxy_claim_vat_receipt<br/>Bearer same token
+                Rovas-->>API: merits_awarded, total_merits
+                API->>DB: save claim record
+                API-->>App: success + balance
+            end
         end
     end
 ```
 
 ### Data model (MVP)
 
-**receipt_claims** (one row per receipt) — id, receipt_uid (UNIQUE globally), submitted_by_rovas_uid, vat_eur, total_merits_awarded, merchant_name, purchase_at, hourly_wage_eur, formula_version, buyer_identifier (nullable), payment_method (nullable), fs_verified_at, created_at
+**receipt_claims** (one row per receipt) — id, receipt_uid (UNIQUE globally), submitted_by_rovas_uid, vat_eur, total_merits_awarded, merchant_name, purchase_at, hourly_wage_eur, formula_version, buyer_identifier (nullable), payment_method (nullable), fs_verified_at, claim_lat (nullable), claim_lng (nullable), claim_location_accuracy_m (nullable), created_at
 
 **receipt_claim_shares** (one row per beneficiary, ≥ 1 per claim — see §7) — id, claim_id (FK → receipt_claims), beneficiary_rovas_uid, share_pct, merits_awarded, rounding_residue, created_at. UNIQUE (claim_id, beneficiary_rovas_uid). Solo claims still create exactly one share row at 100%.
 
-**claim_attempts** — id, receipt_uid, submitted_by_rovas_uid, outcome (`claimed` | `duplicate` | `rejected_window` | `rejected_rate` | `rejected_shares` | `error`), created_at — used for strike counting and audit. Strikes always attach to the scanner, not to recipients.
+**claim_attempts** — id, receipt_uid, submitted_by_rovas_uid, outcome (`claimed` | `duplicate` | `rejected_window` | `rejected_rate` | `rejected_shares` | `rejected_location` | `rejected_merchant_distance` | `rejected_future_receipt` | `rejected_scan_lag` | `error`), claim_lat (nullable), claim_lng (nullable), created_at — used for strike counting and audit. Strikes always attach to the scanner, not to recipients.
 
 **user_strikes** — rovas_uid, strike_count, blocked_until (nullable), updated_at — optional; can derive from claim_attempts if preferred.
 
@@ -463,6 +469,7 @@ Atomicity is mandatory: either every share gets credited on Rovas and recorded i
 - Per-recipient monthly Merit cap (Tier 2) applies to the credited beneficiary, not the scanner — so a scanner cannot dump unlimited Merits onto one recipient.
 - Per-(scanner → recipient) monthly Merit cap (Tier 2) limits how much one user can route to another, deterring Merit-laundering rings. Default is high enough not to interfere with normal family use.
 - Failed share validation increments `claim_attempts` with outcome `rejected_shares`.
+- Location and heuristic rejections (`rejected_location`, `rejected_merchant_distance`, etc.) attach to the scanner; see §11.
 
 ### Rovas changes summary (cross-reference §8)
 
@@ -550,6 +557,7 @@ Civic's home, earn-hub, and community screens consume read-only signals from Rov
 |-------------------------|------------------------|---------|--------|
 | `GET /rovas/merit_distribution` | Screen 0 (rank histogram) | Log-scale buckets `[{ label, count }]` for global Merit balance distribution; with auth, includes `user_bucket_index` so the highlighted bar and username label can be drawn | **Existing** — produced by the **Rovas Merit Distribution** module already in production. v1 just needs Services-Bearer auth confirmed and Civic API proxying. |
 | `GET /rovas/projects?type=charity` | Screen 3 (Charitatívne projekty) | Project list with `id, title, organization, summary, rovas_url, currency_amount_collected` | Phase 2 stretch |
+| Rovas page `/charity-projects` | Screen 3 (invite form) | Public instructions for charities on how to create a Rovas project; linked from the preset invite e-mail and the intro copy above the invitation form | **Rovas TODO** — page does not exist yet; create on `rovas.app` before the invite flow ships |
 | `GET /rovas/projects?type=invest` | Screen 5 (Investičné projekty) | Same shape; `expected_yield_me_per_month` extension | Phase 2 stretch |
 | `GET /rovas/contributions/aggregate` | Screen 0 logged-out + per-user position calc | `{ total_me, by_category: { taxes, charity, volunteer } }`, plus optional `user_percentile` when called with Bearer | Phase 2 stretch |
 | `GET /rovas/users/search?q=…` | Screen 2 (split-claim recipient picker, §7) | Minimal `[{ rovas_uid, username, display_name }]` for typeahead. `q` ≥ 3 chars, ≤ 10 results, public fields only. Honours per-user "not searchable" preference (Phase 3+). | **Phase 2** — ships with the multi-beneficiary claim rule. Separate from `/users/lookup`. |
@@ -560,6 +568,7 @@ Civic's home, earn-hub, and community screens consume read-only signals from Rov
 
 - **Screen 0 (rank histogram)** — calls the existing Merit Distribution endpoint via Civic API on day one. This is the only stub-related Rovas endpoint that already exists; no Phase-2 swap needed.
 - Screens 3 and 5 render a **statically curated** list (in Civic API config) of 4–6 hand-picked Rovas project URLs and just hyperlink out.
+- Screen 3 also ships an **invite-organisation** e-mail form (mockup: collapsible card below the list). The preset body and intro copy link to **`https://rovas.app/charity-projects`** — that Rovas landing page must be created (see §8c table row).
 - Screen 0 logged-out shows a placeholder community total (or hides the aggregate block) until the aggregate endpoint lands.
 - Screen 4 disables submit and shows a "coming soon" notice with a link to the existing Rovas form.
 - **Screen 6 (Komunita)** — disabled search input + skeleton recent-profiles table. Civic API returns `501` for `/users/lookup`. Promoted in Phase 3+ once the Rovas username-lookup endpoint exists.
@@ -575,6 +584,7 @@ Promotion path: when each Rovas endpoint ships, swap the corresponding Civic API
 - **Expo SDK 52+** with Expo Router
 - **TypeScript**
 - **expo-camera** (barcode scanning)
+- **expo-location** — foreground GPS at claim time (required permission; §11 travel-consistency checks)
 - **expo-secure-store** for Rovas OAuth tokens
 - **expo-auth-session** — Authorization Code + PKCE
 - **i18n:** Slovak primary, English secondary
@@ -588,7 +598,7 @@ Slovak labels are the user-facing source of truth (see §3 Language strategy). R
 | 0 | `/(tabs)/index` | Váš príspevok spoločnosti | Home / contribution dashboard | **Fully built** — logged-in: user ME total (rounded, whole-number) + EUR equivalent + **rank histogram** (sourced from existing Rovas Merit Distribution module, §8c) with the user's bucket highlighted and username labelled + community-position callout (the word "komunite" deep-links to screen 6). Logged-out: aggregate community total + same rank histogram without highlight + sign-in/register CTAs. |
 | 1 | `/(tabs)/earn` | Získať merity | Earn hub | **Fully built** — three numbered cards routing to children |
 | 2 | `/(tabs)/earn/receipts` | Bločky | Receipts | **Fully built** — eKasa scan + claim history (the §4 / §6 receipt flow lives here). After verify and before claim, the user can **split the Merits across multiple Rovas users** (§7): the scanner is pre-seeded at 100% plus any "vždy zdieľať" recipients from local memory; recipients are added via a Rovas-user search dialog or picked from a previously-shared list; shares default to equal split with per-row override. History tabs show both "Moje merity z bločkov" (shares the user received) and "Moje naskenované bločky" (receipts the user submitted). |
-| 3 | `/(tabs)/earn/charity` | Charitatívne projekty | Charity projects | **Stub** — list backed by `/charities/projects?type=charity`; each item hyperlinks to `rovas.app/project/<id>` |
+| 3 | `/(tabs)/earn/charity` | Charitatívne projekty | Charity projects | **Stub** — list backed by `/charities/projects?type=charity`; each item hyperlinks to `rovas.app/project/<id>`; invite form below the list links to `rovas.app/charity-projects` (Rovas page **TODO**) |
 | 4 | `/(tabs)/earn/volunteer` | Dobrovoľnícka práca | Volunteer report | **Stub** — form skeleton mirroring the simplified Rovas form; submit disabled with "coming soon" until §8c proxy ships |
 | 5 | `/(tabs)/earn/invest` | Investičné projekty | Investment projects | **Stub** — list backed by `/charities/projects?type=invest`; each item hyperlinks to `rovas.app/project/<id>` |
 | 6 | `/(tabs)/community` | Komunita | Community / user lookup by Rovas username | **Stub** — disabled search input + skeleton recents table; promoted in Phase 3+ once `/users/lookup` (§8c) ships |
@@ -645,10 +655,11 @@ sequenceDiagram
 | Receipt UID (`O-…`) | QR + FS response | Dedup only |
 | VAT total | FS `receipt/find` | Registry-verified |
 | Date/time, merchant | FS response | Heuristics only |
+| Merchant address / org metadata | FS `organization` when present | Geofence heuristics (§11) |
 | Payment method | FS `receipt.payments` when present | **No** — not linked to a person |
 | **customerId** | FS response when buyer ID provided at sale | **Yes when present**, rare in retail |
 
-Phase 0 spike must record which payment/buyer fields appear in FS JSON.
+Phase 0 spike must record which payment/buyer fields appear in FS JSON, and whether merchant street/city/coordinates are present or geocodable.
 
 ### Tier 1 — v1 mandatory
 
@@ -663,18 +674,82 @@ Phase 0 spike must record which payment/buyer fields appear in FS JSON.
 - Minimum Rovas account age (24h)
 - Monthly Merit cap — enforced **per recipient** so a scanner cannot dump unlimited Merits onto another user via split claims (§7)
 - Per-(scanner → recipient) monthly Merit cap — extra guard against using split claims as a Merit-laundering channel; default high enough not to interfere with normal family use
+- **Location-based travel consistency** — see below
+- **Additional low-hanging heuristic checks** — see below
+
+### Location-based travel consistency (v1 — simple heuristics)
+
+**Goal:** Reject claims when the scanner's device location at claim time is **inconsistent with physically reaching prior claimed receipts** using normal ground transport in the elapsed time between receipt timestamps. This targets trashcan-receipt farming (someone collecting slips far from where they actually shop) and bulk forwarding of receipt photos.
+
+**Data captured at claim time (required in v1):**
+
+- Expo requests foreground location permission before the first claim; `POST /receipts/claim` includes `location: { lat, lng, accuracy_m? }`.
+- Persist `claim_lat`, `claim_lng`, `claim_location_accuracy_m` on `receipt_claims` and on every `claim_attempts` row (including rejections).
+- Use FS `purchase_at` (receipt issue time) as the temporal anchor — not scan/claim wall-clock time — so a user can scan an old slip later without false positives, as long as their *chain* of receipts remains geographically plausible.
+
+**v1 algorithm (per scanner, on each new claim):**
+
+1. Load the scanner's **prior successful claims** ordered by `purchase_at` (most recent first; cap lookback e.g. 90 days or last 50 claims for performance).
+2. For each prior claim with stored coordinates, compute:
+   - `Δt_hours` = absolute difference between the two receipts' `purchase_at` values (minimum 15 minutes floor to avoid divide-by-zero noise on same-minute purchases).
+   - `distance_km` = haversine distance between `(claim_lat, claim_lng)` pairs.
+   - `max_plausible_km` = `Δt_hours × MAX_GROUND_SPEED_KMH` + `LOCATION_BUFFER_KM`.
+3. If **any** pairwise check fails (`distance_km > max_plausible_km`), reject with outcome `rejected_location` and a user-facing message (SK): location inconsistent with prior receipts — no Rovas grant.
+4. **First claim** for a user skips the travel check (no prior anchor). **Missing/unusable GPS** (permission denied, accuracy worse than e.g. 500 m, or `(0,0)`) → reject claim in v1 rather than silently skipping — location is part of the trust model.
+
+**v1 defaults (env-configurable, tune after beta):**
+
+| Parameter | Default | Rationale |
+|-----------|---------|-----------|
+| `MAX_GROUND_SPEED_KMH` | `100` | Generous ceiling for car/bus on SK highways; intentionally excludes air travel as "normal" |
+| `LOCATION_BUFFER_KM` | `25` | Absorbs GPS error, parking vs shop offset, dense urban cores |
+| `MIN_DELTA_T_HOURS` | `0.25` | Same-hour shopping trips at nearby malls |
+| Travel lookback | 90 days / 50 claims | Bounded query cost |
+
+**What v1 explicitly does *not* do:** reverse-geocode merchants, detect mock-location apps, or require the user to be near the merchant at scan time (that's a separate low-hanging check below). v1.1 can tighten speed caps for cross-border receipts, add merchant geofencing, and flag statistically impossible claim chains.
+
+```mermaid
+flowchart TD
+    Claim[POST /receipts/claim + GPS] --> HasPrior{Prior claims<br/>with coords?}
+    HasPrior -->|No| Pass[Travel check pass]
+    HasPrior -->|Yes| Loop[For each prior receipt<br/>by purchase_at]
+    Loop --> Calc["Δt = |purchase_at_new − purchase_at_prior|<br/>dist = haversine(loc_new, loc_prior)"]
+    Calc --> Ok{dist ≤ Δt × speed + buffer?}
+    Ok -->|All pass| Pass
+    Ok -->|Any fail| Reject[rejected_location]
+    Pass --> Other[Other heuristic checks §11]
+    Other --> Grant[FS verify + dedup + Rovas grant]
+```
+
+### Additional low-hanging fruit checks (v1 recommended)
+
+Cheap server-side rules that complement location and dedup. Implement in Phase 2 alongside travel consistency; all log to `claim_attempts` with distinct outcomes.
+
+| Check | Rule (v1 default) | Outcome | Rationale |
+|-------|-------------------|---------|-----------|
+| **Merchant proximity at claim** | If FS returns merchant street/city (or Phase 0 geocode cache hit), reject when claim GPS is **> 50 km** from merchant | `rejected_merchant_distance` | Catches scanning a Bratislava slip from Košice — classic trashcan fraud |
+| **Future receipt timestamp** | Reject when `purchase_at > now + 5 min` clock skew | `rejected_future_receipt` | Trivial sanity check |
+| **Stale scan lag** | Reject when `now − purchase_at > 30 days` (same as claim window) | `rejected_window` | Already in Tier 2; enforce on both receipt time and scan time |
+| **Impossible same-day burst** | > 10 successful claims in any rolling 60 minutes **and** pairwise max speed exceeded between consecutive claims by `purchase_at` | `rejected_location` | Stops scripted bulk uploads even when individual pairs might slip through |
+| **Duplicate merchant same hour** | Flag (v1: log only; v1.1: soft reject) when same `merchant_name` + same scanner + `purchase_at` within 30 min | audit flag | Legitimate for repeat coffee runs; useful for manual review |
+| **Verify → claim location drift** | If `/receipts/verify` also sends location and claim is **> 100 km** away within 30 minutes | `rejected_location` | Detects verify-once, claim-from-elsewhere relay attacks |
+| **Minimum receipt VAT** | Reject claims below e.g. **€0.01 VAT** (config) | `rejected_rate` or new `rejected_trivial` | Blocks zero-value noise farming |
+
+**Deferred (not v1):** mock-GPS / root detection, photo-of-receipt proof, device attestation, IP-only geolocation (too coarse), bank/card matching, buyer-ID binding until spike confirms fields.
 
 ### Tier 3 — v1.1 if spike confirms buyer ID
 
 - Bind claims to `customerId` when present on FS response
+- Tighten merchant geofencing using a cached geocode table built from FS `organization` fields
+- Promote duplicate-merchant-same-hour from audit flag to soft reject with override
 
 ### Tier 4 — deferred
 
-Bank/card matching, geolocation, photo proof, e-receipt to verified email (v2).
+Bank/card matching, photo proof, e-receipt to verified email, on-device mock-location detection (v2).
 
 ### Strike attribution for split claims
 
-Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to passive recipients. A user who simply received a share from someone else's bogus claim is not penalised. The Civic API logs every rejected share-validation outcome (`rejected_shares`) in `claim_attempts` so abuse patterns surface in audit.
+Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to passive recipients. A user who simply received a share from someone else's bogus claim is not penalised. The Civic API logs every rejected share-validation outcome (`rejected_shares`) and location/heuristic rejections in `claim_attempts` so abuse patterns surface in audit.
 
 ### Testing fraud controls
 
@@ -684,6 +759,12 @@ Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to pa
 - [ ] Daily rate exceeded → rejected
 - [ ] Split claim with shares summing to 99 or 101 → rejected with clear error (no Rovas calls made)
 - [ ] Split claim where one beneficiary fails on Rovas → entire claim rolled back; scanner sees error; no partial Merit credit recorded
+- [ ] Claim without GPS permission / bad accuracy → rejected (`rejected_location` or dedicated missing-location code)
+- [ ] Two receipts 200 km apart with `purchase_at` 1 hour apart → second claim rejected (`rejected_location`)
+- [ ] Same user, receipts 200 km apart with `purchase_at` 3 hours apart → allowed (within 100 km/h + buffer)
+- [ ] First-ever claim with valid GPS → allowed (no prior anchor)
+- [ ] Claim GPS > 50 km from geocoded merchant → rejected (`rejected_merchant_distance`)
+- [ ] Receipt with `purchase_at` in the future → rejected (`rejected_future_receipt`)
 
 ---
 
@@ -692,7 +773,7 @@ Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to pa
 | Risk | Mitigation |
 |------|------------|
 | OAuth token theft | PKCE, secure-store, short-lived tokens |
-| Trashcan receipt fraud | §11 dedup, strikes, window, rate limits |
+| Trashcan receipt fraud | §11 dedup, strikes, window, rate limits, travel-consistency GPS, merchant proximity |
 | Fake receipts | FS `receipt/find` must return verified receipt before claim |
 | Merit farming | Monthly cap; server-side VAT-only computation from FS response |
 | Split-claim Merit dumping | Per-recipient + per-(scanner → recipient) monthly caps (§11); recipients always free to flag abuse |
@@ -751,10 +832,12 @@ Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to pa
 - OAuth server, claim rule, fraud controls, Expo login + claim
 - **Split claims (§7) ship end-to-end in this phase** so v1 never has a "solo-only" production claim flow:
   - Rovas: `rules_proxy_claim_vat_receipt` accepts a `shares` array atomically; new `GET /rovas/users/search` Services endpoint exposed
-  - Civic API: `POST /receipts/claim` accepts `shares`; `GET /users/search` proxies the Rovas search; `receipt_claim_shares` table added; per-recipient and per-(scanner → recipient) caps enforced
+  - Civic API: `POST /receipts/claim` accepts `shares` + device `location`; `GET /users/search` proxies the Rovas search; `receipt_claim_shares` table added; per-recipient and per-(scanner → recipient) caps enforced; travel-consistency + merchant-proximity heuristics (§11)
+  - Mobile: location permission prompt before first claim; GPS attached to verify + claim requests
   - Mobile: screen 2 split UI (search, memory, always-share toggle, default equal split with override, auto-rebalance, sum-to-100 validation); history split into "received Merits" vs "submitted receipts"
 - `/me/contributions/summary` reads real Merit history per category, aggregating across received shares
 - **Stretch:** if the new Rovas read endpoints from §8c land, swap `/charities/projects` and `/community/contributions/summary` from static config to live proxies
+- **Rovas:** create the public `/charity-projects` page linked from screen 3's invite-organisation e-mail template
 
 ### Phase 3 — Polish + stores + stub promotion
 
@@ -765,7 +848,7 @@ Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to pa
 
 ## 16. What we defer
 
-- Bank/card matching, offline OKP receipts, buyer-ID binding until spike confirms fields
+- Bank/card matching, offline OKP receipts, buyer-ID binding until spike confirms fields, mock-GPS detection
 - Auto-deduct Merits as fraud punishment, slovensko.sk login, Merit leaderboard in app
 
 ---
@@ -776,7 +859,7 @@ Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to pa
 2. Hourly wage basis for Merit formula
 3. OAuth providers: Google + Facebook + Drupal login
 4. FS lookup via undocumented `receipt/find` API — acceptable for v1 (see §4)
-5. Fraud defaults: 30d window, daily limits, 3-strike block duration
+5. Fraud defaults: 30d window, daily limits, 3-strike block duration, location travel-consistency (`MAX_GROUND_SPEED_KMH=100`, `LOCATION_BUFFER_KM=25`), merchant proximity 50 km
 6. Three-path framing approved — receipts only fully built in v1; charity / volunteer / invest ship as Rovas-hyperlink stubs (§8c, §9)
 7. Slovak primary / English secondary i18n strategy approved (§3 Language strategy)
 8. 6-screen mockup at `mocs/civic-mockup.canvas.tsx` reviewed and signed off

@@ -1,0 +1,24 @@
+{
+  "name": "civic-mock",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "prebuild": "cp ../../mocs/civic-mockup.canvas.tsx src/CivicMockup.tsx",
+    "dev": "npm run prebuild && vite",
+    "build": "npm run prebuild && tsc -b && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && tar czf /tmp/civic-mock-dist.tar.gz -C dist . && scp /tmp/civic-mock-dist.tar.gz sano-vps:/tmp/ && ssh sano-vps \"rm -rf /var/www/civic-mock/* && tar xzf /tmp/civic-mock-dist.tar.gz -C /var/www/civic-mock && chown -R www-data:www-data /var/www/civic-mock && rm /tmp/civic-mock-dist.tar.gz\""
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}
