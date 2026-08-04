@@ -4,10 +4,10 @@ overview: Plan for Civic — a Slovak-first mobile contribution hub (Expo) + API
 todos:
   - id: plan-approval
     content: Review and approve this plan (hourly wage source, FS lookup approach, fraud defaults)
-    status: pending
+    status: completed
   - id: mockup-review
     content: "Review 6-screen Slovak mockup at mocs/civic-mockup.canvas.tsx; sign off IA + copy before scaffolding"
-    status: pending
+    status: completed
   - id: spike-ekasa-api
     content: "Spike: confirm FS receipt/find contract on real UIDs; document error notifications in ekasa-receipt-api.md"
     status: pending
@@ -22,22 +22,22 @@ todos:
     status: pending
   - id: scaffold-civic-repo
     content: "Scaffold civic monorepo with pnpm workspaces: apps/mobile, services/api, packages/shared"
-    status: pending
+    status: completed
   - id: phase1-verify-preview
     content: "Phase 1: navigational shell for screens 0/1/3/4/5 + Expo scan + API verify + Merit preview (no Rovas grant yet)"
-    status: pending
+    status: in_progress
   - id: phase2-rovas-grant
     content: "Phase 2: rules_proxy_claim_vat_receipt + OAuth login in Expo + API claim flow on dev.rovas.app"
     status: pending
   - id: receipt-sharing-design
     content: "Approve split-claims UX (search, memory, always-share, default equal split, override) and atomic multi-beneficiary claim contract — see §7"
-    status: pending
+    status: completed
   - id: receipt-sharing-impl
     content: "Phase 2: ship split-claims end-to-end — /users/search + claim shares array + receipt_claim_shares table + multi-beneficiary rules_proxy_claim_vat_receipt + mobile split UI on screen 2"
     status: pending
   - id: mockup-split-claims
     content: "Extend mocs/civic-mockup.canvas.tsx with the split-claims sub-screens (recipient picker, search, memory list, share editor) before Phase 2 starts"
-    status: pending
+    status: completed
   - id: phase3-polish-deploy
     content: "Phase 3: history dashboard, SK i18n, API deployment, EAS store prep"
     status: pending
@@ -45,7 +45,7 @@ todos:
 
 # Civic — Pre-Implementation Plan
 
-**Status:** Planning only — no implementation until approved.
+**Status:** Approved — Phase 1 implementation in progress. Wage basis: **net** (see `packages/shared/src/settings.ts`).
 
 **Project root:** `/Users/sano/Documents/homeProjects/civic`
 
@@ -74,6 +74,7 @@ Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**). 
 - Tax refunds or legal tax advice
 - Native in-app charity donation flow (v1 hyperlinks to Rovas)
 - Native in-app volunteer-report submission (v1 hyperlinks to Rovas)
+- Cross-path **Merit acquisition history** (full ledger of where/when/how much ME was earned — see §16)
 
 **Future (not planned here):** donation receipts, eFaktúra B2B (2027+), bank estimates as non-Merit dashboard, in-app investment flow with auto-Merit yield.
 
@@ -278,7 +279,7 @@ merits = round((vat_eur / hourly_wage_eur) * 10, 2)
 
 Store `hourly_wage_eur` and `formula_version` on each claim for auditability when the rate changes annually.
 
-**Open decision:** gross vs net hourly wage — pick one before launch and document in app FAQ.
+**Decision (2026-08):** use **net** hourly wage. Default and overrides live in `packages/shared/src/settings.ts` / `HOURLY_WAGE_EUR` env. Document the basis in the app FAQ at launch.
 
 ### Display rounding (UI rule)
 
@@ -604,7 +605,7 @@ Slovak labels are the user-facing source of truth (see §3 Language strategy). R
 | 6 | `/(tabs)/community` | Komunita | Community / user lookup by Rovas username | **Stub** — disabled search input + skeleton recents table; promoted in Phase 3+ once `/users/lookup` (§8c) ships |
 | — | `/(auth)/login` | Prihlásenie | Login | **Fully built** — Rovas OAuth (Google / Facebook / Rovas) |
 | — | `/(auth)/register` | Registrácia | Registration | **Fully built** — same OAuth providers, framed for first-time users; HybridAuth auto-creates the Rovas account |
-| — | `/(tabs)/profile` | Profil | Profile | **Fully built** — Rovas user info, Merit balance, sign out |
+| — | `/(tabs)/profile` | Profil | Profile | **Fully built** — Rovas user info, Merit balance, sign out. **Post-v1:** entry point to a Merit acquisition history screen (§16) — parity with the Rovas user-profile Merit ledger |
 
 The earn-hub child routes (`/earn/receipts`, `/earn/charity`, `/earn/volunteer`, `/earn/invest`) are reached from screen 1's primary CTAs and from the inter-screen links shown in the canvas mockup. Screen 0 surfaces a single primary CTA — "Získať merity" — that routes to screen 1, and inline links such as "komunite" inside the **Vaša pozícia v komunite** callout deep-link to screen 6.
 
@@ -850,6 +851,7 @@ Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to pa
 
 - Bank/card matching, offline OKP receipts, buyer-ID binding until spike confirms fields, mock-GPS detection
 - Auto-deduct Merits as fraud punishment, slovensko.sk login, Merit leaderboard in app
+- **Merit acquisition history (post-v1)** — a profile-linked screen that lists every Merit credit the user received: source/path (receipt VAT, charity, volunteer, investment yield, split-claim share from another scanner, etc.), timestamp, and amount (whole-number ME in the UI). Rovas already exposes this on the user profile; Civic needs the same transparency so users can see *whether* Merits arrived, *from where*, and *how much*. v1 already covers the receipt-only slice on screen 2 ("Moje merity z bločkov" / "Moje naskenované bločky"); the deferred screen is the **cross-path ledger**, likely backed by a Rovas Merit-history read endpoint proxied through Civic API (`GET /users/me/merit-history` or similar) and reached from Profil. Not required for version 1.
 
 ---
 

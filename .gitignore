@@ -38,6 +38,12 @@ pnpm-debug.log*
 *.pem
 *.key
 
+# Local API data
+services/api/data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+
 # Adobe Illustrator working files
 # (kept tracked in identity/ and mocs/ for now; uncomment to exclude)
 # *.ai

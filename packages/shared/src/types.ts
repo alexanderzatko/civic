@@ -1,0 +1,73 @@
+/** Shared API / domain types for Civic v1. */
+
+export interface GeoLocation {
+  lat: number;
+  lng: number;
+  accuracy_m?: number;
+}
+
+export interface ClaimShareInput {
+  rovas_uid: string;
+  share_pct: number;
+}
+
+export interface VerifiedReceiptPreview {
+  receipt_uid: string;
+  verified: true;
+  merchant_name: string | null;
+  purchase_at: string | null;
+  total_price_eur: number | null;
+  vat_eur: number;
+  merits_preview: number;
+  hourly_wage_eur: number;
+  formula_version: number;
+  wage_basis: "net" | "gross";
+}
+
+export interface VerifyReceiptError {
+  verified: false;
+  receipt_uid: string | null;
+  code:
+    | "invalid_uid"
+    | "not_found"
+    | "fs_error"
+    | "offline_unsupported";
+  message: string;
+}
+
+export type VerifyReceiptResponse = VerifiedReceiptPreview | VerifyReceiptError;
+
+export interface ContributionCategoryBreakdown {
+  taxes: number;
+  charity: number;
+  volunteer: number;
+}
+
+export interface ContributionsSummary {
+  total_me: number;
+  by_category: ContributionCategoryBreakdown;
+  receipt_count?: number;
+  total_vat_eur?: number;
+}
+
+export interface CharityProject {
+  id: string;
+  title: string;
+  organization: string;
+  summary: string;
+  rovas_url: string;
+  type: "charity" | "invest";
+  currency_amount_collected?: number;
+  expected_yield_me_per_year?: number;
+}
+
+export interface RankBucket {
+  label: string;
+  count: number;
+}
+
+export interface RankDistribution {
+  buckets: RankBucket[];
+  user_bucket_index?: number;
+  username?: string;
+}

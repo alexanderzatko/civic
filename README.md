@@ -10,31 +10,44 @@ Three Merit-earning paths are surfaced from day one:
 
 Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**).
 
-> **Status:** Pre-implementation. The repository currently holds the plan, brand identity, and UI mockups. No application code yet.
-
 > **NeoFund docs:** When writing product copy or defining Merits, Chrons, funds, or volunteer flows, consult the **NeoFund f.o.** project documentation at [`~/Documents/Business/NeoFund_NP`](../../Business/NeoFund_NP) — especially [`glossary.md`](../../Business/NeoFund_NP/glossary.md), [`about-us.md`](../../Business/NeoFund_NP/about-us.md) / [`about-us-sk.md`](../../Business/NeoFund_NP/about-us-sk.md), and [`neofund-site-rewrite-brief.md`](../../Business/NeoFund_NP/neofund-site-rewrite-brief.md). Those definitions take precedence over older Rovas UI strings.
+
+## Status
+
+Phase 1 scaffold in progress: monorepo + `POST /receipts/verify` + Expo navigational shell with Merit preview. Claim / Rovas OAuth land in Phase 2.
+
+Mobile targets **Expo SDK 54** so it runs in the current App Store **Expo Go** (newer SDKs are not in the store yet).
 
 ## Repository layout
 
 | Path | Contents |
 |---|---|
-| [`docs/plan.md`](docs/plan.md) | Full pre-implementation plan (product goals, architecture, phases, fraud controls, eKasa integration). |
-| [`docs/ekasa-receipt-api.md`](docs/ekasa-receipt-api.md) | Notes on the Slovak Finančná správa eKasa receipt API. |
-| [`docs/eu-fiscal-receipt-systems.md`](docs/eu-fiscal-receipt-systems.md) | Survey of EU fiscal receipt systems. |
-| [`identity/`](identity/) | Logos (`civic_logo`, `ME_logo`) in `.ai` and `.svg`, plus the etymology note for the name *Civic*. |
-| [`mocs/`](mocs/) | 6-screen Slovak mockup (`civic-mockup.canvas.tsx`) and Illustrator source. |
+| [`apps/mobile`](apps/mobile) | Expo (Expo Router) client — Slovak primary UI |
+| [`services/api`](services/api) | Fastify API — eKasa verify, claim (Phase 2), stubs |
+| [`packages/shared`](packages/shared) | Types, Merit math, QR/UID parsing, settings defaults |
+| [`docs/plan.md`](docs/plan.md) | Full product / architecture plan |
+| [`docs/ekasa-receipt-api.md`](docs/ekasa-receipt-api.md) | FS receipt/find contract |
+| [`identity/`](identity/) | Logos and brand notes |
+| [`mocs/`](mocs/) | Screen mockups |
 
-## Planned architecture
+## Quick start
 
-A pnpm-workspaces monorepo at this repo root:
+```bash
+pnpm install
+cp .env.example .env   # optional overrides (HOURLY_WAGE_EUR, etc.)
 
-- `apps/mobile` — Expo (React Native) client
-- `services/api` — Node API backend (eKasa verification, Rovas claim proxy)
-- `packages/shared` — shared types/utilities
+# Terminal 1 — API
+pnpm dev:api
 
-Auth is delegated to **Rovas OAuth** (Google, Facebook, or Rovas account). The v1 build implements the VAT-receipt path end-to-end; the charity and volunteer paths ship as navigational stubs that hyperlink to existing Rovas project pages.
+# Terminal 2 — Expo
+pnpm dev:mobile
+```
 
-See [`docs/plan.md`](docs/plan.md) for the full design and phase plan.
+Set `EXPO_PUBLIC_API_URL` if the device cannot reach `http://localhost:3001` (use your LAN IP).
+
+### Merit settings
+
+Net hourly wage and fraud defaults live in [`packages/shared/src/settings.ts`](packages/shared/src/settings.ts) (`DEFAULT_SETTINGS`) and can be overridden via env — see [`.env.example`](.env.example). v1 uses **net** wage basis.
 
 ## Brand
 
