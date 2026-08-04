@@ -16,14 +16,54 @@ export function getApiBaseUrl(): string {
   );
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export type MeIdentity = {
+  rovas_uid: string;
+  client_id: string;
+  scope: string | null;
+  expires_at: number;
+};
+
+export type MyContributionsSummary = ContributionsSummary & {
+  rovas_uid: string;
+  scope?: string;
+};
+
+type TokenGetter = () => Promise<string | null>;
+
+let getAccessToken: TokenGetter | null = null;
+
+/** Register the auth-session token provider (called from AuthProvider). */
+export function setAccessTokenGetter(getter: TokenGetter | null): void {
+  getAccessToken = getter;
+}
+
+async function apiFetch<T>(
+  path: string,
+  init?: RequestInit & { auth?: "required" | "optional" | false },
+): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+
+  const mode = init?.auth ?? false;
+  if (mode) {
+    const token = getAccessToken ? await getAccessToken() : null;
+    if (!token && mode === "required") {
+      const err = new Error("Not signed in") as Error & { status: number };
+      err.status = 401;
+      throw err;
+    }
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  const { auth: _auth, ...rest } = init ?? {};
   const res = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    ...rest,
+    headers,
   });
   const body = (await res.json()) as T;
   if (!res.ok) {
@@ -48,8 +88,12 @@ export function verifyReceipt(qrOrUid: string): Promise<VerifyReceiptResponse> {
   });
 }
 
-export function fetchMySummary(): Promise<ContributionsSummary> {
-  return apiFetch("/me/contributions/summary");
+export function fetchMe(): Promise<MeIdentity> {
+  return apiFetch("/me", { auth: "required" });
+}
+
+export function fetchMySummary(): Promise<MyContributionsSummary> {
+  return apiFetch("/me/contributions/summary", { auth: "required" });
 }
 
 export function fetchCommunitySummary(): Promise<ContributionsSummary> {
@@ -57,7 +101,7 @@ export function fetchCommunitySummary(): Promise<ContributionsSummary> {
 }
 
 export function fetchRankDistribution(): Promise<RankDistribution> {
-  return apiFetch("/rank/distribution");
+  return apiFetch("/rank/distribution", { auth: "optional" });
 }
 
 export function fetchProjects(

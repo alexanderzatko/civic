@@ -14,10 +14,13 @@ async function main() {
 
   const app = Fastify({ logger: true });
 
+  // Ensure authUser exists on every request (hooks set it when used).
+  app.decorateRequest("authUser", null);
+
   app.get("/", async () => ({
     service: "civic-api",
     ok: true,
-    try: ["/health", "POST /receipts/verify"],
+    try: ["/health", "GET /me", "POST /receipts/verify"],
   }));
 
   app.get("/health", async () => ({
@@ -25,6 +28,7 @@ async function main() {
     formula_version: config.settings.formulaVersion,
     wage_basis: config.settings.wageBasis,
     hourly_wage_eur: config.settings.hourlyWageEur,
+    rovas_base_url: config.rovasBaseUrl,
   }));
 
   await app.register(receiptsRoutes, { ctx });

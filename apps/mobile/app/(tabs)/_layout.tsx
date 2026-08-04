@@ -17,7 +17,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: t("home.title"),
+          title: t("Domov"),
           tabBarLabel: t("Domov"),
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="home" color={color} size={24} />

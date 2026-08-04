@@ -16,10 +16,10 @@ todos:
     status: pending
   - id: spike-rovas-oauth
     content: "Spike: install oauth2_server contrib on dev; verify PKCE (patch drupal.org#3015065 if needed); register civic OAuth client; HybridAuth on authorize page"
-    status: pending
+    status: completed
   - id: rovas-oauth-server
     content: "Rovas repo: oauth2_server contrib + thin rovas_oauth wrapper (HybridAuth login UI, Services Bearer auth); claim rule"
-    status: pending
+    status: in_progress
   - id: scaffold-civic-repo
     content: "Scaffold civic monorepo with pnpm workspaces: apps/mobile, services/api, packages/shared"
     status: completed

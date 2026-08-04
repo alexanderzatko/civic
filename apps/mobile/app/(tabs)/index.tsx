@@ -8,29 +8,56 @@ import {
   View,
 } from "react-native";
 import { Link } from "expo-router";
-import { displayMerits, type RankDistribution } from "@civic/shared";
+import { DEFAULT_SETTINGS, displayMerits } from "@civic/shared";
+import { MeLogo } from "@/components/MeLogo";
 import { colors } from "@/constants/theme";
-import { fetchCommunitySummary, fetchRankDistribution } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { fetchCommunitySummary, fetchMe, fetchMySummary } from "@/lib/api";
 import { t } from "@/lib/i18n";
 
+function formatMe(n: number): string {
+  return displayMerits(n).toLocaleString("sk-SK");
+}
+
+function meritsToEur(me: number): number {
+  return (me / DEFAULT_SETTINGS.meritsPerHour) * DEFAULT_SETTINGS.hourlyWageEur;
+}
+
+function formatEurApprox(me: number): string {
+  return `~ ${Math.round(meritsToEur(me)).toLocaleString("sk-SK")} ${t("common.eur")}`;
+}
+
 export default function HomeScreen() {
+  const { status } = useAuth();
+  const signedIn = status === "signedIn";
   const [loading, setLoading] = useState(true);
   const [communityMe, setCommunityMe] = useState(0);
-  const [rank, setRank] = useState<RankDistribution | null>(null);
+  const [personalMe, setPersonalMe] = useState(0);
+  const [rovasUid, setRovasUid] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      setLoading(true);
       try {
-        const [summary, distribution] = await Promise.all([
-          fetchCommunitySummary(),
-          fetchRankDistribution(),
-        ]);
-        if (cancelled) return;
-        setCommunityMe(summary.total_me);
-        setRank(distribution);
+        if (signedIn) {
+          const [me, mine, community] = await Promise.all([
+            fetchMe(),
+            fetchMySummary(),
+            fetchCommunitySummary(),
+          ]);
+          if (cancelled) return;
+          setRovasUid(me.rovas_uid);
+          setPersonalMe(mine.total_me);
+          setCommunityMe(community.total_me);
+        } else {
+          const summary = await fetchCommunitySummary();
+          if (cancelled) return;
+          setRovasUid(null);
+          setCommunityMe(summary.total_me);
+        }
       } catch {
-        // Phase 1: API may be down — show empty shell.
+        // API may be down — show empty shell.
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -38,62 +65,91 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [signedIn]);
 
-  const maxCount = Math.max(1, ...(rank?.buckets.map((b) => b.count) ?? [1]));
+  if (status === "loading") {
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator color={colors.brand} />
+      </View>
+    );
+  }
+
+  if (signedIn) {
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>{t("home.title")}</Text>
+
+        <View style={styles.personalBlock}>
+          <MeLogo size={56} />
+          {loading ? (
+            <ActivityIndicator color={colors.brand} />
+          ) : (
+            <>
+              <Text style={styles.personalMe}>
+                {formatMe(personalMe)} {t("common.me")}
+              </Text>
+              <Text style={styles.eurHint}>{formatEurApprox(personalMe)}</Text>
+              {rovasUid ? (
+                <Text style={styles.uidHint}>
+                  {t("home.signed_in_as")} {rovasUid}
+                </Text>
+              ) : null}
+            </>
+          )}
+        </View>
+
+        <Link href="/(tabs)/earn" asChild>
+          <Pressable style={styles.primaryBtnWide}>
+            <Text style={styles.primaryText}>{t("home.cta_earn")}</Text>
+          </Pressable>
+        </Link>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerLine}>{t("home.footer_me")}</Text>
+          <Text style={styles.footerLine}>{t("home.footer_hours")}</Text>
+          <Text style={styles.footerLine}>{t("home.footer_eur")}</Text>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.brand}>Civic</Text>
       <Text style={styles.title}>{t("home.title")}</Text>
-      <Text style={styles.subtitle}>{t("home.subtitle_logged_out")}</Text>
 
-      <View style={styles.heroBlock}>
+      <Text style={styles.intro}>
+        <Text style={styles.introBold}>{t("home.intro_brand")}</Text>
+        {t("home.intro_mid")}
+        <Text style={styles.introBold}>{t("home.intro_me")}</Text>
+        {t("home.intro_end")}
+      </Text>
+
+      <View style={styles.personalBlock}>
+        <MeLogo size={48} />
+        <Text style={styles.personalMe}>{t("home.personal_unknown")}</Text>
+      </View>
+
+      <View style={styles.communityBlock}>
+        <Text style={styles.communityLabel}>{t("home.community_total_label")}</Text>
         {loading ? (
-          <ActivityIndicator color={colors.brand} />
+          <ActivityIndicator color={colors.brand} style={styles.loader} />
         ) : (
           <>
-            <Text style={styles.heroValue}>
-              {displayMerits(communityMe)} {t("common.me")}
+            <Text style={styles.communityMe}>
+              {formatMe(communityMe)} {t("common.me")}
             </Text>
-            <Text style={styles.heroHint}>{t("home.placeholder_total")}</Text>
+            <Text style={styles.eurHint}>{formatEurApprox(communityMe)}</Text>
           </>
         )}
       </View>
 
-      <Text style={styles.section}>{t("home.rank_title")}</Text>
-      <View style={styles.chart}>
-        {(rank?.buckets ?? []).map((bucket) => (
-          <View key={bucket.label} style={styles.barRow}>
-            <Text style={styles.barLabel}>{bucket.label}</Text>
-            <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.barFill,
-                  { width: `${(bucket.count / maxCount) * 100}%` },
-                ]}
-              />
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <Link href="/(tabs)/community" asChild>
-        <Pressable>
-          <Text style={styles.link}>{t("home.community_position")} →</Text>
-        </Pressable>
-      </Link>
-
-      <Link href="/(tabs)/earn" asChild>
-        <Pressable style={styles.cta}>
-          <Text style={styles.ctaText}>{t("home.cta_earn")}</Text>
-        </Pressable>
-      </Link>
+      <Text style={styles.authPrompt}>{t("home.auth_prompt")}</Text>
 
       <View style={styles.authRow}>
         <Link href="/(auth)/login" asChild>
-          <Pressable style={styles.secondaryBtn}>
-            <Text style={styles.secondaryText}>{t("home.sign_in")}</Text>
+          <Pressable style={styles.primaryBtn}>
+            <Text style={styles.primaryText}>{t("home.sign_in")}</Text>
           </Pressable>
         </Link>
         <Link href="/(auth)/register" asChild>
@@ -102,64 +158,119 @@ export default function HomeScreen() {
           </Pressable>
         </Link>
       </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerLine}>{t("home.footer_me")}</Text>
+        <Text style={styles.footerLine}>{t("home.footer_hours")}</Text>
+        <Text style={styles.footerLine}>{t("home.footer_eur")}</Text>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, gap: 12, paddingBottom: 48 },
-  brand: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: colors.brand,
-    letterSpacing: 0.5,
-  },
-  title: { fontSize: 22, fontWeight: "600", color: colors.ink },
-  subtitle: { fontSize: 15, color: colors.muted, marginBottom: 8 },
-  heroBlock: {
-    backgroundColor: colors.brand,
-    borderRadius: 16,
+  loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+  container: {
     padding: 24,
-    minHeight: 110,
-    justifyContent: "center",
+    gap: 18,
+    paddingBottom: 48,
+    alignItems: "center",
   },
-  heroValue: { color: "#fff", fontSize: 36, fontWeight: "700" },
-  heroHint: { color: "#C9D9D1", marginTop: 6, fontSize: 13 },
-  section: {
-    marginTop: 12,
-    fontSize: 16,
+  title: {
+    fontSize: 22,
     fontWeight: "600",
     color: colors.ink,
+    textAlign: "center",
   },
-  chart: { gap: 8, marginTop: 4 },
-  barRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  barLabel: { width: 64, fontSize: 12, color: colors.muted },
-  barTrack: {
-    flex: 1,
-    height: 10,
-    backgroundColor: colors.border,
-    borderRadius: 6,
-    overflow: "hidden",
+  intro: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.muted,
+    textAlign: "center",
   },
-  barFill: { height: "100%", backgroundColor: colors.brandSoft },
-  link: { color: colors.brandSoft, fontWeight: "600", marginTop: 4 },
-  cta: {
-    marginTop: 8,
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
-    borderRadius: 12,
+  introBold: {
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  personalBlock: {
     alignItems: "center",
+    gap: 8,
   },
-  ctaText: { color: colors.ink, fontWeight: "700", fontSize: 16 },
-  authRow: { flexDirection: "row", gap: 12, marginTop: 8 },
-  secondaryBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
+  personalMe: {
+    fontSize: 40,
+    fontWeight: "600",
+    color: colors.brand,
+    lineHeight: 44,
+  },
+  communityBlock: {
+    alignItems: "center",
+    gap: 4,
+  },
+  communityLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.ink,
+    textAlign: "center",
+  },
+  communityMe: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: colors.ink,
+    lineHeight: 28,
+  },
+  eurHint: {
+    fontSize: 13,
+    color: colors.muted,
+  },
+  uidHint: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  loader: { marginVertical: 8 },
+  authPrompt: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.ink,
+    textAlign: "center",
+  },
+  authRow: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+  },
+  primaryBtn: {
+    backgroundColor: colors.brand,
     borderRadius: 12,
     paddingVertical: 12,
+    paddingHorizontal: 18,
     alignItems: "center",
-    backgroundColor: colors.surface,
   },
-  secondaryText: { color: colors.ink, fontWeight: "600" },
+  primaryBtnWide: {
+    backgroundColor: colors.brand,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    minWidth: 200,
+  },
+  primaryText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  secondaryBtn: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  secondaryText: { color: colors.brandSoft, fontWeight: "600", fontSize: 15 },
+  footer: {
+    marginTop: 8,
+    alignItems: "center",
+    gap: 4,
+  },
+  footerLine: {
+    fontSize: 12,
+    color: colors.muted,
+    textAlign: "center",
+  },
 });

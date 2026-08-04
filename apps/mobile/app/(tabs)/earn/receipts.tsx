@@ -101,6 +101,8 @@ export default function ReceiptsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.intro}>{t("receipts.intro")}</Text>
+
       <Pressable style={styles.primary} onPress={startScan} disabled={busy}>
         <Text style={styles.primaryText}>{t("receipts.scan")}</Text>
       </Pressable>
@@ -275,6 +277,12 @@ const STROKE = 3;
 
 const styles = StyleSheet.create({
   container: { padding: 20, gap: 12, paddingBottom: 48 },
+  intro: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.muted,
+    marginBottom: 4,
+  },
   primary: {
     backgroundColor: colors.brand,
     borderRadius: 12,

@@ -1,0 +1,265 @@
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { router } from "expo-router";
+import { MeLogo } from "@/components/MeLogo";
+import { colors } from "@/constants/theme";
+import { useAuth } from "@/lib/auth";
+import { t } from "@/lib/i18n";
+
+type Mode = "login" | "register";
+
+type Provider = "google" | "facebook" | "rovas";
+
+const PROVIDER_GLYPH: Record<Provider, string> = {
+  google: "G",
+  facebook: "f",
+  rovas: "R",
+};
+
+export function AuthForm({ mode }: { mode: Mode }) {
+  const { signIn } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function startOAuth() {
+    setError(null);
+    setBusy(true);
+    try {
+      const ok = await signIn();
+      if (ok) {
+        router.replace("/(tabs)");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("auth.error_generic"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const title =
+    mode === "login" ? t("auth.login_title") : t("auth.register_title");
+  const subtitle =
+    mode === "login" ? t("auth.login_subtitle") : t("auth.register_subtitle");
+
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.hero}>
+        <MeLogo size={48} />
+        <Text style={styles.title}>{title}</Text>
+      </View>
+
+      <Text style={styles.subtitle}>{subtitle}</Text>
+
+      {mode === "register" ? (
+        <View style={styles.callout}>
+          <Text style={styles.calloutTitle}>{t("auth.rovas_callout_title")}</Text>
+          <Text style={styles.calloutBody}>{t("auth.rovas_callout_body")}</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.providers}>
+        <ProviderButton
+          provider="google"
+          label={
+            mode === "login"
+              ? t("auth.continue_google")
+              : t("auth.create_google")
+          }
+          disabled={busy}
+          onPress={() => void startOAuth()}
+        />
+        <ProviderButton
+          provider="facebook"
+          label={
+            mode === "login"
+              ? t("auth.continue_facebook")
+              : t("auth.create_facebook")
+          }
+          disabled={busy}
+          onPress={() => void startOAuth()}
+        />
+        <ProviderButton
+          provider="rovas"
+          label={
+            mode === "login" ? t("auth.continue_rovas") : t("auth.create_rovas")
+          }
+          disabled={busy}
+          onPress={() => void startOAuth()}
+        />
+      </View>
+
+      {busy ? (
+        <View style={styles.busyRow}>
+          <ActivityIndicator color={colors.brand} />
+          <Text style={styles.busyText}>{t("auth.opening_browser")}</Text>
+        </View>
+      ) : null}
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {mode === "register" ? (
+        <View style={styles.callout}>
+          <Text style={styles.calloutTitle}>{t("auth.hybrid_title")}</Text>
+          <Text style={styles.calloutBody}>{t("auth.hybrid_body")}</Text>
+        </View>
+      ) : (
+        <View style={styles.callout}>
+          <Text style={styles.calloutBody}>{t("auth.pkce_hint")}</Text>
+        </View>
+      )}
+
+      <View style={styles.dividerRow}>
+        <View style={styles.divider} />
+        <Text style={styles.or}>{t("auth.or")}</Text>
+        <View style={styles.divider} />
+      </View>
+
+      {mode === "login" ? (
+        <Text style={styles.switchLine}>
+          {t("auth.no_account")}{" "}
+          <Text
+            style={styles.switchLink}
+            onPress={() => router.push("/(auth)/register")}
+          >
+            {t("auth.register_link")}
+          </Text>
+        </Text>
+      ) : (
+        <Text style={styles.switchLine}>
+          {t("auth.have_account")}{" "}
+          <Text
+            style={styles.switchLink}
+            onPress={() => router.push("/(auth)/login")}
+          >
+            {t("auth.login_link")}
+          </Text>
+        </Text>
+      )}
+
+      <Text style={styles.legal}>
+        {mode === "login" ? t("auth.legal_login") : t("auth.legal_register")}{" "}
+        <Text
+          style={styles.legalLink}
+          onPress={() => void Linking.openURL("https://rovas.app")}
+        >
+          {t("auth.terms")}
+        </Text>
+        {" · "}
+        <Text
+          style={styles.legalLink}
+          onPress={() => void Linking.openURL("https://rovas.app")}
+        >
+          {t("auth.privacy")}
+        </Text>
+      </Text>
+    </ScrollView>
+  );
+}
+
+function ProviderButton({
+  provider,
+  label,
+  disabled,
+  onPress,
+}: {
+  provider: Provider;
+  label: string;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[styles.providerBtn, disabled && styles.disabled]}
+      disabled={disabled}
+      onPress={onPress}
+    >
+      <View style={styles.glyph}>
+        <Text style={styles.glyphText}>{PROVIDER_GLYPH[provider]}</Text>
+      </View>
+      <Text style={styles.providerLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 24,
+    gap: 16,
+    paddingBottom: 48,
+    alignItems: "stretch",
+  },
+  hero: { alignItems: "center", gap: 8 },
+  title: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: colors.ink,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.muted,
+    textAlign: "center",
+  },
+  providers: { gap: 8 },
+  providerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  glyph: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    backgroundColor: colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  glyphText: { fontWeight: "700", color: colors.ink, fontSize: 13 },
+  providerLabel: { flex: 1, color: colors.ink, fontSize: 14 },
+  disabled: { opacity: 0.55 },
+  busyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  busyText: { color: colors.muted, fontSize: 13 },
+  error: { color: colors.danger, fontWeight: "600", textAlign: "center" },
+  callout: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    gap: 4,
+  },
+  calloutTitle: { fontWeight: "700", color: colors.ink, fontSize: 13 },
+  calloutBody: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  dividerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  divider: { flex: 1, height: 1, backgroundColor: colors.border },
+  or: { color: colors.muted, fontSize: 12 },
+  switchLine: { textAlign: "center", color: colors.ink, fontSize: 14 },
+  switchLink: { color: colors.brandSoft, fontWeight: "700" },
+  legal: {
+    textAlign: "center",
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  legalLink: { color: colors.brandSoft, fontWeight: "600" },
+});

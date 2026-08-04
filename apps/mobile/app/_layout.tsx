@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { colors } from "@/constants/theme";
+import { AuthProvider } from "@/lib/auth";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -10,7 +11,7 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -27,6 +28,6 @@ export default function RootLayout() {
           options={{ title: "Registrácia" }}
         />
       </Stack>
-    </>
+    </AuthProvider>
   );
 }

@@ -1279,7 +1279,7 @@ function Screen2Receipts() {
 
       <Callout tone="info">
         <Text size="small">
-          Po naskenovaní bločka Civic overí jeho registráciu vo Finančnej správe, vypočíta merity podľa DPH a umožní rozdeliť nárok medzi viacerých Rováš používateľov.
+          Po naskenovaní bločka Civic overí jeho registráciu u Finančnej správy, zo zaplatenej DPH vypočíta získané merity.
         </Text>
       </Callout>
     </Stack>
