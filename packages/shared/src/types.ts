@@ -70,4 +70,9 @@ export interface RankDistribution {
   buckets: RankBucket[];
   user_bucket_index?: number;
   username?: string;
+  /** Present when the request carried a valid Bearer token. */
+  user_merits?: number;
+  total_users?: number;
+  /** Log10 bin edges from Rovas Merit Distribution (length = buckets + 1). */
+  bin_edges_log10?: number[];
 }

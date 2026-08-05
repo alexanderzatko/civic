@@ -20,6 +20,16 @@ export {
   parseReceiptUid,
 } from "./receipt-uid.js";
 
+export {
+  bucketIndexForMe,
+  bucketIndexFromSlider,
+  meFromPercentile,
+  meFromSliderPosition,
+  percentileFromDistribution,
+  sliderPositionFromMe,
+  spelledBucketLabel,
+} from "./rank.js";
+
 export type {
   CharityProject,
   ClaimShareInput,

@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import { loadConfig } from "./config.js";
 import { openDatabase } from "./db.js";
 import { EkasaClient } from "./ekasa.js";
+import { RovasClient } from "./rovas-client.js";
 import type { AppContext } from "./context.js";
 import { receiptsRoutes } from "./routes/receipts.js";
 import { summaryRoutes } from "./routes/summary.js";
@@ -10,7 +11,8 @@ async function main() {
   const config = loadConfig();
   const db = openDatabase(config.databasePath);
   const ekasa = new EkasaClient(config.ekasaReceiptFindUrl);
-  const ctx: AppContext = { config, ekasa, db };
+  const rovas = new RovasClient(config.rovasBaseUrl);
+  const ctx: AppContext = { config, ekasa, db, rovas };
 
   const app = Fastify({ logger: true });
 

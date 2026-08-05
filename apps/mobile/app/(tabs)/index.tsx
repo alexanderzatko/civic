@@ -8,11 +8,20 @@ import {
   View,
 } from "react-native";
 import { Link } from "expo-router";
-import { DEFAULT_SETTINGS, displayMerits } from "@civic/shared";
+import {
+  DEFAULT_SETTINGS,
+  displayMerits,
+  type RankDistribution,
+} from "@civic/shared";
 import { MeLogo } from "@/components/MeLogo";
+import { RankPanel } from "@/components/RankPanel";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
-import { fetchCommunitySummary, fetchMe, fetchMySummary } from "@/lib/api";
+import {
+  fetchCommunitySummary,
+  fetchMySummary,
+  fetchRankDistribution,
+} from "@/lib/api";
 import { t } from "@/lib/i18n";
 
 function formatMe(n: number): string {
@@ -33,7 +42,9 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [communityMe, setCommunityMe] = useState(0);
   const [personalMe, setPersonalMe] = useState(0);
-  const [rovasUid, setRovasUid] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [rank, setRank] = useState<RankDistribution | null>(null);
+  const [scrollLocked, setScrollLocked] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,20 +52,24 @@ export default function HomeScreen() {
       setLoading(true);
       try {
         if (signedIn) {
-          const [me, mine, community] = await Promise.all([
-            fetchMe(),
+          const [mine, community, distribution] = await Promise.all([
             fetchMySummary(),
             fetchCommunitySummary(),
+            fetchRankDistribution(),
           ]);
           if (cancelled) return;
-          setRovasUid(me.rovas_uid);
+          setUsername(mine.username ?? mine.display_name ?? null);
           setPersonalMe(mine.total_me);
           setCommunityMe(community.total_me);
+          setRank(distribution);
         } else {
+          // Mockup logged-out home: community total only (no ladder).
           const summary = await fetchCommunitySummary();
           if (cancelled) return;
-          setRovasUid(null);
+          setUsername(null);
+          setPersonalMe(0);
           setCommunityMe(summary.total_me);
+          setRank(null);
         }
       } catch {
         // API may be down — show empty shell.
@@ -77,7 +92,10 @@ export default function HomeScreen() {
 
   if (signedIn) {
     return (
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        scrollEnabled={!scrollLocked}
+      >
         <Text style={styles.title}>{t("home.title")}</Text>
 
         <View style={styles.personalBlock}>
@@ -90,14 +108,20 @@ export default function HomeScreen() {
                 {formatMe(personalMe)} {t("common.me")}
               </Text>
               <Text style={styles.eurHint}>{formatEurApprox(personalMe)}</Text>
-              {rovasUid ? (
-                <Text style={styles.uidHint}>
-                  {t("home.signed_in_as")} {rovasUid}
-                </Text>
+              {username ? (
+                <Text style={styles.uidHint}>@{username}</Text>
               ) : null}
             </>
           )}
         </View>
+
+        {!loading && rank ? (
+          <RankPanel
+            distribution={rank}
+            userMe={personalMe}
+            onScrollLockChange={setScrollLocked}
+          />
+        ) : null}
 
         <Link href="/(tabs)/earn" asChild>
           <Pressable style={styles.primaryBtnWide}>
@@ -127,11 +151,9 @@ export default function HomeScreen() {
 
       <View style={styles.personalBlock}>
         <MeLogo size={48} />
-        <Text style={styles.personalMe}>{t("home.personal_unknown")}</Text>
       </View>
 
       <View style={styles.communityBlock}>
-        <Text style={styles.communityLabel}>{t("home.community_total_label")}</Text>
         {loading ? (
           <ActivityIndicator color={colors.brand} style={styles.loader} />
         ) : (
@@ -144,6 +166,7 @@ export default function HomeScreen() {
         )}
       </View>
 
+      <Text style={styles.communityLabel}>{t("home.community_total_label")}</Text>
       <Text style={styles.authPrompt}>{t("home.auth_prompt")}</Text>
 
       <View style={styles.authRow}>
@@ -207,7 +230,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   communityLabel: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "600",
     color: colors.ink,
     textAlign: "center",
@@ -229,7 +252,7 @@ const styles = StyleSheet.create({
   },
   loader: { marginVertical: 8 },
   authPrompt: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "600",
     color: colors.ink,
     textAlign: "center",

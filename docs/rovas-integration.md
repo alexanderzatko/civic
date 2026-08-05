@@ -1,7 +1,10 @@
 # Civic ↔ Rovas OAuth (Expo + API)
 
-Rovas-side spike notes:
-`~/Documents/homeProjects/rovas/docs/integration/civic.md`.
+**Rovas-side work (APIs to build, OAuth Services, claim rule):**  
+`~/Documents/homeProjects/rovas/docs/integration/civic.md` — that file is the
+source of truth for agents in the **rovas** repo. Do not send them here first.
+
+This document is the **Civic-side** companion (Expo login + Civic API Bearer).
 
 ## Expo client
 
@@ -42,32 +45,32 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 
 | Route | Notes |
 |-------|--------|
-| `GET /me` | `{ rovas_uid, client_id, scope, expires_at }` — auth smoke test |
-| `GET /me/contributions/summary` | Taxes-only from local `receipt_claims` for now |
+| `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, client_id, scope, expires_at }` |
+| `GET /me/contributions/summary` | `total_me` from Rovas wallet; `by_category.taxes` + receipt stats from local `receipt_claims` |
 
 Optional Bearer:
 
 | Route | Notes |
 |-------|--------|
-| `GET /rank/distribution` | Placeholder buckets; with auth includes a uid hint |
+| `GET /rank/distribution` | Proxies Rovas `/rovas/merit_distribution`; with auth includes `user_bucket_index`, `username`, `user_merits` |
+
+Public:
+
+| Route | Notes |
+|-------|--------|
+| `GET /community/contributions/summary` | Proxies Rovas `/rovas/contributions/aggregate` |
 
 `ROVAS_BASE_URL` is read from the API `.env` (default `https://dev.rovas.app`).
 
-## Home screen data vs Rovas — what already exists
+## Home screen data (wired)
 
-| Home need (mockup) | Civic API today | Rovas today | Gap |
-|--------------------|-----------------|-------------|-----|
-| Personal ME total | `/me/contributions/summary` ← local tax claims only | `POST /rovas/rules/rules_user_s_merits` (API-KEY + TOKEN of the *user*) | Need **Bearer-capable** “my Merits” read (or enable OAuth2 auth on Services + map Bearer → global `$user`) |
-| Personal username | only `rovas_uid` from token | user load / profile | Prefer username (+ display name) on a small `GET /rovas/me` or UserInfo with OpenID |
-| Community total ME | `/community/contributions/summary` → `0` | **none** | New `GET /rovas/contributions/aggregate` (plan §8c) |
-| Category mix (taxes / charity / volunteer) | taxes from Civic claims; others 0 | not Civic-shaped | Aggregate + per-user breakdown on Rovas or derive after claim ledger exists |
-| Rank ladder / histogram | placeholder `/rank/distribution` | `GET …/rovas_merit_distribution` → `{ svg, meta }` (API key today; `meta` has `bin_counts`, `user_bin`, `user_merits`, `user_name`) | Enable OAuth2 on Services **or** add a JSON-only public/Bearer resource without SVG; Civic maps `meta` → `RankDistribution` |
+| Home need (mockup) | Civic API | Rovas source |
+|--------------------|-----------|--------------|
+| Personal ME total | `/me/contributions/summary` → `total_me` | `GET /rovas/me` |
+| Personal username | `/me` / summary `username` | `GET /rovas/me` |
+| Community total ME | `/community/contributions/summary` | `GET /rovas/contributions/aggregate` |
+| Rank histogram | `/rank/distribution` | `GET /rovas/merit_distribution` |
+| Category mix | taxes from Civic claims; charity/volunteer 0 | Aggregate `by_category` still zeros on Rovas |
 
-### Recommended Rovas follow-ups (for home parity)
-
-1. **Enable OAuth2 authentication** on the `rovas_endpoint` Services endpoint (server `civic`) — unlocks calling existing resources with the mobile Bearer.
-2. **`GET /rovas/me`** (or OpenID UserInfo) — `{ uid, username, display_name, total_me }` for the logged-in user.
-3. **`GET /rovas/contributions/aggregate`** — `{ total_me, by_category? }` for the logged-out hero total.
-4. **JSON merit distribution** — either expose `meta` from `rovas_merit_distribution` under Bearer without requiring API-KEY, or add `GET /rovas/merit_distribution` that returns buckets only (no SVG).
-
-Until (2)–(4) land, Home shows real **auth identity** (`rovas_uid`) and **Civic-side tax ME** (0 until claims exist); community total stays a placeholder.
+Client: `services/api/src/rovas-client.ts`. Enable resources on rovdev via
+**Enable Civic home API resources** (or `drush74 updb`) if a proxy returns 404.

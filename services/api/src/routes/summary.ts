@@ -1,13 +1,26 @@
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import type { ContributionsSummary, RankDistribution } from "@civic/shared";
 import { optionalAuth, requireAuth } from "../auth.js";
 import { CURATED_PROJECTS } from "../projects.js";
 import type { AppContext } from "../context.js";
+import { RovasClientError } from "../rovas-client.js";
 
 type MeSummaryResponse = ContributionsSummary & {
   rovas_uid: string;
+  username?: string;
+  display_name?: string;
   scope?: string;
 };
+
+function sendRovasError(reply: FastifyReply, err: unknown) {
+  if (err instanceof RovasClientError) {
+    return reply.code(err.status).send({
+      error: err.status === 503 ? "rovas_unavailable" : "rovas_error",
+      message: err.message,
+    });
+  }
+  throw err;
+}
 
 export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   app,
@@ -15,59 +28,78 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
 ) => {
   const { ctx } = opts;
 
-  /** Prove Bearer auth: returns the Rovas uid bound to the access token. */
-  app.get("/me", { preHandler: [requireAuth(ctx)] }, async (req) => {
+  /** Profile + auth smoke test: Rovas uid/username bound to the access token. */
+  app.get("/me", { preHandler: [requireAuth(ctx)] }, async (req, reply) => {
     const user = req.authUser!;
-    return {
-      rovas_uid: user.rovasUid,
-      client_id: user.token.client_id,
-      scope: user.token.scope ?? null,
-      expires_at: user.token.expires,
-    };
+    try {
+      const profile = await ctx.rovas.fetchMe(user.accessToken);
+      return {
+        rovas_uid: user.rovasUid,
+        username: profile.username,
+        display_name: profile.display_name,
+        total_me: profile.total_me,
+        client_id: user.token.client_id,
+        scope: user.token.scope ?? null,
+        expires_at: user.token.expires,
+      };
+    } catch (err) {
+      return sendRovasError(reply, err);
+    }
   });
 
   app.get(
     "/me/contributions/summary",
     { preHandler: [requireAuth(ctx)] },
-    async (req) => {
+    async (req, reply) => {
       const user = req.authUser!;
-      const row = ctx.db
-        .prepare(
-          `SELECT
-             COALESCE(SUM(total_merits_awarded), 0) AS total_me,
-             COUNT(*) AS receipt_count,
-             COALESCE(SUM(vat_eur), 0) AS total_vat_eur
-           FROM receipt_claims
-           WHERE submitted_by_rovas_uid = ?`,
-        )
-        .get(user.rovasUid) as {
-        total_me: number;
-        receipt_count: number;
-        total_vat_eur: number;
-      };
+      try {
+        const profile = await ctx.rovas.fetchMe(user.accessToken);
+        const row = ctx.db
+          .prepare(
+            `SELECT
+               COALESCE(SUM(total_merits_awarded), 0) AS total_me,
+               COUNT(*) AS receipt_count,
+               COALESCE(SUM(vat_eur), 0) AS total_vat_eur
+             FROM receipt_claims
+             WHERE submitted_by_rovas_uid = ?`,
+          )
+          .get(user.rovasUid) as {
+          total_me: number;
+          receipt_count: number;
+          total_vat_eur: number;
+        };
 
-      // v1: taxes-only from Civic claims. Full Rovas wallet balance needs a
-      // Bearer-capable Rovas merits read (see docs/rovas-integration.md).
-      const taxes = Number(row.total_me) || 0;
-      const body: MeSummaryResponse = {
-        rovas_uid: user.rovasUid,
-        scope: user.token.scope,
-        total_me: taxes,
-        by_category: { taxes, charity: 0, volunteer: 0 },
-        receipt_count: Number(row.receipt_count) || 0,
-        total_vat_eur: Number(row.total_vat_eur) || 0,
-      };
-      return body;
+        // Wallet total from Rovas; category breakdown is Civic-local for taxes
+        // until charity/volunteer paths report into the aggregate.
+        const taxes = Number(row.total_me) || 0;
+        const body: MeSummaryResponse = {
+          rovas_uid: user.rovasUid,
+          username: profile.username,
+          display_name: profile.display_name,
+          scope: user.token.scope,
+          total_me: profile.total_me,
+          by_category: { taxes, charity: 0, volunteer: 0 },
+          receipt_count: Number(row.receipt_count) || 0,
+          total_vat_eur: Number(row.total_vat_eur) || 0,
+        };
+        return body;
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
     },
   );
 
   app.get("/community/contributions/summary", async (_req, reply) => {
-    // Placeholder until Rovas contributions/aggregate (or equivalent) lands.
-    const body: ContributionsSummary = {
-      total_me: 0,
-      by_category: { taxes: 0, charity: 0, volunteer: 0 },
-    };
-    return reply.send(body);
+    try {
+      const agg = await ctx.rovas.fetchAggregate();
+      const body: ContributionsSummary = {
+        total_me: agg.total_me,
+        by_category: agg.by_category,
+      };
+      return reply.send(body);
+    } catch (err) {
+      return sendRovasError(reply, err);
+    }
   });
 
   app.get("/charities/projects", async (req, reply) => {
@@ -81,21 +113,15 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   app.get(
     "/rank/distribution",
     { preHandler: [optionalAuth(ctx)] },
-    async (req) => {
-      // Placeholder histogram until Rovas Merit Distribution is proxied.
-      const body: RankDistribution = {
-        buckets: [
-          { label: "0–10", count: 120 },
-          { label: "10–100", count: 80 },
-          { label: "100–1k", count: 40 },
-          { label: "1k–10k", count: 15 },
-          { label: "10k+", count: 5 },
-        ],
-      };
-      if (req.authUser) {
-        body.username = `uid:${req.authUser.rovasUid}`;
+    async (req, reply) => {
+      try {
+        const body: RankDistribution = await ctx.rovas.fetchMeritDistribution(
+          req.authUser?.accessToken,
+        );
+        return body;
+      } catch (err) {
+        return sendRovasError(reply, err);
       }
-      return body;
     },
   );
 

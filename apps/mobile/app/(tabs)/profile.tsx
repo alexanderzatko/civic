@@ -14,20 +14,20 @@ import { t } from "@/lib/i18n";
 
 export default function ProfileScreen() {
   const { status, signOut } = useAuth();
-  const [rovasUid, setRovasUid] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
 
   useEffect(() => {
     if (status !== "signedIn") {
-      setRovasUid(null);
+      setUsername(null);
       return;
     }
     let cancelled = false;
     fetchMe()
       .then((me) => {
-        if (!cancelled) setRovasUid(me.rovas_uid);
+        if (!cancelled) setUsername(me.username ?? me.rovas_uid);
       })
       .catch(() => {
-        if (!cancelled) setRovasUid(null);
+        if (!cancelled) setUsername(null);
       });
     return () => {
       cancelled = true;
@@ -47,9 +47,9 @@ export default function ProfileScreen() {
       <View style={styles.container}>
         <Text style={styles.brand}>Civic</Text>
         <Text style={styles.body}>{t("profile.signed_in")}</Text>
-        {rovasUid ? (
+        {username ? (
           <Text style={styles.meta}>
-            {t("home.signed_in_as")}: {rovasUid}
+            {t("profile.username")}: @{username}
           </Text>
         ) : null}
         <Pressable

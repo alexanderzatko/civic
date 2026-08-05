@@ -18,6 +18,9 @@ export function getApiBaseUrl(): string {
 
 export type MeIdentity = {
   rovas_uid: string;
+  username?: string;
+  display_name?: string;
+  total_me?: number;
   client_id: string;
   scope: string | null;
   expires_at: number;
@@ -25,6 +28,8 @@ export type MeIdentity = {
 
 export type MyContributionsSummary = ContributionsSummary & {
   rovas_uid: string;
+  username?: string;
+  display_name?: string;
   scope?: string;
 };
 

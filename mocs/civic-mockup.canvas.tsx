@@ -767,6 +767,27 @@ function logBucketFraction(me: number, lo: number, hi: number): number {
   return Math.min(1, Math.max(0, (logMe - logLo) / (logHi - logLo)));
 }
 
+function meToSliderPosition(me: number): number {
+  if (me <= 0) return 0;
+  const n = RANK_BUCKET_COUNTS.length;
+  for (let i = 0; i < n; i++) {
+    const [lo, hi] = RANK_BUCKET_BOUNDS[i];
+    if (me < lo) return (i / n) * 100;
+    if (me <= hi || i === n - 1) {
+      const frac = logBucketFraction(me, lo, hi);
+      return ((i + frac) / n) * 100;
+    }
+  }
+  return 100;
+}
+
+function sliderPositionToBucketIndex(sliderPct: number): number {
+  const n = RANK_BUCKET_COUNTS.length;
+  const clamped = Math.min(100, Math.max(0, sliderPct));
+  if (clamped >= 100) return n - 1;
+  return Math.min(n - 1, Math.floor((clamped / 100) * n));
+}
+
 function meToPercentile(me: number): number {
   if (me <= 0) return 0;
   let cumulative = 0;
@@ -783,35 +804,6 @@ function meToPercentile(me: number): number {
     cumulative += count;
   }
   return 100;
-}
-
-function percentileToMe(percentile: number): number {
-  const clamped = Math.min(100, Math.max(0, percentile));
-  const targetRank = (clamped / 100) * RANK_TOTAL_USERS;
-  let cumulative = 0;
-  for (let i = 0; i < RANK_BUCKET_COUNTS.length; i++) {
-    const count = RANK_BUCKET_COUNTS[i];
-    const next = cumulative + count;
-    if (next >= targetRank || i === RANK_BUCKET_COUNTS.length - 1) {
-      const [lo, hi] = RANK_BUCKET_BOUNDS[i];
-      const frac = count > 0 ? (targetRank - cumulative) / count : 0.5;
-      const logLo = Math.log10(Math.max(lo, 0.01));
-      const logHi = Math.log10(hi);
-      return Math.pow(10, logLo + frac * (logHi - logLo));
-    }
-    cumulative = next;
-  }
-  return RANK_BUCKET_BOUNDS[RANK_BUCKET_BOUNDS.length - 1][0];
-}
-
-function meToBucketIndex(me: number): number {
-  if (me <= 0) return 0;
-  for (let i = 0; i < RANK_BUCKET_BOUNDS.length; i++) {
-    const [lo, hi] = RANK_BUCKET_BOUNDS[i];
-    if (me < lo) return Math.max(0, i - 1);
-    if (me <= hi || i === RANK_BUCKET_BOUNDS.length - 1) return i;
-  }
-  return RANK_BUCKET_BOUNDS.length - 1;
 }
 
 /** Headline for logged-in users based on community percentile (0 = lowest, 100 = highest). */
@@ -898,7 +890,7 @@ function RankLadder({
     emitDragState(false, userPercentile);
   };
 
-  const probeMe = percentileToMe(probePct);
+  const probeBucketIndex = sliderPositionToBucketIndex(probePct);
   const trackHeight = 8;
   const markerSize = 14;
 
@@ -968,7 +960,7 @@ function RankLadder({
       </div>
       {dragging && (
         <Text tone="secondary" size="small" style={{ textAlign: "center" }}>
-          Na tejto pozícii: ≈{" "}
+          Ľudí v tomto intervale:{" "}
           <span
             style={{
               fontSize: 18,
@@ -976,7 +968,7 @@ function RankLadder({
               color: t.accent.primary,
             }}
           >
-            {formatMeWhole(probeMe)} ME
+            {RANK_BUCKET_COUNTS[probeBucketIndex].toLocaleString("sk-SK")}
           </span>
         </Text>
       )}
@@ -984,13 +976,12 @@ function RankLadder({
   );
 }
 
-function RankDistributionDetail({ probeMe }: { probeMe: number }) {
+function RankDistributionDetail({ highlightIndex }: { highlightIndex: number }) {
   const t = useHostTheme();
-  const highlightBucketIndex = meToBucketIndex(probeMe);
   const pct = RANK_BUCKET_COUNTS.map((count) =>
     Math.round((count / RANK_TOTAL_USERS) * 1000) / 10,
   );
-  const bucketLabel = rankBucketLabelSpelled(highlightBucketIndex);
+  const bucketLabel = rankBucketLabelSpelled(highlightIndex);
   const maxPct = Math.max(...pct, 1);
 
   return (
@@ -1020,7 +1011,7 @@ function RankDistributionDetail({ probeMe }: { probeMe: number }) {
                 minHeight: v > 0 ? 3 : 0,
                 borderRadius: 2,
                 background:
-                  i === highlightBucketIndex ? t.accent.primary : t.fill.secondary,
+                  i === highlightIndex ? t.accent.primary : t.fill.secondary,
               }}
             />
           </div>
@@ -1048,6 +1039,7 @@ function CommunityPositionPanel({
 }) {
   const [dragState, setDragState] = useState({ dragging: false, probePct: 0 });
   const percentile = meToPercentile(userMe);
+  const sliderPos = meToSliderPosition(userMe);
 
   return (
     <Card>
@@ -1062,12 +1054,14 @@ function CommunityPositionPanel({
           </Text>
 
           <RankLadder
-            userPercentile={percentile}
+            userPercentile={sliderPos}
             onDragStateChange={setDragState}
           />
 
           {dragState.dragging && (
-            <RankDistributionDetail probeMe={percentileToMe(dragState.probePct)} />
+            <RankDistributionDetail
+              highlightIndex={sliderPositionToBucketIndex(dragState.probePct)}
+            />
           )}
         </Stack>
       </CardBody>
@@ -1078,7 +1072,10 @@ function CommunityPositionPanel({
 function CommunityAggregatePanel({ goto }: { goto: (s: ScreenId) => void }) {
   return (
     <Stack gap={12} style={{ alignItems: "center" }}>
-      <Text weight="semibold" style={{ textAlign: "center" }}>
+      <Text weight="semibold" style={{ textAlign: "center", fontSize: 15 }}>
+        Celková hodnota registrovaných príspevkov
+      </Text>
+      <Text size="small" weight="semibold" style={{ textAlign: "center" }}>
         Prihláste sa alebo sa zaregistrujte a zistite svoj príspevok
       </Text>
       <Row justify="center" gap={8}>
@@ -1095,12 +1092,6 @@ function CommunityAggregatePanel({ goto }: { goto: (s: ScreenId) => void }) {
 
 function Screen0LoggedOut({ goto }: { goto: (s: ScreenId) => void }) {
   const t = useHostTheme();
-  const heroStyle: CSSProperties = {
-    fontSize: 40,
-    fontWeight: 600,
-    color: t.accent.primary,
-    lineHeight: 1.1,
-  };
   const subStyle: CSSProperties = {
     fontSize: 24,
     fontWeight: 600,
@@ -1120,11 +1111,9 @@ function Screen0LoggedOut({ goto }: { goto: (s: ScreenId) => void }) {
 
       <Stack gap={8} style={{ alignItems: "center" }}>
         <MeLogo size={48} />
-        <div style={heroStyle}>? ME</div>
       </Stack>
 
       <Stack gap={4} style={{ alignItems: "center" }}>
-        <Text size="small" weight="semibold">Celková hodnota registrovaných príspevkov</Text>
         <div style={subStyle}>84 320 ME</div>
         <Text tone="secondary" size="small">~ 65 770 €</Text>
       </Stack>
