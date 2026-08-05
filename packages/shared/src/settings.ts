@@ -5,7 +5,7 @@
  * documented v1 defaults used when env is unset.
  *
  * Hourly wage: prefer Rovas admin national rate
- * (`GET /rovas/civic/national_hourly_rate`). `HOURLY_WAGE_EUR` / the default
+ * (`GET /rovas/civic_national_hourly_rate`). `HOURLY_WAGE_EUR` / the default
  * below are **fallback only** when that endpoint is unavailable.
  *
  * Wage basis: **net** hourly EUR (Civic-side label; Rovas owns the rate).

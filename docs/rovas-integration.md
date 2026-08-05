@@ -62,7 +62,7 @@ Public:
 | Route | Notes |
 |-------|--------|
 | `GET /community/contributions/summary` | Proxies Rovas `/rovas/contributions/aggregate` |
-| `GET /merit-rate` | National hourly wage for ME↔€ / claim preview — proxies Rovas `GET /rovas/civic/national_hourly_rate` (falls back to `HOURLY_WAGE_EUR` until that endpoint is live) |
+| `GET /merit-rate` | National hourly wage for ME↔€ / claim preview — proxies Rovas `GET /rovas/civic_national_hourly_rate` (falls back to `HOURLY_WAGE_EUR` if unreachable) |
 
 `ROVAS_BASE_URL` is read from the API `.env` (default `https://dev.rovas.app`).
 
@@ -84,7 +84,7 @@ fallback (`HOURLY_WAGE_EUR`, default 7.5).
 | Personal username | `/me` / summary `username` | `GET /rovas/me` |
 | Community total ME | `/community/contributions/summary` | `GET /rovas/contributions/aggregate` |
 | Rank histogram | `/rank/distribution` | `GET /rovas/merit_distribution` |
-| € equivalent | `/merit-rate` → `hourly_wage_eur` | `GET /rovas/civic/national_hourly_rate` (fallback: Civic settings) |
+| € equivalent | `/merit-rate` → `hourly_wage_eur` | `GET /rovas/civic_national_hourly_rate` (fallback: Civic settings) |
 | Category mix | taxes from Rovas claim summary (interim 0); charity/volunteer 0 | Aggregate `by_category` still zeros on Rovas |
 
 **Refresh:** home re-fetches ME (+ rate/rank) on tab focus, when the app

@@ -118,14 +118,15 @@ export class RovasClient {
 
   /**
    * Public national hourly rate (Rovas admin SoT).
-   * `GET /rovas/civic/national_hourly_rate?country=SK`
+   * Machine-name path (Services slash aliases are unreliable):
+   * `GET /rovas/civic_national_hourly_rate?country=SK`
    */
   async fetchNationalHourlyRate(
     countryCode = "SK",
   ): Promise<RovasNationalHourlyRate> {
     const q = new URLSearchParams({ country: countryCode.toUpperCase() });
     const body = await this.getJson<Partial<RovasNationalHourlyRate>>(
-      `/rovas/civic/national_hourly_rate?${q}`,
+      `/rovas/civic_national_hourly_rate?${q}`,
     );
     if (
       typeof body.hourly_wage_eur !== "number" ||
