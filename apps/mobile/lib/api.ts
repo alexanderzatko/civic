@@ -1,7 +1,9 @@
 import Constants from "expo-constants";
 import type {
   CharityProject,
+  ClaimReceiptResponse,
   ContributionsSummary,
+  GeoLocation,
   RankDistribution,
   VerifyReceiptResponse,
 } from "@civic/shared";
@@ -89,6 +91,22 @@ export function verifyReceipt(qrOrUid: string): Promise<VerifyReceiptResponse> {
     body: JSON.stringify({ qr_or_uid: qrOrUid }),
   }).catch((err: Error & { body?: VerifyReceiptResponse }) => {
     if (err.body) return err.body;
+    throw err;
+  });
+}
+
+export function claimReceipt(
+  qrOrUid: string,
+  location: GeoLocation,
+): Promise<ClaimReceiptResponse> {
+  return apiFetch<ClaimReceiptResponse>("/receipts/claim", {
+    method: "POST",
+    auth: "required",
+    body: JSON.stringify({ qr_or_uid: qrOrUid, location }),
+  }).catch((err: Error & { body?: ClaimReceiptResponse; status?: number }) => {
+    if (err.body && typeof err.body === "object" && "claimed" in err.body) {
+      return err.body;
+    }
     throw err;
   });
 }

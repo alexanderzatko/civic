@@ -9,18 +9,22 @@ import {
   View,
   type LayoutChangeEvent,
 } from "react-native";
+import { Link } from "expo-router";
 import {
   CameraView,
   useCameraPermissions,
   type BarcodeScanningResult,
 } from "expo-camera";
+import * as Location from "expo-location";
 import {
   displayMerits,
+  type ClaimReceiptResponse,
   type VerifiedReceiptPreview,
   type VerifyReceiptResponse,
 } from "@civic/shared";
 import { colors } from "@/constants/theme";
-import { verifyReceipt } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { claimReceipt, verifyReceipt } from "@/lib/api";
 import { t } from "@/lib/i18n";
 
 type ScanBounds = {
@@ -31,11 +35,17 @@ type ScanBounds = {
 };
 
 export default function ReceiptsScreen() {
+  const { status: authStatus } = useAuth();
+  const signedIn = authStatus === "signedIn";
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
   const [uidInput, setUidInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [claiming, setClaiming] = useState(false);
   const [preview, setPreview] = useState<VerifiedReceiptPreview | null>(null);
+  const [claimResult, setClaimResult] = useState<ClaimReceiptResponse | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [scannedLock, setScannedLock] = useState(false);
   const [cameraSize, setCameraSize] = useState({ width: 0, height: 0 });
@@ -45,6 +55,7 @@ export default function ReceiptsScreen() {
     setBusy(true);
     setError(null);
     setPreview(null);
+    setClaimResult(null);
     try {
       const result: VerifyReceiptResponse = await verifyReceipt(qrOrUid);
       if (result.verified) {
@@ -60,7 +71,6 @@ export default function ReceiptsScreen() {
           offline_unsupported: t("receipts.error_fs"),
         };
         setError(map[result.code] ?? result.message);
-        // Stop the camera so a failed scan doesn't re-fire in a loop.
         setScanning(false);
         setScanBounds(null);
       }
@@ -80,6 +90,7 @@ export default function ReceiptsScreen() {
       if (!res.granted) return;
     }
     setError(null);
+    setClaimResult(null);
     setScannedLock(false);
     setScanBounds(null);
     setScanning(true);
@@ -97,13 +108,64 @@ export default function ReceiptsScreen() {
     void runVerify(result.data);
   }
 
+  async function runClaim() {
+    if (!preview) return;
+    setClaiming(true);
+    setError(null);
+    setClaimResult(null);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setError(t("receipts.error_location"));
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const result = await claimReceipt(preview.receipt_uid, {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy_m:
+          pos.coords.accuracy != null ? pos.coords.accuracy : undefined,
+      });
+      setClaimResult(result);
+      if (!result.claimed) {
+        const map: Record<string, string> = {
+          unauthorized: t("receipts.error_unauthorized"),
+          invalid_uid: t("receipts.error_invalid"),
+          not_found: t("receipts.error_not_found"),
+          fs_error: t("receipts.error_fs"),
+          duplicate: t("receipts.error_duplicate"),
+          rejected_location: t("receipts.error_location"),
+          rejected_window: t("receipts.error_window"),
+          rejected_rate: t("receipts.error_rate"),
+          rejected_vat: t("receipts.error_vat"),
+          rejected_shares: t("receipts.error_rovas"),
+          rovas_error: t("receipts.error_rovas"),
+          offline_unsupported: t("receipts.error_fs"),
+        };
+        setError(map[result.code] ?? result.message);
+      }
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      if (status === 401) {
+        setError(t("receipts.error_unauthorized"));
+      } else {
+        setError(t("receipts.error_api"));
+      }
+    } finally {
+      setClaiming(false);
+    }
+  }
+
   const showScanner = scanning && permission?.granted;
+  const claimSucceeded = claimResult?.claimed === true;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.intro}>{t("receipts.intro")}</Text>
 
-      <Pressable style={styles.primary} onPress={startScan} disabled={busy}>
+      <Pressable style={styles.primary} onPress={startScan} disabled={busy || claiming}>
         <Text style={styles.primaryText}>{t("receipts.scan")}</Text>
       </Pressable>
 
@@ -112,7 +174,6 @@ export default function ReceiptsScreen() {
           <CameraView
             style={styles.camera}
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-            // Disable further callbacks while verifying — prevents the flash loop.
             onBarcodeScanned={scannedLock || busy ? undefined : onBarcodeScanned}
           />
           <ViewfinderOverlay highlight={scanBounds} verifying={busy} />
@@ -140,8 +201,8 @@ export default function ReceiptsScreen() {
         style={styles.input}
       />
       <Pressable
-        style={[styles.primary, busy && styles.disabled]}
-        disabled={busy || !uidInput.trim()}
+        style={[styles.primary, (busy || claiming) && styles.disabled]}
+        disabled={busy || claiming || !uidInput.trim()}
         onPress={() => void runVerify(uidInput)}
       >
         {busy ? (
@@ -169,7 +230,34 @@ export default function ReceiptsScreen() {
             {preview.merits_preview.toFixed(2)} ME · {preview.wage_basis} · v
             {preview.formula_version}
           </Text>
-          <Text style={styles.soon}>{t("receipts.claim_soon")}</Text>
+
+          {claimSucceeded ? (
+            <Text style={styles.success}>
+              {t("receipts.claim_success")}{" "}
+              ({displayMerits(claimResult.total_merits)} {t("common.me")})
+            </Text>
+          ) : signedIn ? (
+            <Pressable
+              style={[styles.primary, claiming && styles.disabled]}
+              disabled={claiming}
+              onPress={() => void runClaim()}
+            >
+              {claiming ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryText}>{t("receipts.claim")}</Text>
+              )}
+            </Pressable>
+          ) : (
+            <View style={styles.signInPrompt}>
+              <Text style={styles.hint}>{t("receipts.claim_sign_in")}</Text>
+              <Link href="/(auth)/login" asChild>
+                <Pressable style={styles.secondary}>
+                  <Text style={styles.secondaryText}>{t("home.sign_in")}</Text>
+                </Pressable>
+              </Link>
+            </View>
+          )}
         </View>
       ) : (
         <Text style={styles.empty}>{t("receipts.history_empty")}</Text>
@@ -403,6 +491,16 @@ const styles = StyleSheet.create({
   rowLabel: { color: colors.muted },
   rowValue: { color: colors.ink, fontWeight: "600", flexShrink: 1, textAlign: "right" },
   hint: { fontSize: 12, color: colors.muted },
-  soon: { marginTop: 4, color: colors.brandSoft, fontWeight: "600" },
+  success: { marginTop: 4, color: colors.ok, fontWeight: "700" },
+  signInPrompt: { gap: 8, marginTop: 4 },
+  secondary: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  secondaryText: { color: colors.brandSoft, fontWeight: "700", fontSize: 15 },
   empty: { color: colors.muted, marginTop: 12 },
 });

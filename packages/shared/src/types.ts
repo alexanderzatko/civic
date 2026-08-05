@@ -37,6 +37,44 @@ export interface VerifyReceiptError {
 
 export type VerifyReceiptResponse = VerifiedReceiptPreview | VerifyReceiptError;
 
+export type ClaimReceiptErrorCode =
+  | "unauthorized"
+  | "invalid_uid"
+  | "not_found"
+  | "fs_error"
+  | "offline_unsupported"
+  | "duplicate"
+  | "rejected_location"
+  | "rejected_window"
+  | "rejected_rate"
+  | "rejected_vat"
+  | "rejected_shares"
+  | "rovas_error";
+
+export interface ClaimShareResult {
+  beneficiary_rovas_uid: string;
+  share_pct: number;
+  merits_awarded: number;
+}
+
+export interface ClaimReceiptSuccess {
+  claimed: true;
+  receipt_uid: string;
+  total_merits: number;
+  vat_eur: number;
+  merchant_name: string | null;
+  shares: ClaimShareResult[];
+}
+
+export interface ClaimReceiptError {
+  claimed: false;
+  receipt_uid: string | null;
+  code: ClaimReceiptErrorCode;
+  message: string;
+}
+
+export type ClaimReceiptResponse = ClaimReceiptSuccess | ClaimReceiptError;
+
 export interface ContributionCategoryBreakdown {
   taxes: number;
   charity: number;

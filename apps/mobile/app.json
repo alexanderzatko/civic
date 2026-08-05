@@ -12,7 +12,7 @@
       "bundleIdentifier": "app.civic.mobile",
       "infoPlist": {
         "NSCameraUsageDescription": "Civic potrebuje kameru na skenovanie QR kódu z eKasa bločka.",
-        "NSLocationWhenInUseUsageDescription": "Civic používa polohu pri uplatnení merít z bločka (kontrola dôveryhodnosti)."
+        "NSLocationWhenInUseUsageDescription": "Civic používa polohu pri uplatnení meritov z bločka (kontrola dôveryhodnosti)."
       }
     },
     "android": {
@@ -37,6 +37,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-dev-client",
       [
         "expo-splash-screen",
         {
@@ -49,6 +50,12 @@
         "expo-camera",
         {
           "cameraPermission": "Civic potrebuje kameru na skenovanie QR kódu z eKasa bločka."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Civic používa polohu pri uplatnení meritov z bločka (kontrola dôveryhodnosti)."
         }
       ],
       "expo-font",

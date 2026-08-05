@@ -22,7 +22,7 @@ async function main() {
   app.get("/", async () => ({
     service: "civic-api",
     ok: true,
-    try: ["/health", "GET /me", "POST /receipts/verify"],
+    try: ["/health", "GET /me", "POST /receipts/verify", "POST /receipts/claim"],
   }));
 
   app.get("/health", async () => ({

@@ -27,7 +27,9 @@ same Rovas authorize URL; Google / Facebook / Drupal login is chosen on the
 Rovas HybridAuth page.
 
 **Dev requirement:** custom scheme `civic://` needs a development build
-(`npx expo run:ios` / `run:android`), not Expo Go.
+(`pnpm --filter @civic/mobile ios:device`), not Expo Go. Day-to-day
+device session steps (API + Metro tunnel) are in the root
+[`README.md`](../README.md) under **Physical iPhone**.
 
 ## Civic API Bearer validation
 
@@ -47,6 +49,7 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 |-------|--------|
 | `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, client_id, scope, expires_at }` |
 | `GET /me/contributions/summary` | `total_me` from Rovas wallet; `by_category.taxes` + receipt stats from local `receipt_claims` |
+| `POST /receipts/claim` | Re-verify FS + dedup + GPS checks; grants Merits via Rovas `rules_proxy_claim_vat_receipt` |
 
 Optional Bearer:
 
@@ -74,3 +77,15 @@ Public:
 
 Client: `services/api/src/rovas-client.ts`. Enable resources on rovdev via
 **Enable Civic home API resources** (or `drush74 updb`) if a proxy returns 404.
+
+## Receipt claim (solo)
+
+Civic `POST /receipts/claim` (Bearer required) re-verifies the eKasa receipt,
+dedups in SQLite, then calls Rovas:
+
+`POST {ROVAS}/rovas/rules/rules_proxy_claim_vat_receipt`
+
+**Rovas agents:** implement that rule per the checklist in
+[`~/Documents/homeProjects/rovas/docs/integration/civic.md`](../../rovas/docs/integration/civic.md)
+→ **Next work: solo VAT claim**. Until it is live on `dev.rovas.app`, mobile
+claim returns a Rovas/API error after a successful Merit preview.

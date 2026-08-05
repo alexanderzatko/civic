@@ -32,7 +32,12 @@ export {
 
 export type {
   CharityProject,
+  ClaimReceiptError,
+  ClaimReceiptErrorCode,
+  ClaimReceiptResponse,
+  ClaimReceiptSuccess,
   ClaimShareInput,
+  ClaimShareResult,
   ContributionCategoryBreakdown,
   ContributionsSummary,
   GeoLocation,

@@ -24,7 +24,8 @@ export type RovasMeritDistribution = {
 export class RovasClientError extends Error {
   constructor(
     message: string,
-    readonly status: 401 | 404 | 502 | 503 = 502,
+    readonly status: 401 | 404 | 409 | 502 | 503 = 502,
+    readonly body?: unknown,
   ) {
     super(message);
     this.name = "RovasClientError";
@@ -32,8 +33,8 @@ export class RovasClientError extends Error {
 }
 
 /**
- * Thin HTTP client for Civic home-read APIs on Rovas
- * (`/rovas/me`, `/rovas/contributions/aggregate`, `/rovas/merit_distribution`).
+ * Thin HTTP client for Civic ↔ Rovas APIs
+ * (`/rovas/me`, aggregates, merit distribution, VAT claim rule).
  */
 export class RovasClient {
   private readonly base: string;
@@ -115,38 +116,131 @@ export class RovasClient {
     return out;
   }
 
+  async claimVatReceipt(
+    accessToken: string,
+    payload: RovasClaimVatReceiptRequest,
+  ): Promise<RovasClaimVatReceiptResponse> {
+    const body = await this.postJson<Partial<RovasClaimVatReceiptResponse>>(
+      "/rovas/rules/rules_proxy_claim_vat_receipt",
+      accessToken,
+      payload,
+    );
+    if (
+      typeof body.total_merits_awarded !== "number" ||
+      !Array.isArray(body.shares)
+    ) {
+      throw new RovasClientError(
+        "Rovas claim response missing required fields",
+        502,
+        body,
+      );
+    }
+    return {
+      total_merits_awarded: body.total_merits_awarded,
+      shares: body.shares.map((s) => ({
+        beneficiary_rovas_uid: String(s.beneficiary_rovas_uid),
+        merits_awarded: Number(s.merits_awarded) || 0,
+      })),
+      result: typeof body.result === "number" ? body.result : 0,
+      result_explain:
+        typeof body.result_explain === "string" ? body.result_explain : "ok",
+    };
+  }
+
   private async getJson<T>(
     path: string,
     accessToken?: string,
   ): Promise<T> {
+    return this.requestJson<T>(path, { method: "GET", accessToken });
+  }
+
+  private async postJson<T>(
+    path: string,
+    accessToken: string,
+    payload: unknown,
+  ): Promise<T> {
+    return this.requestJson<T>(path, {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify(payload),
+    });
+  }
+
+  private async requestJson<T>(
+    path: string,
+    opts: {
+      method: "GET" | "POST";
+      accessToken?: string;
+      body?: string;
+    },
+  ): Promise<T> {
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (accessToken) {
-      headers.Authorization = `Bearer ${accessToken}`;
+    if (opts.accessToken) {
+      headers.Authorization = `Bearer ${opts.accessToken}`;
+    }
+    if (opts.body !== undefined) {
+      headers["Content-Type"] = "application/json";
     }
 
     let res: Response;
     try {
-      res = await fetch(`${this.base}${path}`, { headers });
+      res = await fetch(`${this.base}${path}`, {
+        method: opts.method,
+        headers,
+        body: opts.body,
+      });
     } catch {
       throw new RovasClientError(`Rovas unreachable (${path})`, 503);
     }
 
+    let parsed: unknown = null;
+    const text = await res.text();
+    if (text) {
+      try {
+        parsed = JSON.parse(text) as unknown;
+      } catch {
+        parsed = text;
+      }
+    }
+
     if (res.status === 401) {
-      throw new RovasClientError(`Rovas unauthorized (${path})`, 401);
+      throw new RovasClientError(`Rovas unauthorized (${path})`, 401, parsed);
     }
     if (res.status === 404) {
-      throw new RovasClientError(`Rovas not found (${path})`, 404);
+      throw new RovasClientError(`Rovas not found (${path})`, 404, parsed);
+    }
+    if (res.status === 409) {
+      throw new RovasClientError(`Rovas conflict (${path})`, 409, parsed);
     }
     if (!res.ok) {
       throw new RovasClientError(
         `Rovas ${path} failed (${res.status})`,
         res.status >= 500 ? 503 : 502,
+        parsed,
       );
     }
 
-    return (await res.json()) as T;
+    return parsed as T;
   }
 }
+
+export type RovasClaimVatReceiptRequest = {
+  receipt_uid: string;
+  vat_eur: number;
+  total_merits: number;
+  merchant_name: string | null;
+  purchase_at: string | null;
+  hourly_wage_eur: number;
+  formula_version: number;
+  shares: Array<{ rovas_uid: string; share_pct: number }>;
+};
+
+export type RovasClaimVatReceiptResponse = {
+  total_merits_awarded: number;
+  shares: Array<{ beneficiary_rovas_uid: string; merits_awarded: number }>;
+  result: number;
+  result_explain: string;
+};
 
 function normalizeCategories(
   raw: Partial<ContributionCategoryBreakdown> | undefined,

@@ -16,7 +16,7 @@ Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**).
 
 Phase 1 scaffold in progress: monorepo + `POST /receipts/verify` + Expo navigational shell with Merit preview. Claim / Rovas OAuth land in Phase 2.
 
-Mobile targets **Expo SDK 54** so it runs in the current App Store **Expo Go** (newer SDKs are not in the store yet).
+Mobile targets **Expo SDK 54**. UI browsing can use Expo Go; **camera + OAuth** need a development build (Expo Go cannot claim `civic://`).
 
 ## Repository layout
 
@@ -27,6 +27,7 @@ Mobile targets **Expo SDK 54** so it runs in the current App Store **Expo Go** (
 | [`packages/shared`](packages/shared) | Types, Merit math, QR/UID parsing, settings defaults |
 | [`docs/plan.md`](docs/plan.md) | Full product / architecture plan |
 | [`docs/ekasa-receipt-api.md`](docs/ekasa-receipt-api.md) | FS receipt/find contract |
+| [`docs/rovas-integration.md`](docs/rovas-integration.md) | Civic ↔ Rovas OAuth + API Bearer |
 | [`identity/`](identity/) | Logos and brand notes |
 | [`mocs/`](mocs/) | Screen mockups |
 
@@ -39,11 +40,40 @@ cp .env.example .env   # optional overrides (HOURLY_WAGE_EUR, etc.)
 # Terminal 1 — API
 pnpm dev:api
 
-# Terminal 2 — Expo
+# Terminal 2 — Expo (simulator / Expo Go)
 pnpm dev:mobile
 ```
 
-Set `EXPO_PUBLIC_API_URL` if the device cannot reach `http://localhost:3001` (use your LAN IP).
+Set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` if the client cannot reach `http://localhost:3001` (use your Mac’s LAN IP).
+
+### Physical iPhone (camera + login)
+
+Expo Go cannot handle the `civic://oauth/callback` redirect. Use the **Civic** development build already installed on the phone (rebuild only when native deps change).
+
+**Once (or after native changes):** plug in the phone, unlock it, then:
+
+```bash
+pnpm --filter @civic/mobile ios:device
+```
+
+Xcode must have your Apple ID under **Settings → Accounts**, and the Civic target must use **Automatically manage signing** with your Personal Team.
+
+**Each test session:**
+
+```bash
+# Terminal 1 — API (LAN IP must match apps/mobile/.env)
+pnpm dev:api
+
+# Terminal 2 — Metro via tunnel (LAN often blocked on this network)
+cd apps/mobile
+EXPO_NO_METRO_WORKSPACE_ROOT=1 npx expo start --dev-client --tunnel
+```
+
+1. Open the **Civic** app on the phone (not Expo Go).
+2. If it does not auto-discover Metro: **Enter URL manually** → paste the tunnel URL from the terminal (looks like `https://….exp.direct`).
+3. Same Wi‑Fi is still useful for the API at `EXPO_PUBLIC_API_URL`; tunnel only carries the JS bundle.
+
+OAuth details: [`docs/rovas-integration.md`](docs/rovas-integration.md).
 
 ### Merit settings
 
