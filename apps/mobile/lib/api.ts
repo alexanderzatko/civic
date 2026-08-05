@@ -4,6 +4,7 @@ import type {
   ClaimReceiptResponse,
   ContributionsSummary,
   GeoLocation,
+  MeritRate,
   RankDistribution,
   VerifyReceiptResponse,
 } from "@civic/shared";
@@ -125,6 +126,10 @@ export function fetchCommunitySummary(): Promise<ContributionsSummary> {
 
 export function fetchRankDistribution(): Promise<RankDistribution> {
   return apiFetch("/rank/distribution", { auth: "optional" });
+}
+
+export function fetchMeritRate(): Promise<MeritRate> {
+  return apiFetch("/merit-rate");
 }
 
 export function fetchProjects(

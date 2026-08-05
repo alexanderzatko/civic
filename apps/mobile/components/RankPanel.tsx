@@ -279,25 +279,27 @@ export function RankPanel({
       <HeadlineWithLinks text={t(headlineKey(percentile))} />
       <Text style={styles.caption}>{t("home.rank_caption")}</Text>
 
-      <RankLadder
-        userPercentile={sliderPos}
-        onDragStateChange={setDragState}
-      />
-
-      {dragState.dragging && probeBucketIndex >= 0 ? (
-        <>
-          <Text style={styles.probeHint}>
-            {t("home.rank_probe_prefix")}{" "}
-            <Text style={styles.probeCount}>
-              {probeBucketCount.toLocaleString(locale)}
+      <View style={styles.ladderWrap}>
+        {dragState.dragging && probeBucketIndex >= 0 ? (
+          <View style={styles.probeOverlay} pointerEvents="none">
+            <Text style={styles.probeHint}>
+              {t("home.rank_probe_prefix")}{" "}
+              <Text style={styles.probeCount}>
+                {probeBucketCount.toLocaleString(locale)}
+              </Text>
             </Text>
-          </Text>
-          <RankDistributionDetail
-            distribution={distribution}
-            highlightIndex={probeBucketIndex}
-          />
-        </>
-      ) : null}
+            <RankDistributionDetail
+              distribution={distribution}
+              highlightIndex={probeBucketIndex}
+            />
+          </View>
+        ) : null}
+
+        <RankLadder
+          userPercentile={sliderPos}
+          onDragStateChange={setDragState}
+        />
+      </View>
     </View>
   );
 }
@@ -311,6 +313,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: 16,
     gap: 12,
+    overflow: "visible",
   },
   headline: {
     fontSize: 16,
@@ -328,6 +331,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.muted,
     textAlign: "center",
+  },
+  ladderWrap: {
+    position: "relative",
+    zIndex: 1,
+  },
+  probeOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: "100%",
+    gap: 8,
+    paddingBottom: 8,
+    backgroundColor: colors.surface,
+    zIndex: 2,
   },
   ladder: {
     gap: 4,

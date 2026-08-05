@@ -114,3 +114,15 @@ export interface RankDistribution {
   /** Log10 bin edges from Rovas Merit Distribution (length = buckets + 1). */
   bin_edges_log10?: number[];
 }
+
+/** Civic `GET /merit-rate` — Rovas national wage with local fallback. */
+export interface MeritRate {
+  country_code: string;
+  hourly_wage_eur: number;
+  merits_per_hour: number;
+  wage_basis: "net" | "gross";
+  formula_version: number;
+  source: "rovas" | "fallback";
+  rovas_source?: string;
+  updated?: string | null;
+}

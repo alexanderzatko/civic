@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -11,6 +11,7 @@ import { Link } from "expo-router";
 import {
   DEFAULT_SETTINGS,
   displayMerits,
+  type MeritRate,
   type RankDistribution,
 } from "@civic/shared";
 import { MeLogo } from "@/components/MeLogo";
@@ -19,21 +20,25 @@ import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import {
   fetchCommunitySummary,
+  fetchMeritRate,
   fetchMySummary,
   fetchRankDistribution,
 } from "@/lib/api";
+import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
 import { t } from "@/lib/i18n";
 
 function formatMe(n: number): string {
   return displayMerits(n).toLocaleString("sk-SK");
 }
 
-function meritsToEur(me: number): number {
-  return (me / DEFAULT_SETTINGS.meritsPerHour) * DEFAULT_SETTINGS.hourlyWageEur;
+function meritsToEur(me: number, rate: MeritRate | null): number {
+  const hourly = rate?.hourly_wage_eur ?? DEFAULT_SETTINGS.hourlyWageEur;
+  const perHour = rate?.merits_per_hour ?? DEFAULT_SETTINGS.meritsPerHour;
+  return (me / perHour) * hourly;
 }
 
-function formatEurApprox(me: number): string {
-  return `~ ${Math.round(meritsToEur(me)).toLocaleString("sk-SK")} ${t("common.eur")}`;
+function formatEurApprox(me: number, rate: MeritRate | null): string {
+  return `~ ${Math.round(meritsToEur(me, rate)).toLocaleString("sk-SK")} ${t("common.eur")}`;
 }
 
 export default function HomeScreen() {
@@ -44,43 +49,45 @@ export default function HomeScreen() {
   const [personalMe, setPersonalMe] = useState(0);
   const [username, setUsername] = useState<string | null>(null);
   const [rank, setRank] = useState<RankDistribution | null>(null);
+  const [meritRate, setMeritRate] = useState<MeritRate | null>(null);
   const [scrollLocked, setScrollLocked] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        if (signedIn) {
-          const [mine, community, distribution] = await Promise.all([
-            fetchMySummary(),
-            fetchCommunitySummary(),
-            fetchRankDistribution(),
-          ]);
-          if (cancelled) return;
-          setUsername(mine.username ?? mine.display_name ?? null);
-          setPersonalMe(mine.total_me);
-          setCommunityMe(community.total_me);
-          setRank(distribution);
-        } else {
-          // Mockup logged-out home: community total only (no ladder).
-          const summary = await fetchCommunitySummary();
-          if (cancelled) return;
-          setUsername(null);
-          setPersonalMe(0);
-          setCommunityMe(summary.total_me);
-          setRank(null);
-        }
-      } catch {
-        // API may be down — show empty shell.
-      } finally {
-        if (!cancelled) setLoading(false);
+  const refresh = useCallback(async () => {
+    try {
+      if (signedIn) {
+        const [mine, community, distribution, rate] = await Promise.all([
+          fetchMySummary(),
+          fetchCommunitySummary(),
+          fetchRankDistribution(),
+          fetchMeritRate(),
+        ]);
+        setUsername(mine.username ?? mine.display_name ?? null);
+        setPersonalMe(mine.total_me);
+        setCommunityMe(community.total_me);
+        setRank(distribution);
+        setMeritRate(rate);
+      } else {
+        // Mockup logged-out home: community total only (no ladder).
+        const [summary, rate] = await Promise.all([
+          fetchCommunitySummary(),
+          fetchMeritRate(),
+        ]);
+        setUsername(null);
+        setPersonalMe(0);
+        setCommunityMe(summary.total_me);
+        setRank(null);
+        setMeritRate(rate);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    } catch {
+      // API may be down — keep last good values.
+    } finally {
+      setLoading(false);
+    }
   }, [signedIn]);
+
+  useMeritsAutoRefresh(() => {
+    void refresh();
+  });
 
   if (status === "loading") {
     return (
@@ -107,7 +114,9 @@ export default function HomeScreen() {
               <Text style={styles.personalMe}>
                 {formatMe(personalMe)} {t("common.me")}
               </Text>
-              <Text style={styles.eurHint}>{formatEurApprox(personalMe)}</Text>
+              <Text style={styles.eurHint}>
+                {formatEurApprox(personalMe, meritRate)}
+              </Text>
               {username ? (
                 <Text style={styles.uidHint}>@{username}</Text>
               ) : null}
@@ -161,7 +170,9 @@ export default function HomeScreen() {
             <Text style={styles.communityMe}>
               {formatMe(communityMe)} {t("common.me")}
             </Text>
-            <Text style={styles.eurHint}>{formatEurApprox(communityMe)}</Text>
+            <Text style={styles.eurHint}>
+              {formatEurApprox(communityMe, meritRate)}
+            </Text>
           </>
         )}
       </View>

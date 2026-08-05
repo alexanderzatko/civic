@@ -25,6 +25,7 @@ import {
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { claimReceipt, verifyReceipt } from "@/lib/api";
+import { notifyMeritsChanged } from "@/lib/merits-refresh";
 import { t } from "@/lib/i18n";
 
 type ScanBounds = {
@@ -129,7 +130,9 @@ export default function ReceiptsScreen() {
           pos.coords.accuracy != null ? pos.coords.accuracy : undefined,
       });
       setClaimResult(result);
-      if (!result.claimed) {
+      if (result.claimed) {
+        notifyMeritsChanged();
+      } else {
         const map: Record<string, string> = {
           unauthorized: t("receipts.error_unauthorized"),
           invalid_uid: t("receipts.error_invalid"),

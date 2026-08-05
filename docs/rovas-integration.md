@@ -48,8 +48,8 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | Route | Notes |
 |-------|--------|
 | `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, client_id, scope, expires_at }` |
-| `GET /me/contributions/summary` | `total_me` from Rovas wallet; `by_category.taxes` + receipt stats from local `receipt_claims` |
-| `POST /receipts/claim` | Re-verify FS + dedup + GPS checks; grants Merits via Rovas `rules_proxy_claim_vat_receipt` |
+| `GET /me/contributions/summary` | `total_me` from Rovas wallet; `by_category.taxes` + receipt stats from Rovas claim summary once live (interim: zeros — see Rovas task **Civic claim reads + SoT**) |
+| `POST /receipts/claim` | Re-verify FS + GPS/rate-limit via Civic `claim_attempts`; UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (Rovas `{civic_claims}` is sole claim registry) |
 
 Optional Bearer:
 
@@ -62,8 +62,19 @@ Public:
 | Route | Notes |
 |-------|--------|
 | `GET /community/contributions/summary` | Proxies Rovas `/rovas/contributions/aggregate` |
+| `GET /merit-rate` | National hourly wage for ME↔€ / claim preview — proxies Rovas `GET /rovas/civic/national_hourly_rate` (falls back to `HOURLY_WAGE_EUR` until that endpoint is live) |
 
 `ROVAS_BASE_URL` is read from the API `.env` (default `https://dev.rovas.app`).
+
+## Merit conversion wage
+
+Rovas admin **national hourly rate** is the SoT for VAT→ME math (and Civic
+previews once the public read API exists). See Rovas task
+**Next work: public national hourly rate API** in
+[`~/Documents/homeProjects/rovas/docs/integration/civic.md`](../../rovas/docs/integration/civic.md).
+
+Until that endpoint is enabled on rovdev, Civic API uses env/settings
+fallback (`HOURLY_WAGE_EUR`, default 7.5).
 
 ## Home screen data (wired)
 
@@ -73,19 +84,35 @@ Public:
 | Personal username | `/me` / summary `username` | `GET /rovas/me` |
 | Community total ME | `/community/contributions/summary` | `GET /rovas/contributions/aggregate` |
 | Rank histogram | `/rank/distribution` | `GET /rovas/merit_distribution` |
-| Category mix | taxes from Civic claims; charity/volunteer 0 | Aggregate `by_category` still zeros on Rovas |
+| € equivalent | `/merit-rate` → `hourly_wage_eur` | `GET /rovas/civic/national_hourly_rate` (fallback: Civic settings) |
+| Category mix | taxes from Rovas claim summary (interim 0); charity/volunteer 0 | Aggregate `by_category` still zeros on Rovas |
+
+**Refresh:** home re-fetches ME (+ rate/rank) on tab focus, when the app
+returns to the foreground, every 5 minutes while focused, and immediately
+after a successful receipt claim (`notifyMeritsChanged`).
 
 Client: `services/api/src/rovas-client.ts`. Enable resources on rovdev via
 **Enable Civic home API resources** (or `drush74 updb`) if a proxy returns 404.
 
+## Claim registry SoT
+
+**Rovas** `{civic_claims}` / `{civic_claim_shares}` is the **only** claim
+registry (`receipt_uid` UNIQUE, VAT, shares, Merits). Civic SQLite keeps
+`claim_attempts` for fraud/ops (GPS, rate limits, strikes) — not a duplicate
+claim table.
+
+**Dev reset:** clear Rovas claims (see Rovas `docs/integration/civic.md`);
+optionally truncate Civic `claim_attempts`.
+
 ## Receipt claim (solo)
 
 Civic `POST /receipts/claim` (Bearer required) re-verifies the eKasa receipt,
-dedups in SQLite, then calls Rovas:
+runs Civic location/rate checks, then calls Rovas (which owns dedup + persist):
 
 `POST {ROVAS}/rovas/rules/rules_proxy_claim_vat_receipt`
 
-**Rovas agents:** implement that rule per the checklist in
+**Rovas agents:** claim rule checklist in
 [`~/Documents/homeProjects/rovas/docs/integration/civic.md`](../../rovas/docs/integration/civic.md)
-→ **Next work: solo VAT claim**. Until it is live on `dev.rovas.app`, mobile
-claim returns a Rovas/API error after a successful Merit preview.
+→ **Next work: solo VAT claim**. Claim history/summary reads:
+→ **Next work: Civic claim reads + SoT**. National rate read:
+→ **Next work: public national hourly rate API**.

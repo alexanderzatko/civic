@@ -54,33 +54,18 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       const user = req.authUser!;
       try {
         const profile = await ctx.rovas.fetchMe(user.accessToken);
-        const row = ctx.db
-          .prepare(
-            `SELECT
-               COALESCE(SUM(total_merits_awarded), 0) AS total_me,
-               COUNT(*) AS receipt_count,
-               COALESCE(SUM(vat_eur), 0) AS total_vat_eur
-             FROM receipt_claims
-             WHERE submitted_by_rovas_uid = ?`,
-          )
-          .get(user.rovasUid) as {
-          total_me: number;
-          receipt_count: number;
-          total_vat_eur: number;
-        };
-
-        // Wallet total from Rovas; category breakdown is Civic-local for taxes
-        // until charity/volunteer paths report into the aggregate.
-        const taxes = Number(row.total_me) || 0;
+        // Wallet total from Rovas. Taxes/receipt stats come from Rovas claim
+        // summary once live (see rovas docs/integration/civic.md → Civic claim
+        // reads + SoT). Interim zeros — do not reintroduce a local claim mirror.
         const body: MeSummaryResponse = {
           rovas_uid: user.rovasUid,
           username: profile.username,
           display_name: profile.display_name,
           scope: user.token.scope,
           total_me: profile.total_me,
-          by_category: { taxes, charity: 0, volunteer: 0 },
-          receipt_count: Number(row.receipt_count) || 0,
-          total_vat_eur: Number(row.total_vat_eur) || 0,
+          by_category: { taxes: 0, charity: 0, volunteer: 0 },
+          receipt_count: 0,
+          total_vat_eur: 0,
         };
         return body;
       } catch (err) {

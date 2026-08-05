@@ -41,6 +41,7 @@ export type {
   ContributionCategoryBreakdown,
   ContributionsSummary,
   GeoLocation,
+  MeritRate,
   RankBucket,
   RankDistribution,
   VerifiedReceiptPreview,

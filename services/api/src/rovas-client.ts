@@ -116,6 +116,45 @@ export class RovasClient {
     return out;
   }
 
+  /**
+   * Public national hourly rate (Rovas admin SoT).
+   * `GET /rovas/civic/national_hourly_rate?country=SK`
+   */
+  async fetchNationalHourlyRate(
+    countryCode = "SK",
+  ): Promise<RovasNationalHourlyRate> {
+    const q = new URLSearchParams({ country: countryCode.toUpperCase() });
+    const body = await this.getJson<Partial<RovasNationalHourlyRate>>(
+      `/rovas/civic/national_hourly_rate?${q}`,
+    );
+    if (
+      typeof body.hourly_wage_eur !== "number" ||
+      !(body.hourly_wage_eur > 0)
+    ) {
+      throw new RovasClientError(
+        "Rovas national_hourly_rate missing hourly_wage_eur",
+        502,
+        body,
+      );
+    }
+    return {
+      country_code:
+        typeof body.country_code === "string" && body.country_code
+          ? body.country_code.toUpperCase()
+          : countryCode.toUpperCase(),
+      hourly_wage_eur: body.hourly_wage_eur,
+      merits_per_hour:
+        typeof body.merits_per_hour === "number" && body.merits_per_hour > 0
+          ? body.merits_per_hour
+          : 10,
+      source: typeof body.source === "string" ? body.source : "",
+      updated:
+        typeof body.updated === "string" || body.updated === null
+          ? body.updated
+          : null,
+    };
+  }
+
   async claimVatReceipt(
     accessToken: string,
     payload: RovasClaimVatReceiptRequest,
@@ -223,6 +262,14 @@ export class RovasClient {
     return parsed as T;
   }
 }
+
+export type RovasNationalHourlyRate = {
+  country_code: string;
+  hourly_wage_eur: number;
+  merits_per_hour: number;
+  source: string;
+  updated: string | null;
+};
 
 export type RovasClaimVatReceiptRequest = {
   receipt_uid: string;

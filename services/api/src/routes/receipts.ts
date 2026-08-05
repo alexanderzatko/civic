@@ -15,6 +15,7 @@ import {
   parseFsDate,
 } from "../ekasa.js";
 import type { AppContext } from "../context.js";
+import { resolveMeritRate } from "../merit-rate.js";
 import { RovasClientError } from "../rovas-client.js";
 
 const locationSchema = z.object({
@@ -109,8 +110,9 @@ function countSuccessfulClaimsSince(
   const row = ctx.db
     .prepare(
       `SELECT COUNT(*) AS n
-       FROM receipt_claims
+       FROM claim_attempts
        WHERE submitted_by_rovas_uid = ?
+         AND outcome = 'claimed'
          AND created_at >= ?`,
     )
     .get(rovasUid, sinceIso) as { n: number };
@@ -162,11 +164,11 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
 
       const receipt = fsResult.receipt;
       const vatEur = extractVatEur(receipt);
-      const { settings } = ctx.config;
+      const rate = await resolveMeritRate(ctx.rovas, ctx.config.settings);
       const meritsPreview = computeMerits({
         vatEur,
-        hourlyWageEur: settings.hourlyWageEur,
-        meritsPerHour: settings.meritsPerHour,
+        hourlyWageEur: rate.hourly_wage_eur,
+        meritsPerHour: rate.merits_per_hour,
       });
 
       // Optional verify location is accepted for Phase 2 drift checks;
@@ -182,9 +184,9 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
           receipt.totalPrice != null ? Number(receipt.totalPrice) : null,
         vat_eur: vatEur,
         merits_preview: meritsPreview,
-        hourly_wage_eur: settings.hourlyWageEur,
-        formula_version: settings.formulaVersion,
-        wage_basis: settings.wageBasis,
+        hourly_wage_eur: rate.hourly_wage_eur,
+        formula_version: rate.formula_version,
+        wage_basis: rate.wage_basis,
       } satisfies VerifyReceiptResponse;
     } catch (err) {
       const message =
@@ -246,25 +248,8 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         });
       }
 
-      const existing = ctx.db
-        .prepare(`SELECT id FROM receipt_claims WHERE receipt_uid = ?`)
-        .get(uid) as { id: number } | undefined;
-      if (existing) {
-        recordAttempt(ctx, {
-          receiptUid: uid,
-          rovasUid: user.rovasUid,
-          outcome: "duplicate",
-          lat: location.lat,
-          lng: location.lng,
-        });
-        return claimError(reply, 409, {
-          claimed: false,
-          receipt_uid: uid,
-          code: "duplicate",
-          message: "This receipt has already been claimed.",
-        });
-      }
-
+      // UID dedup lives on Rovas ({civic_claims}); Civic only rate-limits via
+      // claim_attempts and maps Rovas 409 → duplicate below.
       const dayCount = countSuccessfulClaimsSince(
         ctx,
         user.rovasUid,
@@ -401,10 +386,11 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         });
       }
 
+      const rate = await resolveMeritRate(ctx.rovas, settings);
       const totalMerits = computeMerits({
         vatEur,
-        hourlyWageEur: settings.hourlyWageEur,
-        meritsPerHour: settings.meritsPerHour,
+        hourlyWageEur: rate.hourly_wage_eur,
+        meritsPerHour: rate.merits_per_hour,
       });
 
       const split = splitMerits({
@@ -423,8 +409,8 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
           total_merits: totalMerits,
           merchant_name: merchantName,
           purchase_at: purchaseAt,
-          hourly_wage_eur: settings.hourlyWageEur,
-          formula_version: settings.formulaVersion,
+          hourly_wage_eur: rate.hourly_wage_eur,
+          formula_version: rate.formula_version,
           shares: sharesInput.map((s) => ({
             rovas_uid: s.rovas_uid,
             share_pct: s.share_pct,
@@ -447,51 +433,13 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
           });
         }
 
-        const persist = ctx.db.transaction(() => {
-          const insertClaim = ctx.db.prepare(
-            `INSERT INTO receipt_claims (
-              receipt_uid, submitted_by_rovas_uid, vat_eur, total_merits_awarded,
-              merchant_name, purchase_at, hourly_wage_eur, formula_version,
-              fs_verified_at, claim_lat, claim_lng, claim_location_accuracy_m
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)`,
-          );
-          const result = insertClaim.run(
-            uid,
-            user.rovasUid,
-            vatEur,
-            rovasResult.total_merits_awarded,
-            merchantName,
-            purchaseAt,
-            settings.hourlyWageEur,
-            settings.formulaVersion,
-            location.lat,
-            location.lng,
-            location.accuracy_m ?? null,
-          );
-          const claimId = Number(result.lastInsertRowid);
-          const insertShare = ctx.db.prepare(
-            `INSERT INTO receipt_claim_shares
-              (claim_id, beneficiary_rovas_uid, share_pct, merits_awarded, rounding_residue)
-             VALUES (?, ?, ?, ?, ?)`,
-          );
-          for (const row of split) {
-            insertShare.run(
-              claimId,
-              row.rovasUid,
-              row.sharePct,
-              row.meritsAwarded,
-              row.roundingResidue,
-            );
-          }
-          recordAttempt(ctx, {
-            receiptUid: uid,
-            rovasUid: user.rovasUid,
-            outcome: "claimed",
-            lat: location.lat,
-            lng: location.lng,
-          });
+        recordAttempt(ctx, {
+          receiptUid: uid,
+          rovasUid: user.rovasUid,
+          outcome: "claimed",
+          lat: location.lat,
+          lng: location.lng,
         });
-        persist();
 
         const body: ClaimReceiptResponse = {
           claimed: true,
@@ -543,27 +491,6 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
             receipt_uid: uid,
             code: "rovas_error",
             message: err.message,
-          });
-        }
-        // UNIQUE race on receipt_uid
-        if (
-          err &&
-          typeof err === "object" &&
-          "code" in err &&
-          (err as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE"
-        ) {
-          recordAttempt(ctx, {
-            receiptUid: uid,
-            rovasUid: user.rovasUid,
-            outcome: "duplicate",
-            lat: location.lat,
-            lng: location.lng,
-          });
-          return claimError(reply, 409, {
-            claimed: false,
-            receipt_uid: uid,
-            code: "duplicate",
-            message: "This receipt has already been claimed.",
           });
         }
         req.log.error({ err }, "claim failed");

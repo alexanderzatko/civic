@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import { loadConfig } from "./config.js";
 import { openDatabase } from "./db.js";
 import { EkasaClient } from "./ekasa.js";
+import { resolveMeritRate } from "./merit-rate.js";
 import { RovasClient } from "./rovas-client.js";
 import type { AppContext } from "./context.js";
 import { receiptsRoutes } from "./routes/receipts.js";
@@ -22,16 +23,31 @@ async function main() {
   app.get("/", async () => ({
     service: "civic-api",
     ok: true,
-    try: ["/health", "GET /me", "POST /receipts/verify", "POST /receipts/claim"],
+    try: [
+      "/health",
+      "GET /merit-rate",
+      "GET /me",
+      "POST /receipts/verify",
+      "POST /receipts/claim",
+    ],
   }));
 
-  app.get("/health", async () => ({
-    ok: true,
-    formula_version: config.settings.formulaVersion,
-    wage_basis: config.settings.wageBasis,
-    hourly_wage_eur: config.settings.hourlyWageEur,
-    rovas_base_url: config.rovasBaseUrl,
-  }));
+  app.get("/health", async () => {
+    const rate = await resolveMeritRate(rovas, config.settings);
+    return {
+      ok: true,
+      formula_version: rate.formula_version,
+      wage_basis: rate.wage_basis,
+      hourly_wage_eur: rate.hourly_wage_eur,
+      merit_rate_source: rate.source,
+      rovas_base_url: config.rovasBaseUrl,
+    };
+  });
+
+  /** Public Merit conversion inputs (Rovas national rate with Civic fallback). */
+  app.get("/merit-rate", async () => {
+    return resolveMeritRate(rovas, config.settings);
+  });
 
   await app.register(receiptsRoutes, { ctx });
   await app.register(summaryRoutes, { ctx });

@@ -33,7 +33,7 @@ todos:
     content: "Approve split-claims UX (search, memory, always-share, default equal split, override) and atomic multi-beneficiary claim contract — see §7"
     status: completed
   - id: receipt-sharing-impl
-    content: "Phase 2: ship split-claims end-to-end — /users/search + claim shares array + receipt_claim_shares table + multi-beneficiary rules_proxy_claim_vat_receipt + mobile split UI on screen 2"
+    content: "Phase 2: ship split-claims end-to-end — /users/search + claim shares array + Rovas {civic_claim_shares} + multi-beneficiary rules_proxy_claim_vat_receipt + mobile split UI on screen 2"
     status: pending
   - id: mockup-split-claims
     content: "Extend mocs/civic-mockup.canvas.tsx with the split-claims sub-screens (recipient picker, search, memory list, share editor) before Phase 2 starts"
@@ -97,7 +97,7 @@ flowchart TB
         ClaimRoute[POST /receipts/claim]
         QrParser[QR UID parser]
         EkasaClient[eKasa FS receipt client]
-        Dedup[(receipt_claims table)]
+        Attempts[(claim_attempts audit)]
         RovasClient[Rovas API client]
     end
 
@@ -105,6 +105,7 @@ flowchart TB
         FS[ekasa.financnasprava.sk MDU API]
         RovasOAuth[Rovas OAuth server]
         RovasDev[dev.rovas.app APIs]
+        ClaimRegistry[("{civic_claims} sole registry")]
     end
 
     Scan --> VerifyRoute
@@ -116,9 +117,10 @@ flowchart TB
     VerifyRoute --> EkasaClient --> FS
     ClaimRoute --> QrParser
     ClaimRoute --> EkasaClient
-    ClaimRoute --> Dedup
+    ClaimRoute --> Attempts
     ClaimRoute --> TokenValidate
     ClaimRoute --> RovasClient --> RovasDev
+    RovasDev --> ClaimRegistry
     TokenValidate --> RovasOAuth
 ```
 
@@ -300,11 +302,11 @@ When a single receipt is claimed for multiple Rovas users (§7), the **total** i
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
 | POST | `/receipts/verify` | Rovas Bearer optional | Extract UID, call FS `receipt/find`; return verified preview (no grant). Optional `location` in body — stored ephemerally (session/cache) for verify→claim drift check (§11) |
-| POST | `/receipts/claim` | Rovas Bearer required | Verify, dedup, location + heuristic fraud checks (§11), grant Merits via Rovas, persist claim. Body: `qr_or_uid`, optional `shares[]`, required `location: { lat, lng, accuracy_m? }` from device GPS at claim time — see §7 |
+| POST | `/receipts/claim` | Rovas Bearer required | Verify, location + heuristic fraud checks (§11), grant Merits via Rovas (Rovas owns UID dedup + claim persist). Body: `qr_or_uid`, optional `shares[]`, required `location: { lat, lng, accuracy_m? }` from device GPS at claim time — see §7. Civic logs `claim_attempts` only |
 | GET | `/users/search` | Rovas Bearer required | Typeahead for split-claim recipients (§7). `?q=<≥3 chars>`; returns up to 10 `{ rovas_uid, username, display_name }` rows. Proxies the new Rovas search endpoint (§8c). Separate from `/users/lookup` |
-| GET | `/users/me/summary` | Rovas Bearer required | Total VAT claimed, total ME, receipt count, Rovas profile hint |
-| GET | `/receipts` | Rovas Bearer required | Paginated claim history for authenticated `rovas_uid` — returns shares the caller received plus, in a secondary view, receipts they submitted (§7) |
-| GET | `/me/contributions/summary` | Rovas Bearer required | Per-category ME breakdown for screen 0 (taxes, charity, volunteer); v1 reads taxes only — charity/volunteer counts are 0 until those paths ship |
+| GET | `/users/me/summary` | Rovas Bearer required | Total VAT claimed, total ME, receipt count, Rovas profile hint — proxies Rovas claim summary (§8c) |
+| GET | `/receipts` | Rovas Bearer required | Paginated claim history for authenticated `rovas_uid` — proxies Rovas claim reads (§8c); shares received + receipts submitted (§7) |
+| GET | `/me/contributions/summary` | Rovas Bearer required | Per-category ME breakdown for screen 0 (taxes, charity, volunteer); taxes/receipt stats from Rovas claim summary once live — charity/volunteer 0 until those paths ship |
 | GET | `/community/contributions/summary` | Public | Aggregate ME totals + per-category breakdown for the logged-out screen 0 |
 | GET | `/charities/projects` | Public | Proxies the new Rovas charity-projects endpoint (§8c); query param `?type=charity\|invest` differentiates screens 3 and 5; each item carries a canonical `rovas_url` for v1 hyperlink-out |
 | GET | `/rank/distribution` | Public (Rovas Bearer optional) | Proxies the existing **Rovas Merit Distribution** module Services endpoint; returns log-scale buckets `[{ label, count }]` for the histogram on screen 0. With a Bearer token, the response also returns `user_bucket_index` so the mobile app can highlight the caller's bucket and label it with their Rovas username |
@@ -321,7 +323,7 @@ sequenceDiagram
     participant App as Expo
     participant API as CivicAPI
     participant FS as ekasa.financnasprava.sk
-    participant DB as DedupDB
+    participant Attempts as claim_attempts
     participant Rovas as dev.rovas.app
 
     App->>API: POST /receipts/claim {qr_or_uid, location}<br/>Authorization Bearer rovas_token
@@ -335,18 +337,19 @@ sequenceDiagram
     else verified
         API->>API: location + heuristic fraud checks (§11)
         alt rejected (travel / merchant / etc.)
+            API->>Attempts: log rejection + GPS
             API-->>App: 422 Fraud check failed
         else passed checks
-            API->>DB: INSERT uid IF NOT EXISTS
-            alt uid already claimed
-                DB-->>API: conflict
+            API->>API: compute merits preview
+            API->>Rovas: POST rules_proxy_claim_vat_receipt<br/>Bearer same token
+            alt uid already claimed on Rovas
+                Rovas-->>API: 409 duplicate_receipt
+                API->>Attempts: log duplicate + GPS
                 API-->>App: 409 Already claimed
             else new uid
-                API->>API: compute merits
-                API->>Rovas: POST rules_proxy_claim_vat_receipt<br/>Bearer same token
-                Rovas-->>API: merits_awarded, total_merits
-                API->>DB: save claim record
-                API-->>App: success + balance
+                Rovas-->>API: merits_awarded (persists {civic_claims})
+                API->>Attempts: log claimed + GPS
+                API-->>App: success + merits
             end
         end
     end
@@ -354,17 +357,15 @@ sequenceDiagram
 
 ### Data model (MVP)
 
-**receipt_claims** (one row per receipt) — id, receipt_uid (UNIQUE globally), submitted_by_rovas_uid, vat_eur, total_merits_awarded, merchant_name, purchase_at, hourly_wage_eur, formula_version, buyer_identifier (nullable), payment_method (nullable), fs_verified_at, claim_lat (nullable), claim_lng (nullable), claim_location_accuracy_m (nullable), created_at
+**Claim registry (Rovas only — sole SoT):** `{civic_claims}` / `{civic_claim_shares}` — `receipt_uid` (UNIQUE globally), scanner, VAT, Merits, merchant, purchase time, per-beneficiary shares. Civic does **not** mirror these tables. Dedup and claim history live only on Rovas.
 
-**receipt_claim_shares** (one row per beneficiary, ≥ 1 per claim — see §7) — id, claim_id (FK → receipt_claims), beneficiary_rovas_uid, share_pct, merits_awarded, rounding_residue, created_at. UNIQUE (claim_id, beneficiary_rovas_uid). Solo claims still create exactly one share row at 100%.
-
-**claim_attempts** — id, receipt_uid, submitted_by_rovas_uid, outcome (`claimed` | `duplicate` | `rejected_window` | `rejected_rate` | `rejected_shares` | `rejected_location` | `rejected_merchant_distance` | `rejected_future_receipt` | `rejected_scan_lag` | `error`), claim_lat (nullable), claim_lng (nullable), created_at — used for strike counting and audit. Strikes always attach to the scanner, not to recipients.
+**claim_attempts** (Civic SQLite — ops/fraud audit, not a claim registry) — id, receipt_uid, submitted_by_rovas_uid, outcome (`claimed` | `duplicate` | `rejected_window` | `rejected_rate` | `rejected_shares` | `rejected_location` | `rejected_merchant_distance` | `rejected_future_receipt` | `rejected_scan_lag` | `error`), claim_lat (nullable), claim_lng (nullable), created_at — used for strike counting, rate limits (`outcome = claimed`), travel-consistency GPS anchors, and audit. Strikes always attach to the scanner, not to recipients. `receipt_uid` here is audit context only (no UNIQUE).
 
 **user_strikes** — rovas_uid, strike_count, blocked_until (nullable), updated_at — optional; can derive from claim_attempts if preferred.
 
-Global UNIQUE on `receipt_uid` prevents double-claim across users. Indexes on `submitted_by_rovas_uid` (scanner history) and `receipt_claim_shares.beneficiary_rovas_uid` (per-user "my Merit credits" history).
+No local `users`, `rovas_links`, `receipt_claims`, or `receipt_claim_shares` tables — identity comes from the OAuth token; claim identity from Rovas. The per-device recipient memory for split claims lives only on the client (§7).
 
-No local `users` or `rovas_links` tables — identity comes from the OAuth token. The per-device recipient memory for split claims lives only on the client (§7).
+**Dev reset:** clear Rovas `{civic_claims}` (+ shares) to re-allow a QR; optionally truncate Civic `claim_attempts` for a clean rate-limit/strike slate.
 
 ---
 
@@ -417,17 +418,14 @@ Memory is purely client-side in v1 — there is no server-side address book. The
 | POST | `/receipts/claim` | Body now accepts `shares?: [{ rovas_uid, share_pct }]`. Omitted → defaults to `[{ rovas_uid: caller, share_pct: 100 }]`. Validation: ≥ 1 share, scanner included, distinct `rovas_uid`s, sum ≈ 100. Response now contains `total_merits` plus a `shares[]` array with per-beneficiary `merits_awarded`. |
 | GET | `/users/search` | **New.** Bearer required. `?q=<≥3 chars>` returns up to 10 `{ rovas_uid, username, display_name }` rows. Lightweight typeahead — distinct from the heavier `/users/lookup` (Phase 3+ public-profile endpoint for screen 6). |
 
-### Data model addition (§6)
+### Claim registry (Rovas) + Civic ops
 
-Receipt persistence becomes parent + children:
+Claim parent + children live **only on Rovas** (`{civic_claims}` / `{civic_claim_shares}`). Civic does not persist claim or share rows; it logs `claim_attempts` for fraud/ops.
 
-- **receipt_claims** — one row per receipt, keyed by `receipt_uid`, owned by `submitted_by_rovas_uid`, with `total_merits_awarded`.
-- **receipt_claim_shares** — one row per beneficiary, FK to claim, with `share_pct`, `merits_awarded`, `rounding_residue`. UNIQUE on `(claim_id, beneficiary_rovas_uid)`. Solo claims still create exactly one share row at 100%.
+History (Civic proxies Rovas reads — see §8c / `docs/integration/civic.md`):
 
-History queries:
-
-- "Moje merity z bločkov" (Merits I received) = `receipt_claim_shares` joined to `receipt_claims` where `beneficiary_rovas_uid = caller` — shows per-share Merit credit plus the originating receipt and the scanner.
-- "Moje naskenované bločky" (receipts I submitted) = `receipt_claims.submitted_by_rovas_uid = caller` — secondary tab on screen 2.
+- "Moje merity z bločkov" (Merits I received) = Rovas claims where caller is a beneficiary share.
+- "Moje naskenované bločky" (receipts I submitted) = Rovas claims where caller is the scanner.
 
 ### Server-side claim flow (amended)
 
@@ -442,20 +440,20 @@ sequenceDiagram
     API->>API: validate shares (sum ≈ 100, distinct uids,<br/>scanner included)
     API->>FS: receipt/find (once)
     FS-->>API: verified receipt + VAT
-    API->>API: global UID dedup
-    API->>API: compute per-share merits + residue
+    API->>API: compute per-share merits preview + residue
     API->>Rovas: rules_proxy_claim_vat_receipt {uid, shares[]}
-    Rovas-->>API: per-beneficiary grant outcomes
-    alt any grant fails
-        API->>API: rollback claim + shares (transaction)
-        API-->>App: 5xx — no partial credit
+    alt duplicate or grant fails
+        Rovas-->>API: 409 / error (Drupal rolls back)
+        API->>API: log claim_attempts
+        API-->>App: 409 or 5xx — no partial credit
     else all granted
-        API->>API: persist claim + shares
+        Rovas-->>API: total_merits + shares[] (persisted on Rovas)
+        API->>API: log claim_attempts claimed + GPS
         API-->>App: total_merits + shares[]
     end
 ```
 
-Atomicity is mandatory: either every share gets credited on Rovas and recorded in `receipt_claim_shares`, or nothing does. The Rovas rule must run all `rules_give_merits_to_user` calls inside a single Drupal transaction (§8b).
+Atomicity is mandatory on Rovas: either every share gets credited and recorded in `{civic_claim_shares}`, or nothing does. The Rovas rule must run all `rules_give_merits_to_user` calls inside a single Drupal transaction (§8b).
 
 ### Privacy and consent
 
@@ -480,7 +478,7 @@ Atomicity is mandatory: either every share gets credited on Rovas and recorded i
 ### Phasing
 
 - **Phase 1** — not present (no claim flow yet; verify-preview only).
-- **Phase 2** — ships split claims end-to-end together with the basic claim flow, so v1 production never has a "solo-only" claim phase. Includes Rovas `/users/search`, the multi-beneficiary rule, the `receipt_claim_shares` table, and the mobile split UI on screen 2.
+- **Phase 2** — ships split claims end-to-end together with the basic claim flow, so v1 production never has a "solo-only" claim phase. Includes Rovas `/users/search`, the multi-beneficiary rule (Rovas `{civic_claim_shares}`), Civic claim reads proxy, and the mobile split UI on screen 2.
 - **Phase 3** — opt-out preference, server-side address book if user research justifies one, possible recipient-side notifications.
 
 ---
@@ -529,11 +527,11 @@ Dev target: **`https://dev.rovas.app`**
 **Logic (summary):**
 
 1. Resolve caller (the scanner) via **OAuth Bearer** (preferred) or legacy API-KEY/TOKEN
-2. Reject if `receipt_uid` already in `{civic_claims}` table on Rovas — belt-and-suspenders with API dedup
+2. Reject if `receipt_uid` already in `{civic_claims}` — **sole** global UID dedup (Civic does not keep a claim registry)
 3. Validate the incoming `shares` array (§7): non-empty, distinct `beneficiary_rovas_uid` values, percentages sum to 100 (± rounding tolerance), each beneficiary resolves to a real Rovas user, scanner is included
 4. Compute total merits, then per-share Merit amounts (`floor(total * share_pct / 100, 2)`, scanner absorbs rounding residue)
 5. Inside a single Drupal transaction, invoke `rules_give_merits_to_user` once per beneficiary — **atomic**: any failure rolls the whole claim back so partial Merit credit is impossible
-6. Persist the claim + per-beneficiary rows in `{civic_claims}` / `{civic_claim_shares}`
+6. Persist the claim + per-beneficiary rows in `{civic_claims}` / `{civic_claim_shares}` (sole claim SoT)
 7. Return `{ total_merits_awarded, shares: [{ beneficiary_rovas_uid, merits_awarded }], result, result_explain }`
 
 A solo claim is just a shares array of one entry at 100%, so this same code path covers both flows.
@@ -562,6 +560,8 @@ Civic's home, earn-hub, and community screens consume read-only signals from Rov
 | `GET /rovas/projects?type=invest` | Screen 5 (Investičné projekty) | Same shape; `expected_yield_me_per_month` extension | Phase 2 stretch |
 | `GET /rovas/contributions/aggregate` | Screen 0 logged-out + per-user position calc | `{ total_me, by_category: { taxes, charity, volunteer } }`, plus optional `user_percentile` when called with Bearer | Phase 2 stretch |
 | `GET /rovas/users/search?q=…` | Screen 2 (split-claim recipient picker, §7) | Minimal `[{ rovas_uid, username, display_name }]` for typeahead. `q` ≥ 3 chars, ≤ 10 results, public fields only. Honours per-user "not searchable" preference (Phase 3+). | **Phase 2** — ships with the multi-beneficiary claim rule. Separate from `/users/lookup`. |
+| `GET /rovas/civic/claims?view=submitted\|received` | Screen 2 history tabs | Paginated claim/share rows from `{civic_claims}` / `{civic_claim_shares}` (sole claim SoT) | **Next** — see rovas `docs/integration/civic.md` → **Civic claim reads + SoT** |
+| `GET /rovas/civic/claims/summary` | `/me/contributions/summary` taxes + receipt stats | `{ receipt_count, total_vat_eur, taxes_me }` (or equivalent fields on `/rovas/me`) | **Next** — same Rovas task |
 | `GET /rovas/users/lookup?username=…` | Screen 6 (Komunita) | Public-profile shape for a Rovas user: `rovas_uid, display_name, total_me, by_category, percentile, public_projects[]`. Honours each Rovas user's privacy preferences. | **Phase 3+** — implemented later, after the broader v1 ships. |
 | `POST /rovas/rules/rules_proxy_volunteer_report` | Screen 4 (Dobrovoľnícka práca) | Submits a simplified volunteer report (project, date, hours, description) and returns Merit grant outcome | Phase 3 |
 
@@ -664,8 +664,8 @@ Phase 0 spike must record which payment/buyer fields appear in FS JSON, and whet
 
 ### Tier 1 — v1 mandatory
 
-- **Global UID dedup** — first claim wins; others get `409`
-- **claim_attempts** log for every duplicate try
+- **Global UID dedup** — enforced on Rovas `{civic_claims}` only; first claim wins; others get `409`
+- **claim_attempts** log for every duplicate try (Civic audit; not a second registry)
 - **3-strike policy:** 3 duplicate attempts in 30 days → temporary claim block (no Merit deduction in v1)
 
 ### Tier 2 — v1 recommended
@@ -685,12 +685,12 @@ Phase 0 spike must record which payment/buyer fields appear in FS JSON, and whet
 **Data captured at claim time (required in v1):**
 
 - Expo requests foreground location permission before the first claim; `POST /receipts/claim` includes `location: { lat, lng, accuracy_m? }`.
-- Persist `claim_lat`, `claim_lng`, `claim_location_accuracy_m` on `receipt_claims` and on every `claim_attempts` row (including rejections).
+- Persist `claim_lat`, `claim_lng` on every `claim_attempts` row (including rejections and successful `claimed` outcomes). Travel anchors use successful attempts; claim identity/VAT/`purchase_at` for cross-checks come from Rovas when needed.
 - Use FS `purchase_at` (receipt issue time) as the temporal anchor — not scan/claim wall-clock time — so a user can scan an old slip later without false positives, as long as their *chain* of receipts remains geographically plausible.
 
 **v1 algorithm (per scanner, on each new claim):**
 
-1. Load the scanner's **prior successful claims** ordered by `purchase_at` (most recent first; cap lookback e.g. 90 days or last 50 claims for performance).
+1. Load the scanner's **prior successful claim attempts** (`outcome = claimed` with coords; optionally join Rovas claim metadata for `purchase_at`) ordered most recent first; cap lookback e.g. 90 days or last 50 for performance.
 2. For each prior claim with stored coordinates, compute:
    - `Δt_hours` = absolute difference between the two receipts' `purchase_at` values (minimum 15 minutes floor to avoid divide-by-zero noise on same-minute purchases).
    - `distance_km` = haversine distance between `(claim_lat, claim_lng)` pairs.
@@ -833,7 +833,7 @@ Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to pa
 - OAuth server, claim rule, fraud controls, Expo login + claim
 - **Split claims (§7) ship end-to-end in this phase** so v1 never has a "solo-only" production claim flow:
   - Rovas: `rules_proxy_claim_vat_receipt` accepts a `shares` array atomically; new `GET /rovas/users/search` Services endpoint exposed
-  - Civic API: `POST /receipts/claim` accepts `shares` + device `location`; `GET /users/search` proxies the Rovas search; `receipt_claim_shares` table added; per-recipient and per-(scanner → recipient) caps enforced; travel-consistency + merchant-proximity heuristics (§11)
+  - Civic API: `POST /receipts/claim` accepts `shares` + device `location`; no local claim registry (Rovas SoT); `GET /users/search` and claim history/summary proxy Rovas; per-recipient and per-(scanner → recipient) caps enforced; travel-consistency + merchant-proximity heuristics (§11)
   - Mobile: location permission prompt before first claim; GPS attached to verify + claim requests
   - Mobile: screen 2 split UI (search, memory, always-share toggle, default equal split with override, auto-rebalance, sum-to-100 validation); history split into "received Merits" vs "submitted receipts"
 - `/me/contributions/summary` reads real Merit history per category, aggregating across received shares

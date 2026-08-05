@@ -8,6 +8,8 @@
   "scripts": {
     "dev:api": "pnpm --filter @civic/api dev",
     "dev:mobile": "pnpm --filter @civic/mobile start",
+    "dev:mobile:tunnel": "pnpm --filter @civic/mobile start:tunnel",
+    "dev:mobile:lan": "pnpm --filter @civic/mobile start:lan",
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test"
