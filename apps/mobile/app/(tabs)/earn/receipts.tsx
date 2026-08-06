@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -22,10 +22,23 @@ import {
   type VerifiedReceiptPreview,
   type VerifyReceiptResponse,
 } from "@civic/shared";
+import { AddRecipientModal } from "@/components/AddRecipientModal";
+import { ShareEditor } from "@/components/ShareEditor";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
-import { claimReceipt, verifyReceipt } from "@/lib/api";
+import { claimReceipt, fetchMe, verifyReceipt } from "@/lib/api";
 import { notifyMeritsChanged } from "@/lib/merits-refresh";
+import {
+  loadRecipientMemory,
+  rememberRecipient,
+  setAlwaysShare,
+  touchRecipients,
+} from "@/lib/recipient-memory";
+import {
+  shareSum,
+  withEqualShares,
+  type SplitRecipient,
+} from "@/lib/split-shares";
 import { t } from "@/lib/i18n";
 
 type ScanBounds = {
@@ -35,11 +48,18 @@ type ScanBounds = {
   height: number;
 };
 
+type MeProfile = {
+  rovas_uid: string;
+  username: string;
+  display_name: string;
+};
+
 export default function ReceiptsScreen() {
   const { status: authStatus } = useAuth();
   const signedIn = authStatus === "signedIn";
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
   const [uidInput, setUidInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -51,39 +71,120 @@ export default function ReceiptsScreen() {
   const [scannedLock, setScannedLock] = useState(false);
   const [cameraSize, setCameraSize] = useState({ width: 0, height: 0 });
   const [scanBounds, setScanBounds] = useState<ScanBounds | null>(null);
+  const [me, setMe] = useState<MeProfile | null>(null);
+  const [recipients, setRecipients] = useState<SplitRecipient[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
 
-  const runVerify = useCallback(async (qrOrUid: string) => {
-    setBusy(true);
-    setError(null);
-    setPreview(null);
-    setClaimResult(null);
-    try {
-      const result: VerifyReceiptResponse = await verifyReceipt(qrOrUid);
-      if (result.verified) {
-        setPreview(result);
-        setUidInput(result.receipt_uid);
-        setScanning(false);
-        setScanBounds(null);
-      } else {
-        const map: Record<string, string> = {
-          invalid_uid: t("receipts.error_invalid"),
-          not_found: t("receipts.error_not_found"),
-          fs_error: t("receipts.error_fs"),
-          offline_unsupported: t("receipts.error_fs"),
-        };
-        setError(map[result.code] ?? result.message);
-        setScanning(false);
-        setScanBounds(null);
-      }
-    } catch {
-      setError(t("receipts.error_api"));
-      setScanning(false);
-      setScanBounds(null);
-    } finally {
-      setBusy(false);
-      setScannedLock(false);
-    }
+  const seedRecipients = useCallback(async (profile: MeProfile) => {
+    const memory = await loadRecipientMemory();
+    const always = memory.filter(
+      (m) => m.alwaysShare && m.rovas_uid !== profile.rovas_uid,
+    );
+    const base: Omit<SplitRecipient, "sharePct">[] = [
+      {
+        rovas_uid: profile.rovas_uid,
+        username: profile.username,
+        display_name: profile.display_name,
+        isScanner: true,
+        alwaysShare: false,
+      },
+      ...always.map((m) => ({
+        rovas_uid: m.rovas_uid,
+        username: m.username,
+        display_name: m.display_name,
+        isScanner: false,
+        alwaysShare: true,
+      })),
+    ];
+    setRecipients(withEqualShares(base));
   }, []);
+
+  useEffect(() => {
+    if (!signedIn) {
+      setMe(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchMe()
+      .then((profile) => {
+        if (cancelled) return;
+        setMe({
+          rovas_uid: profile.rovas_uid,
+          username: profile.username ?? profile.rovas_uid,
+          display_name:
+            profile.display_name ?? profile.username ?? profile.rovas_uid,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setMe(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn]);
+
+  // If verify finished before /me resolved, seed split once profile arrives.
+  useEffect(() => {
+    if (!preview || !me || claimResult?.claimed || recipients.length > 0) return;
+    void seedRecipients(me);
+  }, [preview, me, claimResult, recipients.length, seedRecipients]);
+
+  const runVerify = useCallback(
+    async (qrOrUid: string) => {
+      setBusy(true);
+      setError(null);
+      setPreview(null);
+      setClaimResult(null);
+      setRecipients([]);
+      try {
+        const result: VerifyReceiptResponse = await verifyReceipt(qrOrUid);
+        if (result.verified) {
+          setPreview(result);
+          setUidInput(result.receipt_uid);
+          setScanning(false);
+          setScanBounds(null);
+          setManualOpen(false);
+          if (me) {
+            await seedRecipients(me);
+          } else if (signedIn) {
+            try {
+              const profile = await fetchMe();
+              const next = {
+                rovas_uid: profile.rovas_uid,
+                username: profile.username ?? profile.rovas_uid,
+                display_name:
+                  profile.display_name ??
+                  profile.username ??
+                  profile.rovas_uid,
+              };
+              setMe(next);
+              await seedRecipients(next);
+            } catch {
+              // Claim UI still works solo once me loads; share editor needs me.
+            }
+          }
+        } else {
+          const map: Record<string, string> = {
+            invalid_uid: t("receipts.error_invalid"),
+            not_found: t("receipts.error_not_found"),
+            fs_error: t("receipts.error_fs"),
+            offline_unsupported: t("receipts.error_fs"),
+          };
+          setError(map[result.code] ?? result.message);
+          setScanning(false);
+          setScanBounds(null);
+        }
+      } catch {
+        setError(t("receipts.error_api"));
+        setScanning(false);
+        setScanBounds(null);
+      } finally {
+        setBusy(false);
+        setScannedLock(false);
+      }
+    },
+    [me, seedRecipients, signedIn],
+  );
 
   async function startScan() {
     if (!permission?.granted) {
@@ -94,6 +195,7 @@ export default function ReceiptsScreen() {
     setClaimResult(null);
     setScannedLock(false);
     setScanBounds(null);
+    setManualOpen(false);
     setScanning(true);
   }
 
@@ -109,8 +211,16 @@ export default function ReceiptsScreen() {
     void runVerify(result.data);
   }
 
+  const excludeUids = useMemo(
+    () => new Set(recipients.map((r) => r.rovas_uid)),
+    [recipients],
+  );
+
+  const sharesValid =
+    recipients.length > 0 && Math.abs(shareSum(recipients) - 100) < 0.01;
+
   async function runClaim() {
-    if (!preview) return;
+    if (!preview || !sharesValid) return;
     setClaiming(true);
     setError(null);
     setClaimResult(null);
@@ -123,15 +233,34 @@ export default function ReceiptsScreen() {
       const pos = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      const result = await claimReceipt(preview.receipt_uid, {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        accuracy_m:
-          pos.coords.accuracy != null ? pos.coords.accuracy : undefined,
-      });
+      const shares = recipients.map((r) => ({
+        rovas_uid: r.rovas_uid,
+        share_pct: r.sharePct,
+      }));
+      const result = await claimReceipt(
+        preview.receipt_uid,
+        {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy_m:
+            pos.coords.accuracy != null ? pos.coords.accuracy : undefined,
+        },
+        shares,
+      );
       setClaimResult(result);
       if (result.claimed) {
         notifyMeritsChanged();
+        const nonScanner = recipients.filter((r) => !r.isScanner);
+        if (nonScanner.length > 0) {
+          await touchRecipients(
+            nonScanner.map((r) => ({
+              rovas_uid: r.rovas_uid,
+              username: r.username,
+              display_name: r.display_name,
+              alwaysShare: r.alwaysShare,
+            })),
+          );
+        }
       } else {
         const map: Record<string, string> = {
           unauthorized: t("receipts.error_unauthorized"),
@@ -161,14 +290,82 @@ export default function ReceiptsScreen() {
     }
   }
 
+  function onChangeShare(rovasUid: string, sharePct: number) {
+    setRecipients((prev) =>
+      prev.map((r) => (r.rovas_uid === rovasUid ? { ...r, sharePct } : r)),
+    );
+  }
+
+  async function onToggleAlways(rovasUid: string, alwaysShare: boolean) {
+    setRecipients((prev) =>
+      prev.map((r) => (r.rovas_uid === rovasUid ? { ...r, alwaysShare } : r)),
+    );
+    const row = recipients.find((r) => r.rovas_uid === rovasUid);
+    if (row && !row.isScanner) {
+      await rememberRecipient({
+        rovas_uid: row.rovas_uid,
+        username: row.username,
+        display_name: row.display_name,
+        alwaysShare,
+      });
+      await setAlwaysShare(rovasUid, alwaysShare);
+    }
+  }
+
+  function onRemove(rovasUid: string) {
+    setRecipients((prev) => {
+      const next = prev.filter((r) => r.rovas_uid !== rovasUid);
+      return withEqualShares(
+        next.map(({ sharePct: _s, ...rest }) => rest),
+      );
+    });
+  }
+
+  function onPickRecipient(user: {
+    rovas_uid: string;
+    username: string;
+    display_name: string;
+    alwaysShare: boolean;
+  }) {
+    setRecipients((prev) => {
+      if (prev.some((r) => r.rovas_uid === user.rovas_uid)) return prev;
+      const base = [
+        ...prev.map(({ sharePct: _s, ...rest }) => rest),
+        {
+          rovas_uid: user.rovas_uid,
+          username: user.username,
+          display_name: user.display_name,
+          isScanner: false,
+          alwaysShare: user.alwaysShare,
+        },
+      ];
+      return withEqualShares(base);
+    });
+    void rememberRecipient({
+      rovas_uid: user.rovas_uid,
+      username: user.username,
+      display_name: user.display_name,
+      alwaysShare: user.alwaysShare,
+    });
+    setAddOpen(false);
+  }
+
   const showScanner = scanning && permission?.granted;
   const claimSucceeded = claimResult?.claimed === true;
+  const canShowSplit = signedIn && me && recipients.length > 0 && !claimSucceeded;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.intro}>{t("receipts.intro")}</Text>
 
-      <Pressable style={styles.primary} onPress={startScan} disabled={busy || claiming}>
+      <Pressable
+        style={styles.primary}
+        onPress={startScan}
+        disabled={busy || claiming}
+      >
         <Text style={styles.primaryText}>{t("receipts.scan")}</Text>
       </Pressable>
 
@@ -193,34 +390,52 @@ export default function ReceiptsScreen() {
         </View>
       ) : null}
 
-      <Text style={styles.label}>{t("receipts.manual")}</Text>
-      <TextInput
-        value={uidInput}
-        onChangeText={setUidInput}
-        autoCapitalize="characters"
-        autoCorrect={false}
-        placeholder={t("receipts.uid_placeholder")}
-        placeholderTextColor={colors.muted}
-        style={styles.input}
-      />
       <Pressable
-        style={[styles.primary, (busy || claiming) && styles.disabled]}
-        disabled={busy || claiming || !uidInput.trim()}
-        onPress={() => void runVerify(uidInput)}
+        style={styles.disclosure}
+        onPress={() => setManualOpen((o) => !o)}
+        accessibilityRole="button"
       >
-        {busy ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.primaryText}>{t("receipts.verify")}</Text>
-        )}
+        <Text style={styles.disclosureText}>
+          {manualOpen
+            ? t("receipts.manual_collapse")
+            : t("receipts.manual_expand")}
+        </Text>
       </Pressable>
+
+      {manualOpen ? (
+        <View style={styles.manualBox}>
+          <TextInput
+            value={uidInput}
+            onChangeText={setUidInput}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            placeholder={t("receipts.uid_placeholder")}
+            placeholderTextColor={colors.muted}
+            style={styles.input}
+          />
+          <Pressable
+            style={[styles.primary, (busy || claiming) && styles.disabled]}
+            disabled={busy || claiming || !uidInput.trim()}
+            onPress={() => void runVerify(uidInput)}
+          >
+            {busy ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryText}>{t("receipts.verify")}</Text>
+            )}
+          </Pressable>
+        </View>
+      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {preview ? (
         <View style={styles.preview}>
           <Text style={styles.previewTitle}>{t("receipts.preview_title")}</Text>
-          <Row label={t("receipts.merchant")} value={preview.merchant_name ?? "—"} />
+          <Row
+            label={t("receipts.merchant")}
+            value={preview.merchant_name ?? "—"}
+          />
           <Row
             label={t("receipts.vat")}
             value={`${preview.vat_eur.toFixed(2)} ${t("common.eur")}`}
@@ -240,17 +455,32 @@ export default function ReceiptsScreen() {
               ({displayMerits(claimResult.total_merits)} {t("common.me")})
             </Text>
           ) : signedIn ? (
-            <Pressable
-              style={[styles.primary, claiming && styles.disabled]}
-              disabled={claiming}
-              onPress={() => void runClaim()}
-            >
-              {claiming ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryText}>{t("receipts.claim")}</Text>
-              )}
-            </Pressable>
+            <>
+              {canShowSplit ? (
+                <ShareEditor
+                  recipients={recipients}
+                  totalMerits={preview.merits_preview}
+                  onChangeShare={onChangeShare}
+                  onToggleAlways={(uid, v) => void onToggleAlways(uid, v)}
+                  onRemove={onRemove}
+                  onAddPerson={() => setAddOpen(true)}
+                />
+              ) : null}
+              <Pressable
+                style={[
+                  styles.primary,
+                  (claiming || !sharesValid || !me) && styles.disabled,
+                ]}
+                disabled={claiming || !sharesValid || !me}
+                onPress={() => void runClaim()}
+              >
+                {claiming ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryText}>{t("receipts.claim")}</Text>
+                )}
+              </Pressable>
+            </>
           ) : (
             <View style={styles.signInPrompt}>
               <Text style={styles.hint}>{t("receipts.claim_sign_in")}</Text>
@@ -265,6 +495,13 @@ export default function ReceiptsScreen() {
       ) : (
         <Text style={styles.empty}>{t("receipts.history_empty")}</Text>
       )}
+
+      <AddRecipientModal
+        visible={addOpen}
+        excludeUids={excludeUids}
+        onClose={() => setAddOpen(false)}
+        onPick={onPickRecipient}
+      />
     </ScrollView>
   );
 }
@@ -327,8 +564,6 @@ function boundsFromScan(
     const maxX = Math.max(...xs);
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys);
-    // cornerPoints are often already in view coordinates on native;
-    // clamp so a mis-scaled engine still draws something sensible.
     const left = clamp(minX, 0, viewW);
     const top = clamp(minY, 0, viewH);
     const width = clamp(maxX - minX, 0, viewW - left);
@@ -382,7 +617,18 @@ const styles = StyleSheet.create({
   },
   primaryText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   disabled: { opacity: 0.6 },
-  label: { marginTop: 8, color: colors.muted, fontWeight: "600" },
+  disclosure: {
+    marginTop: 4,
+    alignSelf: "flex-start",
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  disclosureText: {
+    color: colors.brandSoft,
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  manualBox: { gap: 10 },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -492,7 +738,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   rowLabel: { color: colors.muted },
-  rowValue: { color: colors.ink, fontWeight: "600", flexShrink: 1, textAlign: "right" },
+  rowValue: {
+    color: colors.ink,
+    fontWeight: "600",
+    flexShrink: 1,
+    textAlign: "right",
+  },
   hint: { fontSize: 12, color: colors.muted },
   success: { marginTop: 4, color: colors.ok, fontWeight: "700" },
   signInPrompt: { gap: 8, marginTop: 4 },

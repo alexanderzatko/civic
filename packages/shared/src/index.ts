@@ -44,6 +44,7 @@ export type {
   MeritRate,
   RankBucket,
   RankDistribution,
+  UserSearchResult,
   VerifiedReceiptPreview,
   VerifyReceiptError,
   VerifyReceiptResponse,

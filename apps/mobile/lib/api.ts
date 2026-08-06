@@ -2,10 +2,12 @@ import Constants from "expo-constants";
 import type {
   CharityProject,
   ClaimReceiptResponse,
+  ClaimShareInput,
   ContributionsSummary,
   GeoLocation,
   MeritRate,
   RankDistribution,
+  UserSearchResult,
   VerifyReceiptResponse,
 } from "@civic/shared";
 
@@ -99,16 +101,28 @@ export function verifyReceipt(qrOrUid: string): Promise<VerifyReceiptResponse> {
 export function claimReceipt(
   qrOrUid: string,
   location: GeoLocation,
+  shares?: ClaimShareInput[],
 ): Promise<ClaimReceiptResponse> {
   return apiFetch<ClaimReceiptResponse>("/receipts/claim", {
     method: "POST",
     auth: "required",
-    body: JSON.stringify({ qr_or_uid: qrOrUid, location }),
+    body: JSON.stringify({
+      qr_or_uid: qrOrUid,
+      location,
+      ...(shares && shares.length > 0 ? { shares } : {}),
+    }),
   }).catch((err: Error & { body?: ClaimReceiptResponse; status?: number }) => {
     if (err.body && typeof err.body === "object" && "claimed" in err.body) {
       return err.body;
     }
     throw err;
+  });
+}
+
+export function searchUsers(q: string): Promise<UserSearchResult[]> {
+  const params = new URLSearchParams({ q });
+  return apiFetch<UserSearchResult[]>(`/users/search?${params}`, {
+    auth: "required",
   });
 }
 

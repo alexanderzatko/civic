@@ -156,6 +156,53 @@ export class RovasClient {
     };
   }
 
+  /**
+   * Split-claim typeahead. Machine-name path (Services slash aliases are
+   * unreliable): `GET /rovas/users_search?q=`
+   */
+  async searchUsers(
+    accessToken: string,
+    q: string,
+  ): Promise<RovasUserSearchResult[]> {
+    const params = new URLSearchParams({ q });
+    const body = await this.getJson<unknown>(
+      `/rovas/users_search?${params}`,
+      accessToken,
+    );
+    const rows = Array.isArray(body)
+      ? body
+      : Array.isArray((body as { results?: unknown })?.results)
+        ? (body as { results: unknown[] }).results
+        : null;
+    if (!rows) {
+      throw new RovasClientError(
+        "Rovas users_search response must be an array",
+        502,
+        body,
+      );
+    }
+    return rows.slice(0, 10).map((raw) => {
+      const r = raw as Partial<RovasUserSearchResult>;
+      const uid = r.rovas_uid != null ? String(r.rovas_uid) : "";
+      const username = typeof r.username === "string" ? r.username : "";
+      if (!uid || !username) {
+        throw new RovasClientError(
+          "Rovas users_search row missing rovas_uid/username",
+          502,
+          body,
+        );
+      }
+      return {
+        rovas_uid: uid,
+        username,
+        display_name:
+          typeof r.display_name === "string" && r.display_name
+            ? r.display_name
+            : username,
+      };
+    });
+  }
+
   async claimVatReceipt(
     accessToken: string,
     payload: RovasClaimVatReceiptRequest,
@@ -263,6 +310,12 @@ export class RovasClient {
     return parsed as T;
   }
 }
+
+export type RovasUserSearchResult = {
+  rovas_uid: string;
+  username: string;
+  display_name: string;
+};
 
 export type RovasNationalHourlyRate = {
   country_code: string;

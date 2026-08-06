@@ -14,9 +14,11 @@ Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**).
 
 ## Status
 
-Phase 1 scaffold in progress: monorepo + `POST /receipts/verify` + Expo navigational shell with Merit preview. Claim / Rovas OAuth land in Phase 2.
+Phase 2 in progress: monorepo + verify + OAuth + solo claim wired; split-claim
+UI + `/users/search` proxy landed (awaits Rovas `users_search` on rovdev).
 
-Mobile targets **Expo SDK 54**. UI browsing can use Expo Go; **camera + OAuth** need a development build (Expo Go cannot claim `civic://`).
+Mobile targets **Expo SDK 54**. UI browsing can use Expo Go; **camera + OAuth**
+need a development build (Expo Go cannot claim `civic://`).
 
 ## Repository layout
 

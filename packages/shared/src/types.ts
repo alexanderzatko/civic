@@ -11,6 +11,13 @@ export interface ClaimShareInput {
   share_pct: number;
 }
 
+/** Public profile row from `GET /users/search` (split-claim typeahead). */
+export interface UserSearchResult {
+  rovas_uid: string;
+  username: string;
+  display_name: string;
+}
+
 export interface VerifiedReceiptPreview {
   receipt_uid: string;
   verified: true;

@@ -49,7 +49,8 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 |-------|--------|
 | `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, client_id, scope, expires_at }` |
 | `GET /me/contributions/summary` | `total_me` from Rovas wallet; `by_category.taxes` + receipt stats from Rovas claim summary once live (interim: zeros — see Rovas task **Civic claim reads + SoT**) |
-| `POST /receipts/claim` | Re-verify FS + GPS/rate-limit via Civic `claim_attempts`; UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (Rovas `{civic_claims}` is sole claim registry) |
+| `POST /receipts/claim` | Re-verify FS + GPS/rate-limit via Civic `claim_attempts`; UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (optional `shares[]`; Rovas `{civic_claims}` is sole claim registry) |
+| `GET /users/search` | Split-claim typeahead — proxies Rovas `GET /rovas/users_search?q=` (requires Rovas **Next work: users search**; until live returns 404/502) |
 
 Optional Bearer:
 
@@ -104,15 +105,22 @@ claim table.
 **Dev reset:** clear Rovas claims (see Rovas `docs/integration/civic.md`);
 optionally truncate Civic `claim_attempts`.
 
-## Receipt claim (solo)
+## Receipt claim (solo + split)
 
 Civic `POST /receipts/claim` (Bearer required) re-verifies the eKasa receipt,
 runs Civic location/rate checks, then calls Rovas (which owns dedup + persist):
 
 `POST {ROVAS}/rovas/rules/rules_proxy_claim_vat_receipt`
 
+Body may include `shares: [{ rovas_uid, share_pct }]` (scanner must be
+included; percentages sum to ~100). Omitted → 100% to caller.
+
+Split typeahead: Civic `GET /users/search?q=` → Rovas
+`GET /rovas/users_search?q=` (see Rovas **Next work: users search**).
+
 **Rovas agents:** claim rule checklist in
 [`~/Documents/homeProjects/rovas/docs/integration/civic.md`](../../rovas/docs/integration/civic.md)
 → **Next work: solo VAT claim**. Claim history/summary reads:
 → **Next work: Civic claim reads + SoT**. National rate read:
-→ **Next work: public national hourly rate API**.
+→ **Next work: public national hourly rate API**. Users search:
+→ **Next work: users search (split typeahead)**.

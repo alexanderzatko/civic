@@ -10,7 +10,7 @@ todos:
     status: completed
   - id: spike-ekasa-api
     content: "Spike: confirm FS receipt/find contract on real UIDs; document error notifications in ekasa-receipt-api.md"
-    status: pending
+    status: completed
   - id: fraud-mitigation-v1
     content: "Implement v1 fraud controls: global UID dedup, claim_attempts log, 3-strike policy, claim window + rate limits, location travel-consistency heuristics"
     status: pending
@@ -19,22 +19,22 @@ todos:
     status: completed
   - id: rovas-oauth-server
     content: "Rovas repo: oauth2_server contrib + thin rovas_oauth wrapper (HybridAuth login UI, Services Bearer auth); claim rule"
-    status: in_progress
+    status: completed
   - id: scaffold-civic-repo
     content: "Scaffold civic monorepo with pnpm workspaces: apps/mobile, services/api, packages/shared"
     status: completed
   - id: phase1-verify-preview
     content: "Phase 1: navigational shell for screens 0/1/3/4/5 + Expo scan + API verify + Merit preview (no Rovas grant yet)"
-    status: in_progress
+    status: completed
   - id: phase2-rovas-grant
     content: "Phase 2: rules_proxy_claim_vat_receipt + OAuth login in Expo + API claim flow on dev.rovas.app"
-    status: pending
+    status: completed
   - id: receipt-sharing-design
     content: "Approve split-claims UX (search, memory, always-share, default equal split, override) and atomic multi-beneficiary claim contract — see §7"
     status: completed
   - id: receipt-sharing-impl
     content: "Phase 2: ship split-claims end-to-end — /users/search + claim shares array + Rovas {civic_claim_shares} + multi-beneficiary rules_proxy_claim_vat_receipt + mobile split UI on screen 2"
-    status: pending
+    status: in_progress
   - id: mockup-split-claims
     content: "Extend mocs/civic-mockup.canvas.tsx with the split-claims sub-screens (recipient picker, search, memory list, share editor) before Phase 2 starts"
     status: completed
@@ -45,7 +45,7 @@ todos:
 
 # Civic — Pre-Implementation Plan
 
-**Status:** Approved — Phase 1 implementation in progress. Wage basis: **net** (see `packages/shared/src/settings.ts`).
+**Status:** Approved — Phase 2 in progress (split claims UI + Rovas `/users_search` handoff). Wage basis: **net** (see `packages/shared/src/settings.ts`).
 
 **Project root:** `/Users/sano/Documents/homeProjects/civic`
 

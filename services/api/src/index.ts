@@ -7,6 +7,7 @@ import { RovasClient } from "./rovas-client.js";
 import type { AppContext } from "./context.js";
 import { receiptsRoutes } from "./routes/receipts.js";
 import { summaryRoutes } from "./routes/summary.js";
+import { usersRoutes } from "./routes/users.js";
 
 async function main() {
   const config = loadConfig();
@@ -29,6 +30,7 @@ async function main() {
       "GET /me",
       "POST /receipts/verify",
       "POST /receipts/claim",
+      "GET /users/search",
     ],
   }));
 
@@ -51,6 +53,7 @@ async function main() {
 
   await app.register(receiptsRoutes, { ctx });
   await app.register(summaryRoutes, { ctx });
+  await app.register(usersRoutes, { ctx });
 
   await app.listen({ port: config.port, host: config.host });
 }
