@@ -50,7 +50,7 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, client_id, scope, expires_at }` |
 | `GET /me/contributions/summary` | `total_me` from Rovas wallet; `by_category.taxes` + receipt stats from Rovas claim summary once live (interim: zeros — see Rovas task **Civic claim reads + SoT**) |
 | `POST /receipts/claim` | Re-verify FS + GPS/rate-limit via Civic `claim_attempts`; UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (optional `shares[]`; Rovas `{civic_claims}` is sole claim registry) |
-| `GET /users/search` | Split-claim typeahead — proxies Rovas `GET /rovas/users_search?q=` (requires Rovas **Next work: users search**; until live returns 404/502) |
+| `GET /users/search` | Split-claim typeahead — proxies Rovas `GET /rovas/users_search?query=` (Civic accepts `?q=`; maps to Rovas `query` because Drupal reserves `$_GET['q']` for the path) |
 
 Optional Bearer:
 
@@ -116,7 +116,8 @@ Body may include `shares: [{ rovas_uid, share_pct }]` (scanner must be
 included; percentages sum to ~100). Omitted → 100% to caller.
 
 Split typeahead: Civic `GET /users/search?q=` → Rovas
-`GET /rovas/users_search?q=` (see Rovas **Next work: users search**).
+`GET /rovas/users_search?query=` (param renamed from `q` — Drupal path
+conflict). See Rovas **users search (split typeahead)**.
 
 **Rovas agents:** claim rule checklist in
 [`~/Documents/homeProjects/rovas/docs/integration/civic.md`](../../rovas/docs/integration/civic.md)

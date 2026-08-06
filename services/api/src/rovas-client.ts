@@ -158,13 +158,16 @@ export class RovasClient {
 
   /**
    * Split-claim typeahead. Machine-name path (Services slash aliases are
-   * unreliable): `GET /rovas/users_search?q=`
+   * unreliable): `GET /rovas/users_search?query=`
+   *
+   * Rovas uses `query` (not `q`) because Drupal reserves $_GET['q'] for the
+   * request path — `?q=ann` would 404 before Services runs.
    */
   async searchUsers(
     accessToken: string,
     q: string,
   ): Promise<RovasUserSearchResult[]> {
-    const params = new URLSearchParams({ q });
+    const params = new URLSearchParams({ query: q });
     const body = await this.getJson<unknown>(
       `/rovas/users_search?${params}`,
       accessToken,

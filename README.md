@@ -15,7 +15,7 @@ Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**).
 ## Status
 
 Phase 2 in progress: monorepo + verify + OAuth + solo claim wired; split-claim
-UI + `/users/search` proxy landed (awaits Rovas `users_search` on rovdev).
+UI + `/users/search` proxy landed (Rovas `users_search?query=`).
 
 Mobile targets **Expo SDK 54**. UI browsing can use Expo Go; **camera + OAuth**
 need a development build (Expo Go cannot claim `civic://`).
