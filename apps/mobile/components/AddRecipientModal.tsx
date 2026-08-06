@@ -138,7 +138,6 @@ export function AddRecipientModal({
                 results.map((r) => (
                   <PersonRow
                     key={r.rovas_uid}
-                    displayName={r.display_name}
                     username={r.username}
                     onAdd={() =>
                       onPick({
@@ -163,8 +162,7 @@ export function AddRecipientModal({
                 <View key={m.rovas_uid} style={styles.card}>
                   <View style={styles.cardRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.name}>{m.display_name}</Text>
-                      <Text style={styles.username}>@{m.username}</Text>
+                      <Text style={styles.name}>{m.username}</Text>
                     </View>
                     <Pressable
                       style={styles.addBtn}
@@ -202,11 +200,9 @@ export function AddRecipientModal({
 }
 
 function PersonRow({
-  displayName,
   username,
   onAdd,
 }: {
-  displayName: string;
   username: string;
   onAdd: () => void;
 }) {
@@ -214,8 +210,7 @@ function PersonRow({
     <View style={styles.card}>
       <View style={styles.cardRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{displayName}</Text>
-          <Text style={styles.username}>@{username}</Text>
+          <Text style={styles.name}>{username}</Text>
         </View>
         <Pressable style={styles.addBtn} onPress={onAdd}>
           <Text style={styles.addBtnText}>{t("receipts.add_button")}</Text>
@@ -263,7 +258,6 @@ const styles = StyleSheet.create({
   },
   cardRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   name: { fontWeight: "600", color: colors.ink },
-  username: { color: colors.muted, fontSize: 13 },
   addBtn: {
     borderWidth: 1,
     borderColor: colors.border,

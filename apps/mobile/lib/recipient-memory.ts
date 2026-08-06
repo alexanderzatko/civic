@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 const STORAGE_KEY = "civic.receipts.recipientMemory";
 const MAX_ENTRIES = 20;
@@ -13,7 +13,7 @@ export type MemoryRecipient = {
 
 export async function loadRecipientMemory(): Promise<MemoryRecipient[]> {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    const raw = await SecureStore.getItemAsync(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -45,7 +45,11 @@ async function saveRecipientMemory(entries: MemoryRecipient[]): Promise<void> {
   const sorted = [...entries]
     .sort((a, b) => b.lastUsedAt - a.lastUsedAt)
     .slice(0, MAX_ENTRIES);
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
+  try {
+    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(sorted));
+  } catch {
+    // SecureStore size limits / unavailable — keep in-session only.
+  }
 }
 
 /** Upsert one memory row (LRU by lastUsedAt). */

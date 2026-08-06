@@ -42,10 +42,9 @@ export function ShareEditor({
             <View style={{ flex: 1, minWidth: 100 }}>
               <Text style={styles.name}>
                 {r.isScanner
-                  ? `${t("receipts.split_you")} (${r.display_name})`
-                  : r.display_name}
+                  ? `${t("receipts.split_you")} (${r.username})`
+                  : r.username}
               </Text>
-              <Text style={styles.username}>@{r.username}</Text>
             </View>
             <TextInput
               value={String(r.sharePct)}
@@ -124,7 +123,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   name: { fontWeight: "600", color: colors.ink, fontSize: 14 },
-  username: { color: colors.muted, fontSize: 12 },
   pctInput: {
     width: 52,
     borderWidth: 1,
