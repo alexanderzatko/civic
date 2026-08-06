@@ -29,6 +29,8 @@ export interface VerifiedReceiptPreview {
   hourly_wage_eur: number;
   formula_version: number;
   wage_basis: "net" | "gross";
+  /** True when Rovas {civic_claims} already has this UID (signed-in verify). */
+  already_claimed?: boolean;
 }
 
 export interface VerifyReceiptError {

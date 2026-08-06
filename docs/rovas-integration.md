@@ -52,6 +52,10 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `POST /receipts/claim` | Re-verify FS + GPS/rate-limit via Civic `claim_attempts`; UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (optional `shares[]`; Rovas `{civic_claims}` is sole claim registry) |
 | `GET /users/search` | Split-claim typeahead — proxies Rovas `GET /rovas/users_search?query=` (Civic accepts `?q=`; maps to Rovas `query` because Drupal reserves `$_GET['q']` for the path) |
 
+`POST /receipts/verify` sends optional Bearer; when present, Civic checks
+`GET /rovas/civic_claims?receipt_uid=` and returns `already_claimed` so the
+app can lock split UI + claim before submit. |
+
 Optional Bearer:
 
 | Route | Notes |

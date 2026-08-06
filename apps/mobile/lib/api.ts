@@ -91,6 +91,7 @@ async function apiFetch<T>(
 export function verifyReceipt(qrOrUid: string): Promise<VerifyReceiptResponse> {
   return apiFetch<VerifyReceiptResponse>("/receipts/verify", {
     method: "POST",
+    auth: "optional",
     body: JSON.stringify({ qr_or_uid: qrOrUid }),
   }).catch((err: Error & { body?: VerifyReceiptResponse }) => {
     if (err.body) return err.body;

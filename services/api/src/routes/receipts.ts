@@ -7,7 +7,7 @@ import {
   type ClaimReceiptResponse,
   type VerifyReceiptResponse,
 } from "@civic/shared";
-import { requireAuth } from "../auth.js";
+import { optionalAuth, requireAuth } from "../auth.js";
 import {
   EkasaClientError,
   extractMerchantName,
@@ -130,7 +130,10 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
 ) => {
   const { ctx } = opts;
 
-  app.post<{ Body: unknown }>("/receipts/verify", async (req, reply) => {
+  app.post<{ Body: unknown }>(
+    "/receipts/verify",
+    { preHandler: [optionalAuth(ctx)] },
+    async (req, reply) => {
     const parsed = verifyBodySchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.code(400).send({
@@ -175,6 +178,20 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       // Phase 1 stores nothing yet.
       void parsed.data.location;
 
+      let alreadyClaimed = false;
+      if (req.authUser?.accessToken) {
+        try {
+          const status = await ctx.rovas.fetchClaimStatus(
+            req.authUser.accessToken,
+            uid,
+          );
+          alreadyClaimed = status.claimed;
+        } catch (err) {
+          // Soft-fail: preview still works; claim path remains the hard SoT.
+          req.log.warn({ err, uid }, "Rovas claim-status check failed");
+        }
+      }
+
       return {
         receipt_uid: uid,
         verified: true,
@@ -187,6 +204,7 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         hourly_wage_eur: rate.hourly_wage_eur,
         formula_version: rate.formula_version,
         wage_basis: rate.wage_basis,
+        already_claimed: alreadyClaimed,
       } satisfies VerifyReceiptResponse;
     } catch (err) {
       const message =
@@ -201,7 +219,8 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         message,
       } satisfies VerifyReceiptResponse);
     }
-  });
+  },
+  );
 
   app.post<{ Body: unknown }>(
     "/receipts/claim",
@@ -418,6 +437,24 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         });
 
         if (rovasResult.result !== 0) {
+          const isDuplicate =
+            rovasResult.result === 409 ||
+            rovasResult.result_explain === "duplicate_receipt";
+          if (isDuplicate) {
+            recordAttempt(ctx, {
+              receiptUid: uid,
+              rovasUid: user.rovasUid,
+              outcome: "duplicate",
+              lat: location.lat,
+              lng: location.lng,
+            });
+            return claimError(reply, 409, {
+              claimed: false,
+              receipt_uid: uid,
+              code: "duplicate",
+              message: "This receipt has already been claimed on Rovas.",
+            });
+          }
           recordAttempt(ctx, {
             receiptUid: uid,
             rovasUid: user.rovasUid,

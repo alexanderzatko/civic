@@ -125,7 +125,15 @@ export default function ReceiptsScreen() {
 
   // If verify finished before /me resolved, seed split once profile arrives.
   useEffect(() => {
-    if (!preview || !me || claimResult?.claimed || recipients.length > 0) return;
+    if (
+      !preview ||
+      !me ||
+      preview.already_claimed ||
+      claimResult?.claimed ||
+      recipients.length > 0
+    ) {
+      return;
+    }
     void seedRecipients(me);
   }, [preview, me, claimResult, recipients.length, seedRecipients]);
 
@@ -144,7 +152,10 @@ export default function ReceiptsScreen() {
           setScanning(false);
           setScanBounds(null);
           setManualOpen(false);
-          if (me) {
+          if (result.already_claimed) {
+            setError(t("receipts.error_duplicate"));
+            setRecipients([]);
+          } else if (me) {
             await seedRecipients(me);
           } else if (signedIn) {
             try {
@@ -262,6 +273,13 @@ export default function ReceiptsScreen() {
           );
         }
       } else {
+        if (result.code === "duplicate") {
+          setPreview((prev) =>
+            prev ? { ...prev, already_claimed: true } : prev,
+          );
+          setRecipients([]);
+          setAddOpen(false);
+        }
         const map: Record<string, string> = {
           unauthorized: t("receipts.error_unauthorized"),
           invalid_uid: t("receipts.error_invalid"),
@@ -352,7 +370,9 @@ export default function ReceiptsScreen() {
 
   const showScanner = scanning && permission?.granted;
   const claimSucceeded = claimResult?.claimed === true;
-  const canShowSplit = signedIn && me && recipients.length > 0 && !claimSucceeded;
+  const alreadyClaimed = preview?.already_claimed === true;
+  const canShowSplit =
+    signedIn && me && recipients.length > 0 && !claimSucceeded && !alreadyClaimed;
 
   return (
     <ScrollView
@@ -454,6 +474,8 @@ export default function ReceiptsScreen() {
               {t("receipts.claim_success")}{" "}
               ({displayMerits(claimResult.total_merits)} {t("common.me")})
             </Text>
+          ) : alreadyClaimed ? (
+            <Text style={styles.error}>{t("receipts.error_duplicate")}</Text>
           ) : signedIn ? (
             <>
               {canShowSplit ? (

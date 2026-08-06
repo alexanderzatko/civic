@@ -206,6 +206,28 @@ export class RovasClient {
     });
   }
 
+  /**
+   * Global receipt UID claim check for verify preview.
+   * `GET /rovas/civic_claims?receipt_uid=`
+   */
+  async fetchClaimStatus(
+    accessToken: string,
+    receiptUid: string,
+  ): Promise<{ claimed: boolean; receipt_uid: string }> {
+    const params = new URLSearchParams({ receipt_uid: receiptUid });
+    const body = await this.getJson<Partial<{ claimed: boolean; receipt_uid: string }>>(
+      `/rovas/civic_claims?${params}`,
+      accessToken,
+    );
+    return {
+      claimed: Boolean(body.claimed),
+      receipt_uid:
+        typeof body.receipt_uid === "string" && body.receipt_uid
+          ? body.receipt_uid
+          : receiptUid,
+    };
+  }
+
   async claimVatReceipt(
     accessToken: string,
     payload: RovasClaimVatReceiptRequest,
