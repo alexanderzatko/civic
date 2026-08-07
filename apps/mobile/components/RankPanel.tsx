@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PanResponder, StyleSheet, Text, View } from "react-native";
 import {
+  bucketIndexForMe,
   bucketIndexFromSlider,
   percentileFromDistribution,
   sliderPositionFromMe,
@@ -39,6 +40,9 @@ const LINK_WORDS = new Set([
   "contributor",
 ]);
 
+/** 2nd-person markers in the rank caption ("ste" / "you"). */
+const YOU_WORDS = new Set(["ste", "you"]);
+
 function HeadlineWithLinks({ text }: { text: string }) {
   const parts = text.split(/(\s+)/);
   return (
@@ -53,6 +57,27 @@ function HeadlineWithLinks({ text }: { text: string }) {
               style={styles.link}
               onPress={() => router.push("/(tabs)/community")}
             >
+              {bare}
+              {punct}
+            </Text>
+          );
+        }
+        return <Text key={i}>{part}</Text>;
+      })}
+    </Text>
+  );
+}
+
+function CaptionWithYouHighlight({ text }: { text: string }) {
+  const parts = text.split(/(\s+)/);
+  return (
+    <Text style={styles.caption}>
+      {parts.map((part, i) => {
+        const bare = part.replace(/[.,!?]$/, "");
+        if (YOU_WORDS.has(bare.toLowerCase())) {
+          const punct = part.slice(bare.length);
+          return (
+            <Text key={i} style={styles.youWord}>
               {bare}
               {punct}
             </Text>
@@ -190,9 +215,12 @@ function RankLadder({
 function RankDistributionDetail({
   distribution,
   highlightIndex,
+  userBucketIndex,
 }: {
   distribution: RankDistribution;
   highlightIndex: number;
+  /** When the highlighted bar is the signed-in user's band, use the "you" accent. */
+  userBucketIndex: number;
 }) {
   const maxCount = Math.max(...distribution.buckets.map((b) => b.count), 1);
   const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
@@ -206,6 +234,8 @@ function RankDistributionDetail({
             b.count > 0
               ? Math.max((b.count / maxCount) * CHART_HEIGHT, 3)
               : 0;
+          const isHighlight = i === highlightIndex;
+          const isYours = i === userBucketIndex;
           return (
             <View key={`${b.label}-${i}`} style={styles.barCol}>
               <View
@@ -213,8 +243,13 @@ function RankDistributionDetail({
                   styles.bar,
                   {
                     height: h,
-                    backgroundColor:
-                      i === highlightIndex ? colors.brand : colors.border,
+                    backgroundColor: isHighlight
+                      ? isYours
+                        ? colors.you
+                        : colors.brand
+                      : isYours
+                        ? colors.youSoft
+                        : colors.border,
                   },
                 ]}
               />
@@ -273,11 +308,13 @@ export function RankPanel({
       ? (distribution.buckets[probeBucketIndex]?.count ?? 0)
       : 0;
   const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
+  // Narrowed: percentile/sliderPos are only non-null when `me` is a number.
+  const userBucketIndex = bucketIndexForMe(distribution, me as number);
 
   return (
     <View style={styles.card}>
       <HeadlineWithLinks text={t(headlineKey(percentile))} />
-      <Text style={styles.caption}>{t("home.rank_caption")}</Text>
+      <CaptionWithYouHighlight text={t("home.rank_caption")} />
 
       <View style={styles.ladderWrap}>
         {dragState.dragging && probeBucketIndex >= 0 ? (
@@ -291,6 +328,7 @@ export function RankPanel({
             <RankDistributionDetail
               distribution={distribution}
               highlightIndex={probeBucketIndex}
+              userBucketIndex={userBucketIndex}
             />
           </View>
         ) : null}
@@ -331,6 +369,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.muted,
     textAlign: "center",
+  },
+  youWord: {
+    color: colors.you,
+    fontWeight: "700",
   },
   ladderWrap: {
     position: "relative",
@@ -385,8 +427,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   markerProbe: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
+    backgroundColor: colors.you,
+    borderColor: colors.you,
     zIndex: 2,
   },
   markerActive: {

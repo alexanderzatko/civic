@@ -6,6 +6,9 @@ export const colors = {
   brand: "#0B3D2E",
   brandSoft: "#1A5C45",
   accent: "#C4A35A",
+  /** Complementary to brand — highlights the signed-in user's own data. */
+  you: "#B5532A",
+  youSoft: "rgba(181, 83, 42, 0.35)",
   border: "#D5DED8",
   danger: "#9B2C2C",
   ok: "#1B6B4A",

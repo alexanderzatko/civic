@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   personalMe: {
     fontSize: 40,
     fontWeight: "600",
-    color: colors.brand,
+    color: colors.you,
     lineHeight: 44,
   },
   communityBlock: {
