@@ -14,14 +14,16 @@ import {
   displayMerits,
   percentileFromDistribution,
   type RankDistribution,
+  type UserSearchResult,
 } from "@civic/shared";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
-import { lookupUser, fetchRankDistribution } from "@/lib/api";
+import { fetchRankDistribution } from "@/lib/api";
 import {
   loadRecentProfiles,
   type RecentProfile,
 } from "@/lib/profile-recents";
+import { useUserSearch } from "@/lib/use-user-search";
 import { t } from "@/lib/i18n";
 
 function formatMe(n: number): string {
@@ -47,8 +49,6 @@ export default function CommunityScreen() {
   const { status } = useAuth();
   const signedIn = status === "signedIn";
   const [query, setQuery] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [recents, setRecents] = useState<RecentProfile[]>([]);
   const [distribution, setDistribution] = useState<RankDistribution | null>(
     null,
@@ -57,6 +57,11 @@ export default function CommunityScreen() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const { results, searching, searchError, queryLongEnough } = useUserSearch(
+    query,
+    { enabled: signedIn },
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -69,24 +74,8 @@ export default function CommunityScreen() {
     }, [status]),
   );
 
-  async function onSearch() {
-    const username = query.trim();
-    if (!username || !signedIn || searching) return;
-    setSearching(true);
-    setError(null);
-    try {
-      const profile = await lookupUser(username);
-      router.push(`/(tabs)/community/${encodeURIComponent(profile.username)}`);
-    } catch (err) {
-      const statusCode = (err as { status?: number })?.status;
-      setError(
-        statusCode === 404
-          ? t("community.not_found")
-          : t("community.search_error"),
-      );
-    } finally {
-      setSearching(false);
-    }
+  function openProfile(user: UserSearchResult | { username: string }) {
+    router.push(`/(tabs)/community/${encodeURIComponent(user.username)}`);
   }
 
   async function onInvite() {
@@ -106,12 +95,15 @@ export default function CommunityScreen() {
     try {
       await Linking.openURL(mailto);
     } catch {
-      setInviteError(t("community.search_error"));
+      setInviteError(t("receipts.add_search_error"));
     }
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.intro}>{t("community.intro")}</Text>
 
       {!signedIn ? (
@@ -127,7 +119,7 @@ export default function CommunityScreen() {
 
       <Text style={styles.label}>{t("community.search_label")}</Text>
       <TextInput
-        editable={signedIn && !searching}
+        editable={signedIn}
         value={query}
         onChangeText={setQuery}
         placeholder={t("community.search_placeholder")}
@@ -135,27 +127,39 @@ export default function CommunityScreen() {
         autoCapitalize="none"
         autoCorrect={false}
         style={[styles.input, !signedIn && styles.inputDisabled]}
-        onSubmitEditing={() => void onSearch()}
-        returnKeyType="search"
       />
 
-      <Pressable
-        style={[
-          styles.primaryBtn,
-          styles.searchBtn,
-          (!signedIn || searching || !query.trim()) && styles.btnDisabled,
-        ]}
-        disabled={!signedIn || searching || !query.trim()}
-        onPress={() => void onSearch()}
-      >
-        {searching ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.primaryText}>{t("community.search_button")}</Text>
-        )}
-      </Pressable>
+      {signedIn && searching ? (
+        <ActivityIndicator color={colors.brand} style={{ marginVertical: 4 }} />
+      ) : null}
+      {signedIn && searchError ? (
+        <Text style={styles.error}>{t("receipts.add_search_error")}</Text>
+      ) : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {signedIn && queryLongEnough && !searching && !searchError ? (
+        <View style={styles.results}>
+          <Text style={styles.sectionTitle}>{t("receipts.add_results")}</Text>
+          {results.length === 0 ? (
+            <Text style={styles.hint}>{t("receipts.add_search_empty")}</Text>
+          ) : (
+            results.map((r) => (
+              <Pressable
+                key={r.rovas_uid}
+                style={styles.resultRow}
+                onPress={() => openProfile(r)}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.resultName}>{r.username}</Text>
+                  {r.display_name && r.display_name !== r.username ? (
+                    <Text style={styles.resultDisplay}>{r.display_name}</Text>
+                  ) : null}
+                </View>
+                <Text style={styles.resultAction}>{t("community.open_profile")}</Text>
+              </Pressable>
+            ))
+          )}
+        </View>
+      ) : null}
 
       <View style={styles.inviteCard}>
         <Pressable
@@ -221,11 +225,7 @@ export default function CommunityScreen() {
             <Pressable
               key={r.username}
               style={styles.tableRow}
-              onPress={() =>
-                router.push(
-                  `/(tabs)/community/${encodeURIComponent(r.username)}`,
-                )
-              }
+              onPress={() => openProfile(r)}
               disabled={!signedIn}
             >
               <Text style={[styles.tdLink, styles.colUser]} numberOfLines={1}>
@@ -299,9 +299,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   searchBtn: { alignSelf: "flex-end", minWidth: 120 },
-  btnDisabled: { opacity: 0.45 },
   primaryText: { color: "#fff", fontWeight: "600", fontSize: 15 },
   error: { color: colors.danger, fontSize: 14 },
+  results: { gap: 8 },
+  resultRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  resultName: { fontWeight: "600", color: colors.ink, fontSize: 15 },
+  resultDisplay: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  resultAction: { color: colors.brandSoft, fontWeight: "700", fontSize: 13 },
   inviteCard: {
     marginTop: 4,
     borderWidth: 1,

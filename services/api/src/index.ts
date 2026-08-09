@@ -33,6 +33,7 @@ async function main() {
       "GET /receipts",
       "GET /receipts/fs-detail",
       "GET /users/search",
+      "GET /users/lookup",
     ],
   }));
 

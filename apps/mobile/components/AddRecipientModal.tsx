@@ -10,14 +10,13 @@ import {
   TextInput,
   View,
 } from "react-native";
-import type { UserSearchResult } from "@civic/shared";
 import { colors } from "@/constants/theme";
-import { searchUsers } from "@/lib/api";
 import {
   loadRecipientMemory,
   setAlwaysShare,
   type MemoryRecipient,
 } from "@/lib/recipient-memory";
+import { useUserSearch } from "@/lib/use-user-search";
 import { t } from "@/lib/i18n";
 
 type Props = {
@@ -39,50 +38,17 @@ export function AddRecipientModal({
   onPick,
 }: Props) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<UserSearchResult[]>([]);
   const [memory, setMemory] = useState<MemoryRecipient[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState(false);
+  const { results, searching, searchError, queryLongEnough } = useUserSearch(
+    query,
+    { enabled: visible, excludeUids },
+  );
 
   useEffect(() => {
     if (!visible) return;
     setQuery("");
-    setResults([]);
-    setSearchError(false);
     void loadRecipientMemory().then(setMemory);
   }, [visible]);
-
-  useEffect(() => {
-    if (!visible) return;
-    const q = query.trim();
-    if (q.length < 3) {
-      setResults([]);
-      setSearching(false);
-      setSearchError(false);
-      return;
-    }
-    let cancelled = false;
-    setSearching(true);
-    setSearchError(false);
-    const handle = setTimeout(() => {
-      void searchUsers(q)
-        .then((rows) => {
-          if (cancelled) return;
-          setResults(rows.filter((r) => !excludeUids.has(r.rovas_uid)));
-          setSearching(false);
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setResults([]);
-          setSearching(false);
-          setSearchError(true);
-        });
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(handle);
-    };
-  }, [query, visible, excludeUids]);
 
   const onToggleMemoryAlways = useCallback(
     async (uid: string, value: boolean) => {
@@ -129,7 +95,7 @@ export function AddRecipientModal({
             <Text style={styles.error}>{t("receipts.add_search_error")}</Text>
           ) : null}
 
-          {query.trim().length >= 3 && !searching && !searchError ? (
+          {queryLongEnough && !searching && !searchError ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t("receipts.add_results")}</Text>
               {results.length === 0 ? (
