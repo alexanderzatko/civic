@@ -20,21 +20,39 @@ type Props = {
   onScrollLockChange?: (locked: boolean) => void;
   /**
    * `self` (default): 2nd-person headline with community deep-links.
-   * `other`: neutral "top X%" headline for a looked-up public profile.
+   * `other`: 3rd-person headline for a looked-up public profile (same bands).
    */
   variant?: "self" | "other";
   /** When false, community words in the headline are not tappable. */
   linkCommunity?: boolean;
 };
 
-function headlineKey(percentile: number): string {
+type RankBand =
+  | "start"
+  | "lower_quarter"
+  | "lower_half"
+  | "mid"
+  | "above"
+  | "top";
+
+function rankBand(percentile: number): RankBand {
   const p = percentile / 100;
-  if (p < 0.25) return "home.rank_start";
-  if (p < 1 / 3) return "home.rank_lower_quarter";
-  if (p < 0.5) return "home.rank_lower_half";
-  if (p < 2 / 3) return "home.rank_mid";
-  if (p < 0.75) return "home.rank_above";
-  return "home.rank_top";
+  if (p < 0.25) return "start";
+  if (p < 1 / 3) return "lower_quarter";
+  if (p < 0.5) return "lower_half";
+  if (p < 2 / 3) return "mid";
+  if (p < 0.75) return "above";
+  return "top";
+}
+
+function headlineKey(
+  percentile: number,
+  variant: "self" | "other",
+): string {
+  const band = rankBand(percentile);
+  return variant === "other"
+    ? `community.rank_${band}`
+    : `home.rank_${band}`;
 }
 
 const LINK_WORDS = new Set([
@@ -337,22 +355,13 @@ export function RankPanel({
   const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
   // Narrowed: percentile/sliderPos are only non-null when `me` is a number.
   const userBucketIndex = bucketIndexForMe(distribution, me as number);
-  const topPct = Math.max(1, Math.round(100 - percentile));
 
   return (
     <View style={styles.card}>
-      {variant === "other" ? (
-        <Text style={styles.headline}>
-          {t("community.rank_other_prefix")}
-          {topPct}
-          {t("community.rank_other_suffix")}
-        </Text>
-      ) : (
-        <HeadlineWithLinks
-          text={t(headlineKey(percentile))}
-          linkCommunity={linkCommunity}
-        />
-      )}
+      <HeadlineWithLinks
+        text={t(headlineKey(percentile, variant))}
+        linkCommunity={linkCommunity}
+      />
       {variant === "self" ? (
         <CaptionWithYouHighlight text={t("home.rank_caption")} />
       ) : null}
