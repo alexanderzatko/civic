@@ -13,7 +13,9 @@ import {
   displayMerits,
   type MeritRate,
   type RankDistribution,
+  type UserLookup,
 } from "@civic/shared";
+import { ContributionBreakdown } from "@/components/ContributionBreakdown";
 import { MeLogo } from "@/components/MeLogo";
 import { RankPanel } from "@/components/RankPanel";
 import { colors } from "@/constants/theme";
@@ -23,6 +25,7 @@ import {
   fetchMeritRate,
   fetchMySummary,
   fetchRankDistribution,
+  lookupUser,
 } from "@/lib/api";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
 import { t } from "@/lib/i18n";
@@ -50,6 +53,7 @@ export default function HomeScreen() {
   const [username, setUsername] = useState<string | null>(null);
   const [rank, setRank] = useState<RankDistribution | null>(null);
   const [meritRate, setMeritRate] = useState<MeritRate | null>(null);
+  const [profile, setProfile] = useState<UserLookup | null>(null);
   const [scrollLocked, setScrollLocked] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -64,11 +68,22 @@ export default function HomeScreen() {
           fetchRankDistribution(),
           fetchMeritRate(),
         ]);
-        setUsername(mine.username ?? mine.display_name ?? null);
+        const name = mine.username?.trim() || null;
+        setUsername(name ?? mine.display_name ?? null);
         setPersonalMe(mine.total_me);
         setCommunityMe(community.total_me);
         setRank(distribution);
         setMeritRate(rate);
+
+        if (name) {
+          try {
+            setProfile(await lookupUser(name));
+          } catch {
+            setProfile(null);
+          }
+        } else {
+          setProfile(null);
+        }
       } else {
         // Mockup logged-out home: community total only (no ladder).
         const [summary, rate] = await Promise.all([
@@ -80,6 +95,7 @@ export default function HomeScreen() {
         setCommunityMe(summary.total_me);
         setRank(null);
         setMeritRate(rate);
+        setProfile(null);
       }
     } catch {
       // API may be down — keep last good values.
@@ -143,6 +159,10 @@ export default function HomeScreen() {
             userMe={personalMe}
             onScrollLockChange={setScrollLocked}
           />
+        ) : null}
+
+        {!loading && profile ? (
+          <ContributionBreakdown profile={profile} emptyTone="self" />
         ) : null}
 
         <Link href="/(tabs)/earn" asChild>

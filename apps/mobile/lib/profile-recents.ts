@@ -1,7 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 
 const STORAGE_KEY = "civic.community.recentProfiles";
-const MAX_ENTRIES = 12;
+const MAX_ENTRIES = 5;
 
 export type RecentProfile = {
   username: string;

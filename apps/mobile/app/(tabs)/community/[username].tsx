@@ -14,11 +14,9 @@ import {
   type RankDistribution,
   type UserLookup,
 } from "@civic/shared";
+import { ContributionBreakdown } from "@/components/ContributionBreakdown";
 import { MeLogo } from "@/components/MeLogo";
-import { MeritMixBar } from "@/components/MeritMixBar";
-import { ProjectMeTable } from "@/components/ProjectMeTable";
 import { RankPanel } from "@/components/RankPanel";
-import { TaxMonthsChart } from "@/components/TaxMonthsChart";
 import { colors } from "@/constants/theme";
 import {
   fetchMeritRate,
@@ -143,72 +141,7 @@ export default function CommunityProfileScreen() {
         />
       ) : null}
 
-      <MeritMixBar
-        taxes={profile.by_category.taxes}
-        charity={profile.by_category.charity}
-        volunteer={profile.by_category.volunteer}
-        total={profile.total_me}
-      />
-
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={[styles.cardTitle, { color: colors.catTaxes }]}>
-            {t("community.card_taxes")}
-          </Text>
-          <View style={[styles.pill, { backgroundColor: colors.catTaxes }]}>
-            <Text style={styles.pillText}>1</Text>
-          </View>
-        </View>
-        {profile.by_category.taxes > 0 ? (
-          <TaxMonthsChart months={profile.taxes_last_3_months} />
-        ) : (
-          <Text style={styles.cardHint}>{t("community.taxes_none")}</Text>
-        )}
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={[styles.cardTitle, { color: colors.catCharity }]}>
-            {t("community.card_charity")}
-          </Text>
-          <View style={[styles.pill, { backgroundColor: colors.catCharity }]}>
-            <Text style={styles.pillText}>2</Text>
-          </View>
-        </View>
-        {profile.by_category.charity > 0 ? (
-          <>
-            <Text style={styles.cardHint}>{t("community.charity_hint")}</Text>
-            <ProjectMeTable
-              rows={profile.top_charities}
-              emptyLabel={t("community.charity_empty")}
-            />
-          </>
-        ) : (
-          <Text style={styles.cardHint}>{t("community.charity_none")}</Text>
-        )}
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={[styles.cardTitle, { color: colors.catVolunteer }]}>
-            {t("community.card_volunteer")}
-          </Text>
-          <View style={[styles.pill, { backgroundColor: colors.catVolunteer }]}>
-            <Text style={styles.pillText}>3</Text>
-          </View>
-        </View>
-        {profile.by_category.volunteer > 0 ? (
-          <>
-            <Text style={styles.cardHint}>{t("community.volunteer_hint")}</Text>
-            <ProjectMeTable
-              rows={profile.top_volunteer_projects}
-              emptyLabel={t("community.volunteer_empty")}
-            />
-          </>
-        ) : (
-          <Text style={styles.cardHint}>{t("community.volunteer_none")}</Text>
-        )}
-      </View>
+      <ContributionBreakdown profile={profile} emptyTone="other" />
 
       <View style={styles.footerSpacer} />
     </ScrollView>
@@ -231,30 +164,6 @@ const styles = StyleSheet.create({
     color: colors.brand,
   },
   eur: { fontSize: 14, color: colors.muted },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-    gap: 10,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  cardTitle: { fontSize: 16, fontWeight: "600" },
-  cardHint: { fontSize: 13, color: colors.muted },
-  pill: {
-    borderRadius: 999,
-    minWidth: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 6,
-  },
-  pillText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   errorTitle: {
     fontSize: 18,
     fontWeight: "600",

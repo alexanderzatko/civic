@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   Linking,
   Pressable,
   ScrollView,
@@ -10,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { Link, router, useFocusEffect } from "expo-router";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import {
   displayMerits,
   percentileFromDistribution,
@@ -18,7 +20,7 @@ import {
 } from "@civic/shared";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
-import { fetchMySummary, fetchRankDistribution } from "@/lib/api";
+import { fetchRankDistribution } from "@/lib/api";
 import {
   loadRecentProfiles,
   type RecentProfile,
@@ -57,7 +59,7 @@ export default function CommunityScreen() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
-  const [myUsername, setMyUsername] = useState<string | null>(null);
+  const searchRef = useRef<TextInput>(null);
 
   const { results, searching, searchError, queryLongEnough } = useUserSearch(
     query,
@@ -66,24 +68,18 @@ export default function CommunityScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // Fresh Community visit: clear leftover typeahead from a prior lookup.
+      // Fresh Community visit: clear leftover typeahead and dismiss keyboard.
       setQuery("");
       setInviteOpen(false);
       setInviteError(null);
+      Keyboard.dismiss();
+      searchRef.current?.blur();
 
       void loadRecentProfiles().then(setRecents);
       if (status === "signedIn") {
         void fetchRankDistribution()
           .then(setDistribution)
           .catch(() => setDistribution(null));
-        void fetchMySummary()
-          .then((mine) => {
-            const name = mine.username?.trim();
-            setMyUsername(name || null);
-          })
-          .catch(() => setMyUsername(null));
-      } else {
-        setMyUsername(null);
       }
     }, [status]),
   );
@@ -131,32 +127,27 @@ export default function CommunityScreen() {
         </View>
       ) : null}
 
-      {signedIn && myUsername ? (
-        <Pressable
-          style={styles.myProfileRow}
-          onPress={() => openProfile({ username: myUsername })}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.myProfileTitle}>{t("community.my_profile")}</Text>
-            <Text style={styles.myProfileHint}>
-              @{myUsername} · {t("community.my_profile_hint")}
-            </Text>
-          </View>
-          <Text style={styles.resultAction}>{t("community.open_profile")}</Text>
-        </Pressable>
-      ) : null}
-
       <Text style={styles.label}>{t("community.search_label")}</Text>
-      <TextInput
-        editable={signedIn}
-        value={query}
-        onChangeText={setQuery}
-        placeholder={t("community.search_placeholder")}
-        placeholderTextColor={colors.muted}
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={[styles.input, !signedIn && styles.inputDisabled]}
-      />
+      <View style={[styles.searchRow, !signedIn && styles.inputDisabled]}>
+        <MaterialIcons
+          name="search"
+          size={22}
+          color={colors.muted}
+          style={styles.searchIcon}
+        />
+        <TextInput
+          ref={searchRef}
+          editable={signedIn}
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t("community.search_placeholder")}
+          placeholderTextColor={colors.muted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoFocus={false}
+          style={styles.searchInput}
+        />
+      </View>
 
       {signedIn && searching ? (
         <ActivityIndicator color={colors.brand} style={{ marginVertical: 4 }} />
@@ -196,7 +187,14 @@ export default function CommunityScreen() {
           onPress={() => setInviteOpen((o) => !o)}
         >
           <Text style={styles.inviteTitle}>{t("community.invite_title")}</Text>
-          <Text style={styles.inviteChevron}>{inviteOpen ? "▾" : "▸"}</Text>
+          <View style={styles.inviteChevronWrap}>
+            <MaterialIcons
+              name={inviteOpen ? "expand-more" : "chevron-right"}
+              size={24}
+              color={colors.muted}
+              style={styles.inviteChevronIcon}
+            />
+          </View>
         </Pressable>
         {inviteOpen ? (
           <View style={styles.inviteBody}>
@@ -302,6 +300,23 @@ const styles = StyleSheet.create({
     color: colors.ink,
     marginTop: 4,
   },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+  },
+  searchIcon: { marginRight: 4 },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    color: colors.ink,
+    fontSize: 16,
+  },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -345,19 +360,6 @@ const styles = StyleSheet.create({
   resultName: { fontWeight: "600", color: colors.ink, fontSize: 15 },
   resultDisplay: { fontSize: 12, color: colors.muted, marginTop: 2 },
   resultAction: { color: colors.brandSoft, fontWeight: "700", fontSize: 13 },
-  myProfileRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-  },
-  myProfileTitle: { fontWeight: "600", color: colors.ink, fontSize: 15 },
-  myProfileHint: { fontSize: 12, color: colors.muted, marginTop: 2 },
   inviteCard: {
     marginTop: 4,
     borderWidth: 1,
@@ -374,7 +376,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   inviteTitle: { fontSize: 15, fontWeight: "600", color: colors.ink, flex: 1 },
-  inviteChevron: { fontSize: 16, color: colors.muted, marginLeft: 8 },
+  // Layout stays 24×24 so the header height follows the title; scale draws ~30px.
+  inviteChevronWrap: {
+    width: 24,
+    height: 24,
+    marginLeft: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inviteChevronIcon: {
+    transform: [{ scale: 1.25 }],
+  },
   inviteBody: { paddingHorizontal: 14, paddingBottom: 14, gap: 10 },
   sectionTitle: {
     fontSize: 14,
