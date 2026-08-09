@@ -118,11 +118,4 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       }
     },
   );
-
-  app.get("/users/lookup", async (_req, reply) => {
-    return reply.code(501).send({
-      error: "not_implemented",
-      message: "User lookup ships in Phase 3+.",
-    });
-  });
 };

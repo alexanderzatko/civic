@@ -51,6 +51,7 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `GET /me/contributions/summary` | `total_me` from Rovas wallet; `by_category.taxes` + receipt stats from Rovas claim summary once live (interim: zeros — see Rovas task **Civic claim reads + SoT**) |
 | `POST /receipts/claim` | Re-verify FS + GPS/rate-limit via Civic `claim_attempts`; UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (optional `shares[]`; Rovas `{civic_claims}` is sole claim registry) |
 | `GET /users/search` | Split-claim typeahead — proxies Rovas `GET /rovas/users_search?query=` (Civic accepts `?q=`; maps to Rovas `query` because Drupal reserves `$_GET['q']` for the path) |
+| `GET /users/lookup` | Community public profile — proxies Rovas `GET /rovas/users_lookup?username=` (Bearer; exact username). Returns `UserLookup` (`total_me`, `by_category`, tax months, top charity/volunteer). Percentile is computed on Civic from `/rank/distribution`. Friend invite on Komunita is client `mailto:` only (no Rovas invite API). |
 
 `POST /receipts/verify` sends optional Bearer; when present, Civic checks
 `GET /rovas/civic_claims?receipt_uid=` and returns `already_claimed` so the
@@ -123,6 +124,10 @@ Split typeahead: Civic `GET /users/search?q=` → Rovas
 `GET /rovas/users_search?query=` (param renamed from `q` — Drupal path
 conflict). See Rovas **users search (split typeahead)**.
 
+Community public profile: Civic `GET /users/lookup?username=` → Rovas
+`GET /rovas/users_lookup?username=` (machine-name path; slash aliases 404).
+See Rovas **users lookup (community public profile)**.
+
 **Rovas agents:** claim rule checklist in
 [`~/Documents/homeProjects/rovas/docs/integration/civic.md`](../../rovas/docs/integration/civic.md)
 → **Next work: solo VAT claim**. Claim history/summary reads:
@@ -130,4 +135,5 @@ conflict). See Rovas **users search (split typeahead)**.
 history includes `scanner_username` + `scanner_display_name` (with
 `scanner_rovas_uid`) for the From column — wire Expo after rovdev deploy.
 National rate read: → **Next work: public national hourly rate API**. Users
-search: → **Next work: users search (split typeahead)**.
+search: → **Next work: users search (split typeahead)**. Users lookup
+(Komunita): → **Next work: users lookup (community public profile)**.

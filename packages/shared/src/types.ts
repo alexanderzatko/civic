@@ -18,6 +18,37 @@ export interface UserSearchResult {
   display_name: string;
 }
 
+/** Named contribution row on a public profile (charity / volunteer). */
+export interface UserLookupProjectRow {
+  name: string;
+  me: number;
+}
+
+/** Month bucket for tax Merits on a public profile (`YYYY-MM`). */
+export interface UserLookupTaxMonth {
+  month: string;
+  me: number;
+}
+
+/**
+ * Public contribution profile from `GET /users/lookup?username=`
+ * (proxies Rovas `GET /rovas/users_lookup?username=`).
+ * Percentile / rank ladder are computed on Civic from `/rank/distribution`.
+ */
+export interface UserLookup {
+  rovas_uid: string;
+  username: string;
+  display_name: string;
+  total_me: number;
+  by_category: ContributionCategoryBreakdown;
+  /** Last ≤3 calendar months of VAT-claim Merits; empty if none. */
+  taxes_last_3_months: UserLookupTaxMonth[];
+  /** Top ≤3 charity orgs by ME; empty if unavailable. */
+  top_charities: UserLookupProjectRow[];
+  /** Top ≤3 volunteer projects by ME; empty if unavailable. */
+  top_volunteer_projects: UserLookupProjectRow[];
+}
+
 export interface VerifiedReceiptPreview {
   receipt_uid: string;
   verified: true;

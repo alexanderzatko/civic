@@ -18,6 +18,13 @@ type Props = {
   userMe?: number;
   /** Called while the ladder is dragged so the parent can lock scrolling. */
   onScrollLockChange?: (locked: boolean) => void;
+  /**
+   * `self` (default): 2nd-person headline with community deep-links.
+   * `other`: neutral "top X%" headline for a looked-up public profile.
+   */
+  variant?: "self" | "other";
+  /** When false, community words in the headline are not tappable. */
+  linkCommunity?: boolean;
 };
 
 function headlineKey(percentile: number): string {
@@ -43,7 +50,13 @@ const LINK_WORDS = new Set([
 /** 2nd-person markers in the rank caption ("ste" / "you"). */
 const YOU_WORDS = new Set(["ste", "you"]);
 
-function HeadlineWithLinks({ text }: { text: string }) {
+function HeadlineWithLinks({
+  text,
+  linkCommunity = true,
+}: {
+  text: string;
+  linkCommunity?: boolean;
+}) {
   const parts = text.split(/(\s+)/);
   return (
     <Text style={styles.headline}>
@@ -51,6 +64,14 @@ function HeadlineWithLinks({ text }: { text: string }) {
         const bare = part.replace(/[.,!?]$/, "");
         if (LINK_WORDS.has(bare.toLowerCase())) {
           const punct = part.slice(bare.length);
+          if (!linkCommunity) {
+            return (
+              <Text key={i} style={styles.linkPlain}>
+                {bare}
+                {punct}
+              </Text>
+            );
+          }
           return (
             <Text
               key={i}
@@ -268,6 +289,8 @@ export function RankPanel({
   distribution,
   userMe,
   onScrollLockChange,
+  variant = "self",
+  linkCommunity = true,
 }: Props) {
   const me =
     typeof userMe === "number" ? userMe : distribution.user_merits;
@@ -295,7 +318,11 @@ export function RankPanel({
   if (percentile === null || sliderPos === null) {
     return (
       <View style={styles.card}>
-        <Text style={styles.headline}>{t("home.rank_anonymous")}</Text>
+        <Text style={styles.headline}>
+          {variant === "other"
+            ? t("community.rank_unavailable")
+            : t("home.rank_anonymous")}
+        </Text>
       </View>
     );
   }
@@ -310,11 +337,25 @@ export function RankPanel({
   const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
   // Narrowed: percentile/sliderPos are only non-null when `me` is a number.
   const userBucketIndex = bucketIndexForMe(distribution, me as number);
+  const topPct = Math.max(1, Math.round(100 - percentile));
 
   return (
     <View style={styles.card}>
-      <HeadlineWithLinks text={t(headlineKey(percentile))} />
-      <CaptionWithYouHighlight text={t("home.rank_caption")} />
+      {variant === "other" ? (
+        <Text style={styles.headline}>
+          {t("community.rank_other_prefix")}
+          {topPct}
+          {t("community.rank_other_suffix")}
+        </Text>
+      ) : (
+        <HeadlineWithLinks
+          text={t(headlineKey(percentile))}
+          linkCommunity={linkCommunity}
+        />
+      )}
+      {variant === "self" ? (
+        <CaptionWithYouHighlight text={t("home.rank_caption")} />
+      ) : null}
 
       <View style={styles.ladderWrap}>
         {dragState.dragging && probeBucketIndex >= 0 ? (
@@ -363,6 +404,10 @@ const styles = StyleSheet.create({
   link: {
     color: colors.brandSoft,
     textDecorationLine: "underline",
+    fontWeight: "600",
+  },
+  linkPlain: {
+    color: colors.brandSoft,
     fontWeight: "600",
   },
   caption: {

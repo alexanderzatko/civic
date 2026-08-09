@@ -1,13 +1,21 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
-import type { UserSearchResult } from "@civic/shared";
+import type { UserLookup, UserSearchResult } from "@civic/shared";
 import { requireAuth } from "../auth.js";
 import type { AppContext } from "../context.js";
 import { RovasClientError } from "../rovas-client.js";
 
 function sendRovasError(reply: FastifyReply, err: unknown) {
   if (err instanceof RovasClientError) {
+    const error =
+      err.status === 404
+        ? "not_found"
+        : err.status === 400
+          ? "invalid_username"
+          : err.status === 503
+            ? "rovas_unavailable"
+            : "rovas_error";
     return reply.code(err.status).send({
-      error: err.status === 503 ? "rovas_unavailable" : "rovas_error",
+      error,
       message: err.message,
     });
   }
@@ -22,7 +30,7 @@ export const usersRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
 
   /**
    * Split-claim recipient typeahead.
-   * Proxies Rovas `GET /rovas/users_search?q=` (machine-name path).
+   * Proxies Rovas `GET /rovas/users_search?query=` (machine-name path).
    */
   app.get(
     "/users/search",
@@ -46,6 +54,38 @@ export const usersRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
           q,
         );
         return results;
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
+
+  /**
+   * Community public profile by exact Rovas username.
+   * Proxies Rovas `GET /rovas/users_lookup?username=`.
+   */
+  app.get(
+    "/users/lookup",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const username =
+        typeof (req.query as { username?: unknown }).username === "string"
+          ? (req.query as { username: string }).username.trim()
+          : "";
+      if (!username) {
+        return reply.code(400).send({
+          error: "invalid_username",
+          message: "Query username is required.",
+        });
+      }
+
+      try {
+        const profile: UserLookup = await ctx.rovas.lookupUser(
+          user.accessToken,
+          username,
+        );
+        return profile;
       } catch (err) {
         return sendRovasError(reply, err);
       }

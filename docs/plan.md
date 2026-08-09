@@ -310,7 +310,7 @@ When a single receipt is claimed for multiple Rovas users (§7), the **total** i
 | GET | `/community/contributions/summary` | Public | Aggregate ME totals + per-category breakdown for the logged-out screen 0 |
 | GET | `/charities/projects` | Public | Proxies the new Rovas charity-projects endpoint (§8c); query param `?type=charity\|invest` differentiates screens 3 and 5; each item carries a canonical `rovas_url` for v1 hyperlink-out |
 | GET | `/rank/distribution` | Public (Rovas Bearer optional) | Proxies the existing **Rovas Merit Distribution** module Services endpoint; returns log-scale buckets `[{ label, count }]` for the histogram on screen 0. With a Bearer token, the response also returns `user_bucket_index` so the mobile app can highlight the caller's bucket and label it with their Rovas username |
-| GET | `/users/lookup` | Rovas Bearer required | **Phase 3+ stub** — `?username=<rovas_username>` returns a minimal public profile (`rovas_uid`, `display_name`, totals, percentile) for the Komunita screen. v1 returns 501 Not Implemented |
+| GET | `/users/lookup` | Rovas Bearer required | Community public profile — `?username=<rovas_username>` proxies Rovas `GET /rovas/users_lookup`; returns `UserLookup` (`rovas_uid`, `display_name`, `total_me`, `by_category`, tax months, top charity/volunteer). Percentile computed on Civic from `/rank/distribution`. |
 
 No local auth endpoints — login happens entirely via Rovas OAuth in the Expo app.
 
@@ -562,7 +562,7 @@ Civic's home, earn-hub, and community screens consume read-only signals from Rov
 | `GET /rovas/users/search?q=…` | Screen 2 (split-claim recipient picker, §7) | Minimal `[{ rovas_uid, username, display_name }]` for typeahead. `q` ≥ 3 chars, ≤ 10 results, public fields only. Honours per-user "not searchable" preference (Phase 3+). | **Phase 2** — ships with the multi-beneficiary claim rule. Separate from `/users/lookup`. |
 | `GET /rovas/civic/claims?view=submitted\|received` | Screen 2 history tabs | Paginated claim/share rows from `{civic_claims}` / `{civic_claim_shares}` (sole claim SoT) | **Done** — Rovas live; Civic proxies via `GET /receipts?view=` |
 | `GET /rovas/civic/claims/summary` | `/me/contributions/summary` taxes + receipt stats | `{ receipt_count, total_vat_eur, taxes_me }` (or equivalent fields on `/rovas/me`) | **Done** — Rovas live; Civic wires into `/me/contributions/summary` |
-| `GET /rovas/users/lookup?username=…` | Screen 6 (Komunita) | Public-profile shape for a Rovas user: `rovas_uid, display_name, total_me, by_category, percentile, public_projects[]`. Honours each Rovas user's privacy preferences. | **Phase 3+** — implemented later, after the broader v1 ships. |
+| `GET /rovas/users_lookup?username=…` | Screen 6 (Komunita) | Public-profile shape: `rovas_uid, username, display_name, total_me, by_category, taxes_last_3_months[], top_charities[], top_volunteer_projects[]`. Machine-name path (no slash). Honours searchable preference (404 if private). Percentile computed on Civic. | **Live** — see Rovas `docs/integration/civic.md` → users lookup |
 | `POST /rovas/rules/rules_proxy_volunteer_report` | Screen 4 (Dobrovoľnícka práca) | Submits a simplified volunteer report (project, date, hours, description) and returns Merit grant outcome | Phase 3 |
 
 **v1 behaviour:**
@@ -572,7 +572,7 @@ Civic's home, earn-hub, and community screens consume read-only signals from Rov
 - Screen 3 also ships an **invite-organisation** e-mail form (mockup: collapsible card below the list). The preset body and intro copy link to **`https://rovas.app/charity-projects`** — that Rovas landing page must be created (see §8c table row).
 - Screen 0 logged-out shows a placeholder community total (or hides the aggregate block) until the aggregate endpoint lands.
 - Screen 4 disables submit and shows a "coming soon" notice with a link to the existing Rovas form.
-- **Screen 6 (Komunita)** — disabled search input + skeleton recent-profiles table. Civic API returns `501` for `/users/lookup`. Promoted in Phase 3+ once the Rovas username-lookup endpoint exists.
+- **Screen 6 (Komunita)** — username search → public contribution profile via `/users/lookup`; device-local recent profiles; friend invite via client `mailto:` (no mailer / no Rovas invite API; “contacts after registration” out of scope).
 
 Promotion path: when each Rovas endpoint ships, swap the corresponding Civic API stub from a static-config response to a live proxy. No Civic mobile changes beyond removing the "stub" badge and enabling disabled controls.
 
@@ -602,7 +602,7 @@ Slovak labels are the user-facing source of truth (see §3 Language strategy). R
 | 3 | `/(tabs)/earn/charity` | Charitatívne projekty | Charity projects | **Stub** — list backed by `/charities/projects?type=charity`; each item hyperlinks to `rovas.app/project/<id>`; invite form below the list links to `rovas.app/charity-projects` (Rovas page **TODO**) |
 | 4 | `/(tabs)/earn/volunteer` | Dobrovoľnícka práca | Volunteer report | **Stub** — form skeleton mirroring the simplified Rovas form; submit disabled with "coming soon" until §8c proxy ships |
 | 5 | `/(tabs)/earn/invest` | Investičné projekty | Investment projects | **Stub** — list backed by `/charities/projects?type=invest`; each item hyperlinks to `rovas.app/project/<id>` |
-| 6 | `/(tabs)/community` | Komunita | Community / user lookup by Rovas username | **Stub** — disabled search input + skeleton recents table; promoted in Phase 3+ once `/users/lookup` (§8c) ships |
+| 6 | `/(tabs)/community` | Komunita | Community / user lookup by Rovas username | **Built** — search + public profile stack; recents in SecureStore; invite-friend mailto last |
 | — | `/(auth)/login` | Prihlásenie | Login | **Fully built** — Rovas OAuth (Google / Facebook / Rovas) |
 | — | `/(auth)/register` | Registrácia | Registration | **Fully built** — same OAuth providers, framed for first-time users; HybridAuth auto-creates the Rovas account |
 | — | `/(tabs)/profile` | Profil | Profile | **Fully built** — Rovas user info, Merit balance, sign out. **Post-v1:** entry point to a Merit acquisition history screen (§16) — parity with the Rovas user-profile Merit ledger |

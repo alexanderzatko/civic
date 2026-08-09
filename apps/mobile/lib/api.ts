@@ -12,6 +12,7 @@ import type {
   ReceiptReceivedHistory,
   ReceiptSubmittedHistory,
   UserSearchResult,
+  UserLookup,
   VerifyReceiptResponse,
 } from "@civic/shared";
 
@@ -160,6 +161,13 @@ export function fetchReceiptDetail(
 export function searchUsers(q: string): Promise<UserSearchResult[]> {
   const params = new URLSearchParams({ q });
   return apiFetch<UserSearchResult[]>(`/users/search?${params}`, {
+    auth: "required",
+  });
+}
+
+export function lookupUser(username: string): Promise<UserLookup> {
+  const params = new URLSearchParams({ username });
+  return apiFetch<UserLookup>(`/users/lookup?${params}`, {
     auth: "required",
   });
 }

@@ -7,6 +7,9 @@ import type {
   ReceiptReceivedItem,
   ReceiptSubmittedHistory,
   ReceiptSubmittedItem,
+  UserLookup,
+  UserLookupProjectRow,
+  UserLookupTaxMonth,
 } from "@civic/shared";
 
 export type RovasMe = {
@@ -33,7 +36,7 @@ export type RovasMeritDistribution = {
 export class RovasClientError extends Error {
   constructor(
     message: string,
-    readonly status: 401 | 404 | 409 | 502 | 503 = 502,
+    readonly status: 400 | 401 | 404 | 409 | 502 | 503 = 502,
     readonly body?: unknown,
   ) {
     super(message);
@@ -213,6 +216,40 @@ export class RovasClient {
             : username,
       };
     });
+  }
+
+  /**
+   * Community public profile by exact username.
+   * `GET /rovas/users_lookup?username=`
+   */
+  async lookupUser(accessToken: string, username: string): Promise<UserLookup> {
+    const params = new URLSearchParams({ username });
+    const body = await this.getJson<Partial<UserLookup>>(
+      `/rovas/users_lookup?${params}`,
+      accessToken,
+    );
+    const uid = body.rovas_uid != null ? String(body.rovas_uid) : "";
+    const name = typeof body.username === "string" ? body.username : "";
+    if (!uid || !name || typeof body.total_me !== "number") {
+      throw new RovasClientError(
+        "Rovas users_lookup missing rovas_uid/username/total_me",
+        502,
+        body,
+      );
+    }
+    return {
+      rovas_uid: uid,
+      username: name,
+      display_name:
+        typeof body.display_name === "string" && body.display_name
+          ? body.display_name
+          : name,
+      total_me: body.total_me,
+      by_category: normalizeCategories(body.by_category),
+      taxes_last_3_months: normalizeTaxMonths(body.taxes_last_3_months),
+      top_charities: normalizeProjectRows(body.top_charities),
+      top_volunteer_projects: normalizeProjectRows(body.top_volunteer_projects),
+    };
   }
 
   /**
@@ -423,6 +460,9 @@ export class RovasClient {
     if (res.status === 401) {
       throw new RovasClientError(`Rovas unauthorized (${path})`, 401, parsed);
     }
+    if (res.status === 400) {
+      throw new RovasClientError(`Rovas bad request (${path})`, 400, parsed);
+    }
     if (res.status === 404) {
       throw new RovasClientError(`Rovas not found (${path})`, 404, parsed);
     }
@@ -481,4 +521,30 @@ function normalizeCategories(
     charity: Number(raw?.charity) || 0,
     volunteer: Number(raw?.volunteer) || 0,
   };
+}
+
+function normalizeTaxMonths(raw: unknown): UserLookupTaxMonth[] {
+  if (!Array.isArray(raw)) return [];
+  const out: UserLookupTaxMonth[] = [];
+  for (const row of raw.slice(0, 3)) {
+    const r = row as Partial<UserLookupTaxMonth>;
+    const month = typeof r.month === "string" ? r.month : "";
+    const me = Number(r.me);
+    if (!month || !Number.isFinite(me)) continue;
+    out.push({ month, me });
+  }
+  return out;
+}
+
+function normalizeProjectRows(raw: unknown): UserLookupProjectRow[] {
+  if (!Array.isArray(raw)) return [];
+  const out: UserLookupProjectRow[] = [];
+  for (const row of raw.slice(0, 3)) {
+    const r = row as Partial<UserLookupProjectRow>;
+    const name = typeof r.name === "string" ? r.name.trim() : "";
+    const me = Number(r.me);
+    if (!name || !Number.isFinite(me)) continue;
+    out.push({ name, me });
+  }
+  return out;
 }
