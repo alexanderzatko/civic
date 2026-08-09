@@ -1,4 +1,13 @@
-import type { ContributionCategoryBreakdown, RankDistribution } from "@civic/shared";
+import type {
+  ContributionCategoryBreakdown,
+  RankDistribution,
+  ReceiptClaimsSummary,
+  ReceiptHistoryView,
+  ReceiptReceivedHistory,
+  ReceiptReceivedItem,
+  ReceiptSubmittedHistory,
+  ReceiptSubmittedItem,
+} from "@civic/shared";
 
 export type RovasMe = {
   uid: number;
@@ -225,6 +234,102 @@ export class RovasClient {
         typeof body.receipt_uid === "string" && body.receipt_uid
           ? body.receipt_uid
           : receiptUid,
+    };
+  }
+
+  /**
+   * Paginated claim history.
+   * `GET /rovas/civic_claims?view=submitted|received&limit=&offset=`
+   */
+  async fetchClaims(
+    accessToken: string,
+    view: ReceiptHistoryView,
+    opts?: { limit?: number; offset?: number },
+  ): Promise<ReceiptSubmittedHistory | ReceiptReceivedHistory> {
+    const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100);
+    const offset = Math.max(opts?.offset ?? 0, 0);
+    const params = new URLSearchParams({
+      view,
+      limit: String(limit),
+      offset: String(offset),
+    });
+    const body = await this.getJson<Partial<ReceiptSubmittedHistory | ReceiptReceivedHistory>>(
+      `/rovas/civic_claims?${params}`,
+      accessToken,
+    );
+    if (!Array.isArray(body.items) || typeof body.total !== "number") {
+      throw new RovasClientError(
+        "Rovas civic_claims list missing items/total",
+        502,
+        body,
+      );
+    }
+    if (view === "submitted") {
+      return {
+        view: "submitted",
+        total: body.total,
+        limit: typeof body.limit === "number" ? body.limit : limit,
+        offset: typeof body.offset === "number" ? body.offset : offset,
+        items: (body.items as ReceiptSubmittedItem[]).map((raw) => ({
+          receipt_uid: String(raw.receipt_uid ?? ""),
+          vat_eur: Number(raw.vat_eur) || 0,
+          total_merits_awarded: Number(raw.total_merits_awarded) || 0,
+          merchant_name:
+            typeof raw.merchant_name === "string" ? raw.merchant_name : null,
+          purchase_at:
+            typeof raw.purchase_at === "string" ? raw.purchase_at : null,
+          created_at:
+            typeof raw.created_at === "string" ? raw.created_at : "",
+          shares: Array.isArray(raw.shares)
+            ? raw.shares.map((s) => ({
+                beneficiary_rovas_uid: String(s.beneficiary_rovas_uid ?? ""),
+                share_pct: Number(s.share_pct) || 0,
+                merits_awarded: Number(s.merits_awarded) || 0,
+              }))
+            : [],
+        })),
+      };
+    }
+    return {
+      view: "received",
+      total: body.total,
+      limit: typeof body.limit === "number" ? body.limit : limit,
+      offset: typeof body.offset === "number" ? body.offset : offset,
+      items: (body.items as ReceiptReceivedItem[]).map((raw) => ({
+        receipt_uid: String(raw.receipt_uid ?? ""),
+        merchant_name:
+          typeof raw.merchant_name === "string" ? raw.merchant_name : null,
+        purchase_at:
+          typeof raw.purchase_at === "string" ? raw.purchase_at : null,
+        scanner_rovas_uid: String(raw.scanner_rovas_uid ?? ""),
+        scanner_username:
+          typeof raw.scanner_username === "string" && raw.scanner_username
+            ? raw.scanner_username
+            : undefined,
+        scanner_display_name:
+          typeof raw.scanner_display_name === "string" &&
+          raw.scanner_display_name
+            ? raw.scanner_display_name
+            : undefined,
+        share_pct: Number(raw.share_pct) || 0,
+        merits_awarded: Number(raw.merits_awarded) || 0,
+        created_at: typeof raw.created_at === "string" ? raw.created_at : "",
+      })),
+    };
+  }
+
+  /** Received-based taxes summary: `GET /rovas/civic_claims/summary`. */
+  async fetchClaimsSummary(
+    accessToken: string,
+  ): Promise<ReceiptClaimsSummary> {
+    const body = await this.getJson<Partial<ReceiptClaimsSummary>>(
+      "/rovas/civic_claims/summary",
+      accessToken,
+    );
+    return {
+      receipt_count: Number(body.receipt_count) || 0,
+      total_vat_eur: Number(body.total_vat_eur) || 0,
+      taxes_me: Number(body.taxes_me) || 0,
     };
   }
 

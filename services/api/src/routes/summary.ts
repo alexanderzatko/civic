@@ -54,18 +54,27 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       const user = req.authUser!;
       try {
         const profile = await ctx.rovas.fetchMe(user.accessToken);
-        // Wallet total from Rovas. Taxes/receipt stats come from Rovas claim
-        // summary once live (see rovas docs/integration/civic.md → Civic claim
-        // reads + SoT). Interim zeros — do not reintroduce a local claim mirror.
+        let taxesMe = 0;
+        let receiptCount = 0;
+        let totalVatEur = 0;
+        try {
+          const claims = await ctx.rovas.fetchClaimsSummary(user.accessToken);
+          taxesMe = claims.taxes_me;
+          receiptCount = claims.receipt_count;
+          totalVatEur = claims.total_vat_eur;
+        } catch (err) {
+          // Claim summary may be unavailable on older Rovas deploys — keep zeros.
+          req.log.warn({ err }, "claims summary unavailable");
+        }
         const body: MeSummaryResponse = {
           rovas_uid: user.rovasUid,
           username: profile.username,
           display_name: profile.display_name,
           scope: user.token.scope,
           total_me: profile.total_me,
-          by_category: { taxes: 0, charity: 0, volunteer: 0 },
-          receipt_count: 0,
-          total_vat_eur: 0,
+          by_category: { taxes: taxesMe, charity: 0, volunteer: 0 },
+          receipt_count: receiptCount,
+          total_vat_eur: totalVatEur,
         };
         return body;
       } catch (err) {

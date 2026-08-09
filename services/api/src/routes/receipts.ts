@@ -5,6 +5,7 @@ import {
   parseReceiptUid,
   splitMerits,
   type ClaimReceiptResponse,
+  type ReceiptDetailResponse,
   type VerifyReceiptResponse,
 } from "@civic/shared";
 import { optionalAuth, requireAuth } from "../auth.js";
@@ -12,6 +13,7 @@ import {
   EkasaClientError,
   extractMerchantName,
   extractVatEur,
+  normalizeReceiptDetail,
   parseFsDate,
 } from "../ekasa.js";
 import type { AppContext } from "../context.js";
@@ -129,6 +131,97 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   opts,
 ) => {
   const { ctx } = opts;
+
+  /**
+   * Paginated claim history for the authenticated user.
+   * Proxies Rovas `GET /rovas/civic_claims?view=submitted|received`.
+   */
+  app.get(
+    "/receipts",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const q = req.query as {
+        view?: string;
+        limit?: string;
+        offset?: string;
+      };
+      const view = q.view === "received" ? "received" : "submitted";
+      const limitRaw = q.limit != null ? Number(q.limit) : 50;
+      const offsetRaw = q.offset != null ? Number(q.offset) : 0;
+      const limit = Number.isFinite(limitRaw)
+        ? Math.min(Math.max(Math.trunc(limitRaw), 1), 100)
+        : 50;
+      const offset = Number.isFinite(offsetRaw)
+        ? Math.max(Math.trunc(offsetRaw), 0)
+        : 0;
+
+      try {
+        return await ctx.rovas.fetchClaims(user.accessToken, view, {
+          limit,
+          offset,
+        });
+      } catch (err) {
+        if (err instanceof RovasClientError) {
+          return reply.code(err.status).send({
+            error: err.status === 503 ? "rovas_unavailable" : "rovas_error",
+            message: err.message,
+          });
+        }
+        throw err;
+      }
+    },
+  );
+
+  /**
+   * Full Finančná správa receipt payload for history detail modal.
+   * `GET /receipts/fs-detail?receipt_uid=O-…`
+   */
+  app.get(
+    "/receipts/fs-detail",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const q = req.query as { receipt_uid?: string };
+      const raw =
+        typeof q.receipt_uid === "string" ? q.receipt_uid.trim() : "";
+      const uid = parseReceiptUid(raw);
+      if (!uid) {
+        return reply.code(422).send({
+          found: false,
+          receipt_uid: null,
+          code: "invalid_uid",
+          message: "Could not extract a valid eKasa receipt UID (O- + 32 hex).",
+        } satisfies ReceiptDetailResponse);
+      }
+
+      try {
+        const fsResult = await ctx.ekasa.findReceipt(uid);
+        if (fsResult.returnValue !== 0 || !fsResult.receipt) {
+          return reply.code(404).send({
+            found: false,
+            receipt_uid: uid,
+            code: "not_found",
+            message: "Receipt not found in the Finančná správa registry.",
+          } satisfies ReceiptDetailResponse);
+        }
+        const detail = normalizeReceiptDetail(fsResult.receipt, uid);
+        return {
+          found: true as const,
+          ...detail,
+        } satisfies ReceiptDetailResponse;
+      } catch (err) {
+        if (err instanceof EkasaClientError) {
+          return reply.code(502).send({
+            found: false,
+            receipt_uid: uid,
+            code: "fs_error",
+            message: err.message,
+          } satisfies ReceiptDetailResponse);
+        }
+        throw err;
+      }
+    },
+  );
 
   app.post<{ Body: unknown }>(
     "/receipts/verify",

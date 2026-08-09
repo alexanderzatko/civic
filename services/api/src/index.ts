@@ -30,6 +30,8 @@ async function main() {
       "GET /me",
       "POST /receipts/verify",
       "POST /receipts/claim",
+      "GET /receipts",
+      "GET /receipts/fs-detail",
       "GET /users/search",
     ],
   }));

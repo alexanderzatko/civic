@@ -126,6 +126,8 @@ conflict). See Rovas **users search (split typeahead)**.
 **Rovas agents:** claim rule checklist in
 [`~/Documents/homeProjects/rovas/docs/integration/civic.md`](../../rovas/docs/integration/civic.md)
 → **Next work: solo VAT claim**. Claim history/summary reads:
-→ **Next work: Civic claim reads + SoT**. National rate read:
-→ **Next work: public national hourly rate API**. Users search:
-→ **Next work: users search (split typeahead)**.
+→ **Done: Civic claim reads + SoT** (Civic `GET /receipts`, summary). Received
+history includes `scanner_username` + `scanner_display_name` (with
+`scanner_rovas_uid`) for the From column — wire Expo after rovdev deploy.
+National rate read: → **Next work: public national hourly rate API**. Users
+search: → **Next work: users search (split typeahead)**.

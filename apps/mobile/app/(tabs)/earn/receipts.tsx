@@ -17,17 +17,21 @@ import {
 } from "expo-camera";
 import * as Location from "expo-location";
 import {
-  displayMerits,
   type ClaimReceiptResponse,
+  type ReceiptHistoryView,
+  type ReceiptReceivedItem,
+  type ReceiptSubmittedItem,
   type VerifiedReceiptPreview,
   type VerifyReceiptResponse,
 } from "@civic/shared";
 import { AddRecipientModal } from "@/components/AddRecipientModal";
+import { ReceiptDetailModal } from "@/components/ReceiptDetailModal";
 import { ShareEditor } from "@/components/ShareEditor";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
-import { claimReceipt, fetchMe, verifyReceipt } from "@/lib/api";
+import { claimReceipt, fetchMe, fetchReceiptHistory, verifyReceipt } from "@/lib/api";
 import { notifyMeritsChanged } from "@/lib/merits-refresh";
+import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
 import {
   loadRecipientMemory,
   rememberRecipient,
@@ -74,6 +78,17 @@ export default function ReceiptsScreen() {
   const [me, setMe] = useState<MeProfile | null>(null);
   const [recipients, setRecipients] = useState<SplitRecipient[]>([]);
   const [addOpen, setAddOpen] = useState(false);
+  const [historyTab, setHistoryTab] =
+    useState<ReceiptHistoryView>("submitted");
+  const [submittedItems, setSubmittedItems] = useState<ReceiptSubmittedItem[]>(
+    [],
+  );
+  const [receivedItems, setReceivedItems] = useState<ReceiptReceivedItem[]>(
+    [],
+  );
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
+  const [detailUid, setDetailUid] = useState<string | null>(null);
 
   const seedRecipients = useCallback(async (profile: MeProfile) => {
     const memory = await loadRecipientMemory();
@@ -102,6 +117,9 @@ export default function ReceiptsScreen() {
   useEffect(() => {
     if (!signedIn) {
       setMe(null);
+      setSubmittedItems([]);
+      setReceivedItems([]);
+      setHistoryError(false);
       return;
     }
     let cancelled = false;
@@ -122,6 +140,32 @@ export default function ReceiptsScreen() {
       cancelled = true;
     };
   }, [signedIn]);
+
+  const refreshHistory = useCallback(() => {
+    if (!signedIn) return;
+    setHistoryLoading(true);
+    setHistoryError(false);
+    void Promise.all([
+      fetchReceiptHistory("submitted"),
+      fetchReceiptHistory("received"),
+    ])
+      .then(([submitted, received]) => {
+        setSubmittedItems(submitted.items);
+        setReceivedItems(received.items);
+      })
+      .catch(() => {
+        setHistoryError(true);
+      })
+      .finally(() => {
+        setHistoryLoading(false);
+      });
+  }, [signedIn]);
+
+  useMeritsAutoRefresh(refreshHistory);
+
+  useEffect(() => {
+    if (signedIn) refreshHistory();
+  }, [signedIn, refreshHistory]);
 
   // If verify finished before /me resolved, seed split once profile arrives.
   useEffect(() => {
@@ -462,17 +506,13 @@ export default function ReceiptsScreen() {
           />
           <Row
             label={t("receipts.merits")}
-            value={`${displayMerits(preview.merits_preview)} ${t("common.me")}`}
+            value={`${preview.merits_preview.toFixed(2)} ${t("common.me")}`}
           />
-          <Text style={styles.hint}>
-            {preview.merits_preview.toFixed(2)} ME · {preview.wage_basis} · v
-            {preview.formula_version}
-          </Text>
 
           {claimSucceeded ? (
             <Text style={styles.success}>
               {t("receipts.claim_success")}{" "}
-              ({displayMerits(claimResult.total_merits)} {t("common.me")})
+              ({claimResult.total_merits.toFixed(2)} {t("common.me")})
             </Text>
           ) : alreadyClaimed ? (
             <Text style={styles.error}>{t("receipts.error_duplicate")}</Text>
@@ -514,9 +554,24 @@ export default function ReceiptsScreen() {
             </View>
           )}
         </View>
-      ) : (
-        <Text style={styles.empty}>{t("receipts.history_empty")}</Text>
-      )}
+      ) : null}
+
+      <ReceiptHistorySection
+        signedIn={signedIn}
+        myUid={me?.rovas_uid ?? null}
+        tab={historyTab}
+        onTabChange={setHistoryTab}
+        submitted={submittedItems}
+        received={receivedItems}
+        loading={historyLoading}
+        error={historyError}
+        onOpenDetail={setDetailUid}
+      />
+
+      <ReceiptDetailModal
+        receiptUid={detailUid}
+        onClose={() => setDetailUid(null)}
+      />
 
       <AddRecipientModal
         visible={addOpen}
@@ -526,6 +581,191 @@ export default function ReceiptsScreen() {
       />
     </ScrollView>
   );
+}
+
+function ReceiptHistorySection({
+  signedIn,
+  myUid,
+  tab,
+  onTabChange,
+  submitted,
+  received,
+  loading,
+  error,
+  onOpenDetail,
+}: {
+  signedIn: boolean;
+  myUid: string | null;
+  tab: ReceiptHistoryView;
+  onTabChange: (tab: ReceiptHistoryView) => void;
+  submitted: ReceiptSubmittedItem[];
+  received: ReceiptReceivedItem[];
+  loading: boolean;
+  error: boolean;
+  onOpenDetail: (receiptUid: string) => void;
+}) {
+  if (!signedIn) {
+    return (
+      <View style={styles.history}>
+        <Text style={styles.empty}>{t("receipts.history_empty_signed_out")}</Text>
+      </View>
+    );
+  }
+
+  const isSubmitted = tab === "submitted";
+  const items = isSubmitted ? submitted : received;
+
+  return (
+    <View style={styles.history}>
+      <View style={styles.historyTabs}>
+        <Pressable
+          style={[styles.historyTab, !isSubmitted && styles.historyTabActive]}
+          onPress={() => onTabChange("received")}
+        >
+          <Text
+            style={[
+              styles.historyTabText,
+              !isSubmitted && styles.historyTabTextActive,
+            ]}
+          >
+            {t("receipts.history_tab_received")}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.historyTab, isSubmitted && styles.historyTabActive]}
+          onPress={() => onTabChange("submitted")}
+        >
+          <Text
+            style={[
+              styles.historyTabText,
+              isSubmitted && styles.historyTabTextActive,
+            ]}
+          >
+            {t("receipts.history_tab_submitted")}
+          </Text>
+        </Pressable>
+      </View>
+
+      <Text style={styles.historyTitle}>
+        {isSubmitted
+          ? t("receipts.history_submitted_title")
+          : t("receipts.history_received_title")}
+      </Text>
+      <Text style={styles.historyHint}>
+        {isSubmitted
+          ? t("receipts.history_submitted_hint")
+          : t("receipts.history_received_hint")}
+      </Text>
+
+      {loading && items.length === 0 ? (
+        <ActivityIndicator color={colors.brand} style={{ marginTop: 16 }} />
+      ) : error && items.length === 0 ? (
+        <Text style={styles.empty}>{t("receipts.history_error")}</Text>
+      ) : items.length === 0 ? (
+        <Text style={styles.empty}>{t("receipts.history_empty")}</Text>
+      ) : isSubmitted ? (
+        <View style={styles.historyTable}>
+          <View style={styles.historyHeaderRow}>
+            <Text style={[styles.historyColDate, styles.historyHeader]}>
+              {t("receipts.history_col_date")}
+            </Text>
+            <Text style={[styles.historyColMerchant, styles.historyHeader]}>
+              {t("receipts.history_col_merchant")}
+            </Text>
+            <Text style={[styles.historyColNum, styles.historyHeader]}>
+              {t("receipts.history_col_vat")}
+            </Text>
+            <Text style={[styles.historyColNum, styles.historyHeader]}>
+              {t("receipts.history_col_me")}
+            </Text>
+          </View>
+          {(submitted).map((row) => (
+            <Pressable
+              key={row.receipt_uid}
+              style={styles.historyDataRow}
+              onPress={() => onOpenDetail(row.receipt_uid)}
+            >
+              <Text style={styles.historyColDate}>
+                {formatHistoryDate(row.purchase_at ?? row.created_at)}
+              </Text>
+              <Text style={styles.historyColMerchant} numberOfLines={2}>
+                {row.merchant_name ?? "—"}
+              </Text>
+              <Text style={styles.historyColNum}>
+                {row.vat_eur.toFixed(2)}
+              </Text>
+              <Text style={styles.historyColNum}>
+                {row.total_merits_awarded.toFixed(2)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.historyTable}>
+          <View style={styles.historyHeaderRow}>
+            <Text style={[styles.historyColDate, styles.historyHeader]}>
+              {t("receipts.history_col_date")}
+            </Text>
+            <Text style={[styles.historyColMerchant, styles.historyHeader]}>
+              {t("receipts.history_col_merchant")}
+            </Text>
+            <Text style={[styles.historyColFrom, styles.historyHeader]}>
+              {t("receipts.history_col_from")}
+            </Text>
+            <Text style={[styles.historyColNum, styles.historyHeader]}>
+              {t("receipts.history_col_share")}
+            </Text>
+            <Text style={[styles.historyColNum, styles.historyHeader]}>
+              {t("receipts.history_col_me")}
+            </Text>
+          </View>
+          {(received).map((row) => (
+            <Pressable
+              key={`${row.receipt_uid}:${row.scanner_rovas_uid}:${row.share_pct}`}
+              style={styles.historyDataRow}
+              onPress={() => onOpenDetail(row.receipt_uid)}
+            >
+              <Text style={styles.historyColDate}>
+                {formatHistoryDate(row.purchase_at ?? row.created_at)}
+              </Text>
+              <Text style={styles.historyColMerchant} numberOfLines={2}>
+                {row.merchant_name ?? "—"}
+              </Text>
+              <Text style={styles.historyColFrom} numberOfLines={1}>
+                {formatScannerLabel(row, myUid)}
+              </Text>
+              <Text style={styles.historyColNum}>
+                {Math.round(row.share_pct)} %
+              </Text>
+              <Text style={styles.historyColNum}>
+                {row.merits_awarded.toFixed(2)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function formatHistoryDate(iso: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return d.toLocaleDateString("sk-SK");
+}
+
+function formatScannerLabel(
+  row: ReceiptReceivedItem,
+  myUid: string | null,
+): string {
+  if (myUid && row.scanner_rovas_uid === myUid) {
+    return t("receipts.history_you");
+  }
+  if (row.scanner_username) {
+    return `@${row.scanner_username}`;
+  }
+  return `#${row.scanner_rovas_uid}`;
 }
 
 function ViewfinderOverlay({
@@ -779,4 +1019,96 @@ const styles = StyleSheet.create({
   },
   secondaryText: { color: colors.brandSoft, fontWeight: "700", fontSize: 15 },
   empty: { color: colors.muted, marginTop: 12 },
+  history: {
+    marginTop: 20,
+    gap: 8,
+  },
+  historyTabs: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  historyTab: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  historyTabActive: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  historyTabText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.muted,
+  },
+  historyTabTextActive: {
+    color: "#fff",
+  },
+  historyTitle: {
+    marginTop: 8,
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  historyHint: {
+    fontSize: 12,
+    color: colors.muted,
+  },
+  historyTable: {
+    marginTop: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+  },
+  historyHeaderRow: {
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: colors.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  historyDataRow: {
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  historyHeader: {
+    color: colors.muted,
+    fontWeight: "700",
+    fontSize: 11,
+  },
+  historyColDate: {
+    width: 72,
+    fontSize: 12,
+    color: colors.ink,
+  },
+  historyColMerchant: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.ink,
+    fontWeight: "600",
+  },
+  historyColFrom: {
+    width: 48,
+    fontSize: 12,
+    color: colors.ink,
+  },
+  historyColNum: {
+    width: 52,
+    fontSize: 12,
+    color: colors.ink,
+    textAlign: "right",
+    fontVariant: ["tabular-nums"],
+  },
 });

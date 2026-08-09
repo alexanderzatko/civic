@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -53,6 +53,9 @@ export default function HomeScreen() {
   const [scrollLocked, setScrollLocked] = useState(false);
 
   const refresh = useCallback(async () => {
+    // Avoid treating "auth still restoring" as signed-out — that race left Home
+    // stuck on the anonymous fetch until the next focus (e.g. Profile → Home).
+    if (status === "loading") return;
     try {
       if (signedIn) {
         const [mine, community, distribution, rate] = await Promise.all([
@@ -83,11 +86,21 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  }, [signedIn]);
+  }, [signedIn, status]);
 
   useMeritsAutoRefresh(() => {
     void refresh();
   });
+
+  // Focus refresh often runs while auth is still "loading" (signedIn=false).
+  // Re-fetch once the session is known.
+  useEffect(() => {
+    if (status === "loading") {
+      setLoading(true);
+      return;
+    }
+    void refresh();
+  }, [status, refresh]);
 
   if (status === "loading") {
     return (

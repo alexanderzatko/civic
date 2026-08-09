@@ -135,3 +135,108 @@ export interface MeritRate {
   rovas_source?: string;
   updated?: string | null;
 }
+
+/** History tab for `GET /receipts?view=` (proxies Rovas civic_claims). */
+export type ReceiptHistoryView = "submitted" | "received";
+
+export interface ReceiptHistoryShare {
+  beneficiary_rovas_uid: string;
+  share_pct: number;
+  merits_awarded: number;
+}
+
+/** Claim the caller scanned (`view=submitted`). */
+export interface ReceiptSubmittedItem {
+  receipt_uid: string;
+  vat_eur: number;
+  total_merits_awarded: number;
+  merchant_name: string | null;
+  purchase_at: string | null;
+  created_at: string;
+  shares: ReceiptHistoryShare[];
+}
+
+/** Share credited to the caller (`view=received`). */
+export interface ReceiptReceivedItem {
+  receipt_uid: string;
+  merchant_name: string | null;
+  purchase_at: string | null;
+  scanner_rovas_uid: string;
+  /** Present after Rovas enrich-received task; optional for older responses. */
+  scanner_username?: string;
+  scanner_display_name?: string;
+  share_pct: number;
+  merits_awarded: number;
+  created_at: string;
+}
+
+export interface ReceiptHistoryPage<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  view: ReceiptHistoryView;
+}
+
+export type ReceiptSubmittedHistory = ReceiptHistoryPage<ReceiptSubmittedItem>;
+export type ReceiptReceivedHistory = ReceiptHistoryPage<ReceiptReceivedItem>;
+
+/** Received-based taxes stats from `GET /rovas/civic_claims/summary`. */
+export interface ReceiptClaimsSummary {
+  receipt_count: number;
+  total_vat_eur: number;
+  taxes_me: number;
+}
+
+/** Line item from Finančná správa receipt/find (history detail modal). */
+export interface ReceiptDetailItem {
+  name: string;
+  quantity: number;
+  /** Line total in EUR (FS `price`; can be negative for returns/discounts). */
+  price_eur: number;
+  vat_rate: number;
+  item_type: string | null;
+}
+
+export interface ReceiptVatBreakdownRow {
+  vat_rate: number;
+  vat_base_eur: number;
+  vat_amount_eur: number;
+}
+
+/** Full FS receipt detail for history tap-through. */
+export interface ReceiptDetail {
+  receipt_uid: string;
+  found: true;
+  merchant_name: string | null;
+  merchant_address: string | null;
+  store_name: string | null;
+  store_address: string | null;
+  purchase_at: string | null;
+  /** Original FS wall-clock string, e.g. `28.06.2022 11:37:35`. */
+  purchase_at_display: string | null;
+  total_price_eur: number | null;
+  vat_eur: number;
+  tax_base_basic_eur: number;
+  tax_base_reduced_eur: number;
+  vat_amount_basic_eur: number;
+  vat_amount_reduced_eur: number;
+  free_tax_eur: number;
+  vat_rate_basic: number | null;
+  vat_rate_reduced: number | null;
+  ico: string | null;
+  dic: string | null;
+  ic_dph: string | null;
+  receipt_number: number | null;
+  items: ReceiptDetailItem[];
+  vat_summary: ReceiptVatBreakdownRow[];
+}
+
+export interface ReceiptDetailError {
+  found: false;
+  receipt_uid: string | null;
+  code: "invalid_uid" | "not_found" | "fs_error";
+  message: string;
+}
+
+export type ReceiptDetailResponse = ReceiptDetail | ReceiptDetailError;

@@ -7,6 +7,10 @@ import type {
   GeoLocation,
   MeritRate,
   RankDistribution,
+  ReceiptDetailResponse,
+  ReceiptHistoryView,
+  ReceiptReceivedHistory,
+  ReceiptSubmittedHistory,
   UserSearchResult,
   VerifyReceiptResponse,
 } from "@civic/shared";
@@ -114,6 +118,39 @@ export function claimReceipt(
     }),
   }).catch((err: Error & { body?: ClaimReceiptResponse; status?: number }) => {
     if (err.body && typeof err.body === "object" && "claimed" in err.body) {
+      return err.body;
+    }
+    throw err;
+  });
+}
+
+export function fetchReceiptHistory(
+  view: "submitted",
+  opts?: { limit?: number; offset?: number },
+): Promise<ReceiptSubmittedHistory>;
+export function fetchReceiptHistory(
+  view: "received",
+  opts?: { limit?: number; offset?: number },
+): Promise<ReceiptReceivedHistory>;
+export function fetchReceiptHistory(
+  view: ReceiptHistoryView,
+  opts?: { limit?: number; offset?: number },
+): Promise<ReceiptSubmittedHistory | ReceiptReceivedHistory> {
+  const params = new URLSearchParams({ view });
+  if (opts?.limit != null) params.set("limit", String(opts.limit));
+  if (opts?.offset != null) params.set("offset", String(opts.offset));
+  return apiFetch(`/receipts?${params}`, { auth: "required" });
+}
+
+export function fetchReceiptDetail(
+  receiptUid: string,
+): Promise<ReceiptDetailResponse> {
+  const params = new URLSearchParams({ receipt_uid: receiptUid });
+  return apiFetch<ReceiptDetailResponse>(
+    `/receipts/fs-detail?${params}`,
+    { auth: "required" },
+  ).catch((err: Error & { body?: ReceiptDetailResponse }) => {
+    if (err.body && typeof err.body === "object" && "found" in err.body) {
       return err.body;
     }
     throw err;
