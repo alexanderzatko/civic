@@ -159,7 +159,11 @@ export default function CommunityProfileScreen() {
             <Text style={styles.pillText}>1</Text>
           </View>
         </View>
-        <TaxMonthsChart months={profile.taxes_last_3_months} />
+        {profile.by_category.taxes > 0 ? (
+          <TaxMonthsChart months={profile.taxes_last_3_months} />
+        ) : (
+          <Text style={styles.cardHint}>{t("community.taxes_none")}</Text>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -171,11 +175,17 @@ export default function CommunityProfileScreen() {
             <Text style={styles.pillText}>2</Text>
           </View>
         </View>
-        <Text style={styles.cardHint}>{t("community.charity_hint")}</Text>
-        <ProjectMeTable
-          rows={profile.top_charities}
-          emptyLabel={t("community.charity_empty")}
-        />
+        {profile.by_category.charity > 0 ? (
+          <>
+            <Text style={styles.cardHint}>{t("community.charity_hint")}</Text>
+            <ProjectMeTable
+              rows={profile.top_charities}
+              emptyLabel={t("community.charity_empty")}
+            />
+          </>
+        ) : (
+          <Text style={styles.cardHint}>{t("community.charity_none")}</Text>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -187,11 +197,17 @@ export default function CommunityProfileScreen() {
             <Text style={styles.pillText}>3</Text>
           </View>
         </View>
-        <Text style={styles.cardHint}>{t("community.volunteer_hint")}</Text>
-        <ProjectMeTable
-          rows={profile.top_volunteer_projects}
-          emptyLabel={t("community.volunteer_empty")}
-        />
+        {profile.by_category.volunteer > 0 ? (
+          <>
+            <Text style={styles.cardHint}>{t("community.volunteer_hint")}</Text>
+            <ProjectMeTable
+              rows={profile.top_volunteer_projects}
+              emptyLabel={t("community.volunteer_empty")}
+            />
+          </>
+        ) : (
+          <Text style={styles.cardHint}>{t("community.volunteer_none")}</Text>
+        )}
       </View>
 
       <View style={styles.footerSpacer} />

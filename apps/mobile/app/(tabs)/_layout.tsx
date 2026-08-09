@@ -41,10 +41,19 @@ export default function TabLayout() {
           title: t("community.title"),
           tabBarLabel: t("community"),
           headerShown: false,
+          // Leaving Community (e.g. Home) pops nested user profiles so the
+          // next visit always lands on the Community index, not last lookup.
+          popToTopOnBlur: true,
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="groups" color={color} size={24} />
           ),
         }}
+        listeners={({ navigation }) => ({
+          // Tapping Community while already in a nested profile also resets.
+          tabPress: () => {
+            navigation.navigate("community", { screen: "index" });
+          },
+        })}
       />
       <Tabs.Screen
         name="profile"

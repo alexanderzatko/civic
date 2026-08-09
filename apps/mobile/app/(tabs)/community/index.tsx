@@ -18,7 +18,7 @@ import {
 } from "@civic/shared";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
-import { fetchRankDistribution } from "@/lib/api";
+import { fetchMySummary, fetchRankDistribution } from "@/lib/api";
 import {
   loadRecentProfiles,
   type RecentProfile,
@@ -57,6 +57,7 @@ export default function CommunityScreen() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [myUsername, setMyUsername] = useState<string | null>(null);
 
   const { results, searching, searchError, queryLongEnough } = useUserSearch(
     query,
@@ -65,11 +66,24 @@ export default function CommunityScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Fresh Community visit: clear leftover typeahead from a prior lookup.
+      setQuery("");
+      setInviteOpen(false);
+      setInviteError(null);
+
       void loadRecentProfiles().then(setRecents);
       if (status === "signedIn") {
         void fetchRankDistribution()
           .then(setDistribution)
           .catch(() => setDistribution(null));
+        void fetchMySummary()
+          .then((mine) => {
+            const name = mine.username?.trim();
+            setMyUsername(name || null);
+          })
+          .catch(() => setMyUsername(null));
+      } else {
+        setMyUsername(null);
       }
     }, [status]),
   );
@@ -115,6 +129,21 @@ export default function CommunityScreen() {
             </Pressable>
           </Link>
         </View>
+      ) : null}
+
+      {signedIn && myUsername ? (
+        <Pressable
+          style={styles.myProfileRow}
+          onPress={() => openProfile({ username: myUsername })}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.myProfileTitle}>{t("community.my_profile")}</Text>
+            <Text style={styles.myProfileHint}>
+              @{myUsername} · {t("community.my_profile_hint")}
+            </Text>
+          </View>
+          <Text style={styles.resultAction}>{t("community.open_profile")}</Text>
+        </Pressable>
       ) : null}
 
       <Text style={styles.label}>{t("community.search_label")}</Text>
@@ -316,6 +345,19 @@ const styles = StyleSheet.create({
   resultName: { fontWeight: "600", color: colors.ink, fontSize: 15 },
   resultDisplay: { fontSize: 12, color: colors.muted, marginTop: 2 },
   resultAction: { color: colors.brandSoft, fontWeight: "700", fontSize: 13 },
+  myProfileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+  },
+  myProfileTitle: { fontWeight: "600", color: colors.ink, fontSize: 15 },
+  myProfileHint: { fontSize: 12, color: colors.muted, marginTop: 2 },
   inviteCard: {
     marginTop: 4,
     borderWidth: 1,
