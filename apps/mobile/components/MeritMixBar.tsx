@@ -1,22 +1,44 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { displayMerits } from "@civic/shared";
 import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
+
+export type MeritSourceId = "taxes" | "charity" | "volunteer";
+
+const TAB_ACTIVE_BG: Record<MeritSourceId, string> = {
+  taxes: "rgba(59, 110, 165, 0.08)",
+  charity: "rgba(27, 107, 74, 0.08)",
+  volunteer: "rgba(196, 122, 44, 0.08)",
+};
 
 type Props = {
   taxes: number;
   charity: number;
   volunteer: number;
   total: number;
+  activeId: MeritSourceId;
+  onSelect: (id: MeritSourceId) => void;
 };
 
 function formatMe(n: number): string {
   return displayMerits(n).toLocaleString("sk-SK");
 }
 
-export function MeritMixBar({ taxes, charity, volunteer, total }: Props) {
+export function MeritMixBar({
+  taxes,
+  charity,
+  volunteer,
+  total,
+  activeId,
+  onSelect,
+}: Props) {
   const sum = Math.max(total, taxes + charity + volunteer, 0.0001);
-  const segments = [
+  const segments: {
+    id: MeritSourceId;
+    value: number;
+    color: string;
+    label: string;
+  }[] = [
     {
       id: "taxes",
       value: taxes,
@@ -57,13 +79,30 @@ export function MeritMixBar({ taxes, charity, volunteer, total }: Props) {
           );
         })}
       </View>
-      <View style={styles.stats}>
-        {segments.map((s) => (
-          <View key={s.id} style={styles.stat}>
-            <Text style={styles.statValue}>{formatMe(s.value)}</Text>
-            <Text style={[styles.statLabel, { color: s.color }]}>{s.label}</Text>
-          </View>
-        ))}
+      <View style={styles.tabs} accessibilityRole="tablist">
+        {segments.map((s) => {
+          const active = s.id === activeId;
+          return (
+            <Pressable
+              key={s.id}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              onPress={() => onSelect(s.id)}
+              style={[
+                styles.tab,
+                active && {
+                  borderColor: s.color,
+                  backgroundColor: TAB_ACTIVE_BG[s.id],
+                },
+              ]}
+            >
+              <Text style={[styles.tabValue, active && { color: s.color }]}>
+                {formatMe(s.value)}
+              </Text>
+              <Text style={[styles.tabLabel, { color: s.color }]}>{s.label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -86,18 +125,18 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   seg: { height: "100%" },
-  stats: { flexDirection: "row", gap: 10 },
-  stat: {
+  tabs: { flexDirection: "row", gap: 10 },
+  tab: {
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: 10,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     paddingVertical: 10,
     paddingHorizontal: 8,
     alignItems: "center",
     gap: 2,
   },
-  statValue: { fontSize: 15, fontWeight: "600", color: colors.ink },
-  statLabel: { fontSize: 12, fontWeight: "600" },
+  tabValue: { fontSize: 15, fontWeight: "600", color: colors.ink },
+  tabLabel: { fontSize: 12, fontWeight: "600" },
 });

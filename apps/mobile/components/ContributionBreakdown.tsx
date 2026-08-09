@@ -1,6 +1,10 @@
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import type { UserLookup } from "@civic/shared";
-import { MeritMixBar } from "@/components/MeritMixBar";
+import {
+  MeritMixBar,
+  type MeritSourceId,
+} from "@/components/MeritMixBar";
 import { ProjectMeTable } from "@/components/ProjectMeTable";
 import { TaxMonthsChart } from "@/components/TaxMonthsChart";
 import { colors } from "@/constants/theme";
@@ -19,10 +23,40 @@ type Props = {
   emptyTone?: "self" | "other";
 };
 
+/** Fixed left-to-right tab order; on ties, leftmost wins (strict `>`). */
+function topMeritSource(by: {
+  taxes: number;
+  charity: number;
+  volunteer: number;
+}): MeritSourceId {
+  let best: MeritSourceId = "taxes";
+  let bestValue = by.taxes;
+  if (by.charity > bestValue) {
+    best = "charity";
+    bestValue = by.charity;
+  }
+  if (by.volunteer > bestValue) {
+    best = "volunteer";
+  }
+  return best;
+}
+
 export function ContributionBreakdown({
   profile,
   emptyTone = "other",
 }: Props) {
+  const [activeId, setActiveId] = useState<MeritSourceId>(() =>
+    topMeritSource(profile.by_category),
+  );
+
+  useEffect(() => {
+    setActiveId(topMeritSource(profile.by_category));
+  }, [
+    profile.by_category.taxes,
+    profile.by_category.charity,
+    profile.by_category.volunteer,
+  ]);
+
   const taxesNone =
     emptyTone === "self" ? t("home.taxes_none") : t("community.taxes_none");
   const charityNone =
@@ -39,67 +73,60 @@ export function ContributionBreakdown({
         charity={profile.by_category.charity}
         volunteer={profile.by_category.volunteer}
         total={profile.total_me}
+        activeId={activeId}
+        onSelect={setActiveId}
       />
 
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
+      {activeId === "taxes" && (
+        <View style={styles.card}>
           <Text style={[styles.cardTitle, { color: colors.catTaxes }]}>
             {t("community.card_taxes")}
           </Text>
-          <View style={[styles.pill, { backgroundColor: colors.catTaxes }]}>
-            <Text style={styles.pillText}>1</Text>
-          </View>
+          {profile.by_category.taxes > 0 ? (
+            <TaxMonthsChart months={profile.taxes_last_3_months} />
+          ) : (
+            <Text style={styles.cardHint}>{taxesNone}</Text>
+          )}
         </View>
-        {profile.by_category.taxes > 0 ? (
-          <TaxMonthsChart months={profile.taxes_last_3_months} />
-        ) : (
-          <Text style={styles.cardHint}>{taxesNone}</Text>
-        )}
-      </View>
+      )}
 
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
+      {activeId === "charity" && (
+        <View style={styles.card}>
           <Text style={[styles.cardTitle, { color: colors.catCharity }]}>
             {t("community.card_charity")}
           </Text>
-          <View style={[styles.pill, { backgroundColor: colors.catCharity }]}>
-            <Text style={styles.pillText}>2</Text>
-          </View>
+          {profile.by_category.charity > 0 ? (
+            <>
+              <Text style={styles.cardHint}>{t("community.charity_hint")}</Text>
+              <ProjectMeTable
+                rows={profile.top_charities}
+                emptyLabel={t("community.charity_empty")}
+              />
+            </>
+          ) : (
+            <Text style={styles.cardHint}>{charityNone}</Text>
+          )}
         </View>
-        {profile.by_category.charity > 0 ? (
-          <>
-            <Text style={styles.cardHint}>{t("community.charity_hint")}</Text>
-            <ProjectMeTable
-              rows={profile.top_charities}
-              emptyLabel={t("community.charity_empty")}
-            />
-          </>
-        ) : (
-          <Text style={styles.cardHint}>{charityNone}</Text>
-        )}
-      </View>
+      )}
 
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
+      {activeId === "volunteer" && (
+        <View style={styles.card}>
           <Text style={[styles.cardTitle, { color: colors.catVolunteer }]}>
             {t("community.card_volunteer")}
           </Text>
-          <View style={[styles.pill, { backgroundColor: colors.catVolunteer }]}>
-            <Text style={styles.pillText}>3</Text>
-          </View>
+          {profile.by_category.volunteer > 0 ? (
+            <>
+              <Text style={styles.cardHint}>{t("community.volunteer_hint")}</Text>
+              <ProjectMeTable
+                rows={profile.top_volunteer_projects}
+                emptyLabel={t("community.volunteer_empty")}
+              />
+            </>
+          ) : (
+            <Text style={styles.cardHint}>{volunteerNone}</Text>
+          )}
         </View>
-        {profile.by_category.volunteer > 0 ? (
-          <>
-            <Text style={styles.cardHint}>{t("community.volunteer_hint")}</Text>
-            <ProjectMeTable
-              rows={profile.top_volunteer_projects}
-              emptyLabel={t("community.volunteer_empty")}
-            />
-          </>
-        ) : (
-          <Text style={styles.cardHint}>{volunteerNone}</Text>
-        )}
-      </View>
+      )}
     </View>
   );
 }
@@ -114,20 +141,6 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 10,
   },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   cardTitle: { fontSize: 16, fontWeight: "600" },
   cardHint: { fontSize: 13, color: colors.muted },
-  pill: {
-    borderRadius: 999,
-    minWidth: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 6,
-  },
-  pillText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 });
