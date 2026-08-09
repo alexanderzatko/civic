@@ -12,4 +12,8 @@ export const colors = {
   border: "#D5DED8",
   danger: "#9B2C2C",
   ok: "#1B6B4A",
+  /** Merit-source categories (Zdroje meritov / profile section accents). */
+  catTaxes: "#3B6EA5",
+  catCharity: "#1B6B4A",
+  catVolunteer: "#C47A2C",
 };

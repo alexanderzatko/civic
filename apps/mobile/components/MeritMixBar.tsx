@@ -17,9 +17,24 @@ function formatMe(n: number): string {
 export function MeritMixBar({ taxes, charity, volunteer, total }: Props) {
   const sum = Math.max(total, taxes + charity + volunteer, 0.0001);
   const segments = [
-    { id: "taxes", value: taxes, color: "#3B6EA5", label: t("community.cat_taxes") },
-    { id: "charity", value: charity, color: colors.ok, label: t("community.cat_charity") },
-    { id: "volunteer", value: volunteer, color: "#C47A2C", label: t("community.cat_volunteer") },
+    {
+      id: "taxes",
+      value: taxes,
+      color: colors.catTaxes,
+      label: t("community.cat_taxes"),
+    },
+    {
+      id: "charity",
+      value: charity,
+      color: colors.catCharity,
+      label: t("community.cat_charity"),
+    },
+    {
+      id: "volunteer",
+      value: volunteer,
+      color: colors.catVolunteer,
+      label: t("community.cat_volunteer"),
+    },
   ];
 
   return (
@@ -46,7 +61,7 @@ export function MeritMixBar({ taxes, charity, volunteer, total }: Props) {
         {segments.map((s) => (
           <View key={s.id} style={styles.stat}>
             <Text style={styles.statValue}>{formatMe(s.value)}</Text>
-            <Text style={styles.statLabel}>{s.label}</Text>
+            <Text style={[styles.statLabel, { color: s.color }]}>{s.label}</Text>
           </View>
         ))}
       </View>
@@ -84,5 +99,5 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statValue: { fontSize: 15, fontWeight: "600", color: colors.ink },
-  statLabel: { fontSize: 12, color: colors.muted },
+  statLabel: { fontSize: 12, fontWeight: "600" },
 });

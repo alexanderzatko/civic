@@ -152,8 +152,10 @@ export default function CommunityProfileScreen() {
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{t("community.card_taxes")}</Text>
-          <View style={styles.pill}>
+          <Text style={[styles.cardTitle, { color: colors.catTaxes }]}>
+            {t("community.card_taxes")}
+          </Text>
+          <View style={[styles.pill, { backgroundColor: colors.catTaxes }]}>
             <Text style={styles.pillText}>1</Text>
           </View>
         </View>
@@ -162,8 +164,10 @@ export default function CommunityProfileScreen() {
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{t("community.card_charity")}</Text>
-          <View style={styles.pill}>
+          <Text style={[styles.cardTitle, { color: colors.catCharity }]}>
+            {t("community.card_charity")}
+          </Text>
+          <View style={[styles.pill, { backgroundColor: colors.catCharity }]}>
             <Text style={styles.pillText}>2</Text>
           </View>
         </View>
@@ -176,8 +180,10 @@ export default function CommunityProfileScreen() {
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{t("community.card_volunteer")}</Text>
-          <View style={styles.pill}>
+          <Text style={[styles.cardTitle, { color: colors.catVolunteer }]}>
+            {t("community.card_volunteer")}
+          </Text>
+          <View style={[styles.pill, { backgroundColor: colors.catVolunteer }]}>
             <Text style={styles.pillText}>3</Text>
           </View>
         </View>
@@ -222,10 +228,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  cardTitle: { fontSize: 16, fontWeight: "600", color: colors.ink },
+  cardTitle: { fontSize: 16, fontWeight: "600" },
   cardHint: { fontSize: 13, color: colors.muted },
   pill: {
-    backgroundColor: colors.brand,
     borderRadius: 999,
     minWidth: 22,
     height: 22,
