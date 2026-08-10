@@ -20,6 +20,9 @@ UI + `/users/search` proxy landed (Rovas `users_search?query=`).
 Mobile targets **Expo SDK 54**. UI browsing can use Expo Go; **camera + OAuth**
 need a development build (Expo Go cannot claim `civic://`).
 
+The **Civic API** for device testing is hosted on the Rovas VPS at
+**https://civic-api.rovas.app** (Mac not required for the backend).
+
 ## Repository layout
 
 | Path | Contents |
@@ -27,37 +30,90 @@ need a development build (Expo Go cannot claim `civic://`).
 | [`apps/mobile`](apps/mobile) | Expo (Expo Router) client — Slovak primary UI |
 | [`services/api`](services/api) | Fastify API — eKasa verify, claim (Phase 2), stubs |
 | [`packages/shared`](packages/shared) | Types, Merit math, QR/UID parsing, settings defaults |
+| [`deploy/civic-api`](deploy/civic-api) | Docker + nginx deploy of the API to `sano-vps` |
+| [`deploy/civic-mock`](deploy/civic-mock) | Static screen mockup → `/var/www/civic-mock` |
 | [`docs/plan.md`](docs/plan.md) | Full product / architecture plan |
 | [`docs/ekasa-receipt-api.md`](docs/ekasa-receipt-api.md) | FS receipt/find contract |
 | [`docs/rovas-integration.md`](docs/rovas-integration.md) | Civic ↔ Rovas OAuth + API Bearer |
 | [`identity/`](identity/) | Logos and brand notes |
 | [`mocs/`](mocs/) | Screen mockups |
 
-## Quick start
+## Deploy the Civic API (VPS)
+
+Production-like backend for phones and remote testing. SSH host alias: `sano-vps`.
+
+```bash
+./deploy/civic-api/deploy.sh
+```
+
+What it does:
+
+1. Rsyncs `services/api`, `packages/shared`, and deploy packaging to
+   `/opt/docker/civic-api`
+2. Seeds `/opt/docker/civic-api/.env` from `.env.example` on first run only
+   (later deploys keep the remote `.env`)
+3. Ensures Let’s Encrypt + nginx-proxy for **civic-api.rovas.app**
+4. `docker compose build && up -d` (host port **3001**, SQLite in `./data`)
+
+Smoke-check:
+
+```bash
+curl https://civic-api.rovas.app/health
+```
+
+Expected: `ok: true` and `rovas_base_url` pointing at Rovas (usually
+`https://dev.rovas.app`).
+
+Point the mobile client at the VPS (default in `apps/mobile/.env`):
+
+```bash
+EXPO_PUBLIC_API_URL=https://civic-api.rovas.app
+```
+
+`EXPO_PUBLIC_*` are baked in at Metro start — restart Metro after changing
+`apps/mobile/.env`.
+
+**Note:** A Expo **dev client** still needs Metro for the JS bundle. The VPS
+hosts only the API. Mac-free *user* testing (no Metro) needs a later EAS
+preview/release build with JS baked into the binary.
+
+### Optional: local API (API development)
+
+Use when iterating on [`services/api`](services/api) itself:
 
 ```bash
 pnpm install
-cp .env.example .env   # optional overrides (HOURLY_WAGE_EUR, etc.)
+cp .env.example .env   # optional overrides
+pnpm --filter @civic/shared build   # if shared changed
+pnpm dev:api                        # http://localhost:3001
+```
 
-# Terminal 1 — API
-pnpm dev:api
+For a physical phone against the Mac API, set
+`EXPO_PUBLIC_API_URL=http://<Mac-LAN-IP>:3001` in `apps/mobile/.env`. Prefer the
+VPS URL for normal device testing so the Mac can be off for the backend.
 
-# Terminal 2 — Expo (simulator / Expo Go only)
+## Quick start (simulator / Expo Go)
+
+```bash
+pnpm install
+cp .env.example .env   # optional; API overrides when running locally
+
+# Expo only — API is already on the VPS when EXPO_PUBLIC_API_URL points there
 pnpm dev:mobile
 ```
 
-`pnpm dev:mobile` is **not** enough for a physical iPhone — use
-`pnpm dev:mobile:tunnel` (or `pnpm dev:mobile:lan` if tunnel fails) below.
-Set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` if the client cannot reach
-`http://localhost:3001` (use your Mac’s LAN IP).
+To exercise a **local** API in a second terminal: `pnpm dev:api`.
 
-### Physical iPhone (camera + login)
+`pnpm dev:mobile` is **not** enough for a physical iPhone — use the development
+build + Metro tunnel/LAN section below.
+
+## Physical iPhone (camera + login)
 
 Expo Go cannot handle the `civic://oauth/callback` redirect. Use the **Civic**
 development build on the phone.
 
 **Xcode / `ios:device` only installs the native shell.** It does not start the
-JS bundler. After a rebuild you still need Metro running every session, or the
+JS bundler. After a rebuild you still need Metro every session, or the
 launcher shows “No development servers found” / “error loading app”.
 
 **Once (or after native changes):** plug in the phone, unlock it, then:
@@ -69,15 +125,18 @@ pnpm --filter @civic/mobile ios:device
 Xcode must have your Apple ID under **Settings → Accounts**, and the Civic
 target must use **Automatically manage signing** with your Personal Team.
 
-**Each test session** (API + Metro; do not skip Metro):
+**Each test session** (VPS API is always on; start Metro for the JS bundle):
 
 ```bash
-# Terminal 1 — API (LAN IP must match apps/mobile/.env)
-pnpm dev:api
+# Confirm API (optional)
+curl -fsS https://civic-api.rovas.app/health
 
-# Terminal 2 — Metro via tunnel (preferred when ngrok cooperates)
+# Metro via tunnel (preferred when ngrok cooperates)
 pnpm dev:mobile:tunnel
 ```
+
+Ensure `apps/mobile/.env` has `EXPO_PUBLIC_API_URL=https://civic-api.rovas.app`
+before starting Metro.
 
 Wait until the terminal prints a tunnel URL (`https://….exp.direct`). That URL
 is **new every session** — an old one in the app’s Recently Opened list (gray
@@ -90,10 +149,11 @@ dot) is dead; do not reuse it.
    start — reuse the existing Metro, or kill the old process and start one
    Metro session. Prefer one bundler on 8081; don’t switch the phone to 8082
    unless you mean to.
-4. Same Wi‑Fi is still useful for the API at `EXPO_PUBLIC_API_URL`; tunnel only
-   carries the JS bundle.
+4. The API is reached over HTTPS at `EXPO_PUBLIC_API_URL`; the tunnel only
+   carries the JS bundle (Metro). Same Wi‑Fi as the Mac is not required for
+   the VPS API.
 
-#### If tunnel fails (`remote gone away` / ngrok error)
+### If tunnel fails (`remote gone away` / ngrok error)
 
 Expo’s built-in tunnel (`@expo/ngrok`) is flaky even when
 [ngrok status](https://status.ngrok.com/) is green. Retry once.
@@ -105,18 +165,17 @@ block client-to-client):
 pnpm dev:mobile:lan
 ```
 
-On the phone → **Enter URL manually** → `http://<Mac-LAN-IP>:8081`  
-(same host as in `EXPO_PUBLIC_API_URL`).
+On the phone → **Enter URL manually** → `http://<Mac-LAN-IP>:8081`.
 
 **If LAN is blocked** (common here): run Metro on LAN locally, then expose it
 with the **system** `ngrok` CLI (authenticated install), and point Expo at that
 public URL:
 
 ```bash
-# Terminal 2 — Metro (binds localhost:8081)
+# Terminal 1 — Metro (binds localhost:8081)
 pnpm dev:mobile:lan
 
-# Terminal 3 — authenticated ngrok (separate from Expo’s flaky tunnel)
+# Terminal 2 — authenticated ngrok (separate from Expo’s flaky tunnel)
 ngrok http 8081
 ```
 
@@ -134,7 +193,15 @@ servers found”, “error loading app”.
 
 OAuth details: [`docs/rovas-integration.md`](docs/rovas-integration.md).
 
-### Merit settings
+## Screen mockup (static)
+
+Optional UI mock hosted on the VPS (not the live API):
+
+```bash
+(cd deploy/civic-mock && npm run deploy)
+```
+
+## Merit settings
 
 Net hourly wage for Merit conversion prefers the Rovas admin **national hourly
 rate** (`GET /merit-rate` → Rovas). `HOURLY_WAGE_EUR` in [`.env.example`](.env.example)

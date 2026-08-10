@@ -1,0 +1,11 @@
+# Optional override: join the shared nginx-proxy network (not required when
+# proxying via host gateway 172.18.0.1:3001 like print.rovas.app).
+services:
+  civic-api:
+    networks:
+      - proxy
+      - default
+
+networks:
+  proxy:
+    external: true

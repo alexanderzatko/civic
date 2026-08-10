@@ -1,0 +1,11 @@
+services:
+  civic-api:
+    build: .
+    container_name: civic-api
+    ports:
+      - "${PORT:-3001}:3001"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
