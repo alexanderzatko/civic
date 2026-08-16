@@ -52,8 +52,9 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `POST /receipts/claim` | Re-verify FS + Civic fraud checks (strikes, window, registration, same-store, min VAT, rate limits); UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (optional `shares[]`; optional `location`). Rovas `{civic_claims}` is sole claim registry |
 | `GET /users/search` | Split-claim typeahead — proxies Rovas `GET /rovas/users_search?query=` (Civic accepts `?q=`; maps to Rovas `query` because Drupal reserves `$_GET['q']` for the path) |
 | `GET /users/lookup` | Community public profile — proxies Rovas `GET /rovas/users_lookup?username=` (Bearer; exact username). Returns `UserLookup` (`total_me`, `by_category`, tax months, top charity/volunteer). Percentile is computed on Civic from `/rank/distribution`. Friend invite on Komunita is client `mailto:` only (no Rovas invite API). |
-| `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}` (Bearer). See Rovas **Next work: project detail + work reports**. |
-| `GET /projects/:nid/work-reports` | Paginated work reports — proxies Rovas `GET /rovas/civic_project_work_reports?project_nid=` (Bearer). |
+| `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}` (Bearer). See Rovas **project detail + work reports**. |
+| `GET /projects/:nid/work-reports` | Paginated work ledgers — proxies Rovas `GET /rovas/civic_project_work_reports?project_nid=` (Bearer). WR items may include `photo_urls[]`. |
+| `GET /projects/:nid/shareholders` | Paginated shareholders — proxies Rovas `GET /rovas/civic_project_shareholders?project_nid=` (Bearer). See Rovas **Next work: project shareholders + WR photos**. |
 
 `POST /receipts/verify` sends optional Bearer; when present, Civic checks
 `GET /rovas/civic_claims?receipt_uid=` and returns `already_claimed` so the

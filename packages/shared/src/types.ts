@@ -35,6 +35,8 @@ export interface ProjectWorkReportItem {
   author_username: string | null;
   author_display_name: string | null;
   created_at: string | null;
+  /** Absolute image URLs from `field_photos` (empty if none / private). */
+  photo_urls: string[];
 }
 
 /** Paginated work reports for a project. */
@@ -44,6 +46,29 @@ export interface ProjectWorkReportPage {
   limit: number;
   offset: number;
   items: ProjectWorkReportItem[];
+}
+
+/**
+ * Project shareholder row.
+ * `share_kind = percent` → fixed Merit allocation %;
+ * `share_kind = time_based` → share tracks work time (`hours`).
+ */
+export interface ProjectShareholderItem {
+  username: string;
+  share_kind: "percent" | "time_based";
+  /** Present when `share_kind === "percent"`. */
+  share_percent: number | null;
+  /** Hours attributed (especially for time-based shares). */
+  hours: number | null;
+}
+
+/** Paginated shareholders for a project. */
+export interface ProjectShareholderPage {
+  project_nid: string;
+  total: number;
+  limit: number;
+  offset: number;
+  items: ProjectShareholderItem[];
 }
 
 /**
@@ -60,8 +85,11 @@ export interface ProjectDetail {
   total_hours: number | null;
   total_me: number | null;
   work_report_count: number;
+  shareholder_count: number;
   rovas_url: string;
   work_reports: ProjectWorkReportPage;
+  /** First page of shareholders when public; empty page when private/unavailable. */
+  shareholders: ProjectShareholderPage;
 }
 
 /** Month bucket for tax Merits on a public profile (`YYYY-MM`). */

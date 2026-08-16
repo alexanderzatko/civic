@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Linking,
   Modal,
   Pressable,
@@ -9,9 +10,19 @@ import {
   Text,
   View,
 } from "react-native";
-import { displayMerits, type ProjectDetail, type ProjectWorkReportItem } from "@civic/shared";
+import { useRouter } from "expo-router";
+import {
+  displayMerits,
+  type ProjectDetail,
+  type ProjectShareholderItem,
+  type ProjectWorkReportItem,
+} from "@civic/shared";
 import { colors } from "@/constants/theme";
-import { fetchProject, fetchProjectWorkReports } from "@/lib/api";
+import {
+  fetchProject,
+  fetchProjectShareholders,
+  fetchProjectWorkReports,
+} from "@/lib/api";
 import { t } from "@/lib/i18n";
 
 type Props = {
@@ -38,17 +49,33 @@ function formatIsoDate(iso: string | null): string | null {
   return d.toLocaleDateString("sk-SK");
 }
 
+function formatShareKind(item: ProjectShareholderItem): string {
+  if (item.share_kind === "percent" && item.share_percent != null) {
+    return `${item.share_percent.toLocaleString("sk-SK", {
+      maximumFractionDigits: 1,
+    })} %`;
+  }
+  return t("project.share_time_based");
+}
+
+function formatShareHours(item: ProjectShareholderItem): string {
+  if (item.hours == null) return "—";
+  return `${formatHours(item.hours)} ${t("project.hours_unit")}`;
+}
+
 export function ProjectDetailModal({
   projectNid,
   fallbackTitle,
   onClose,
 }: Props) {
+  const router = useRouter();
   const visible = projectNid != null;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProjectDetail | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingMoreWr, setLoadingMoreWr] = useState(false);
+  const [loadingMoreSh, setLoadingMoreSh] = useState(false);
 
   useEffect(() => {
     if (!projectNid) {
@@ -83,11 +110,19 @@ export function ProjectDetailModal({
     };
   }, [projectNid]);
 
-  const loadMore = useCallback(async () => {
-    if (!projectNid || !detail || loadingMore) return;
+  const openUser = useCallback(
+    (username: string) => {
+      onClose();
+      router.push(`/(tabs)/community/${encodeURIComponent(username)}`);
+    },
+    [onClose, router],
+  );
+
+  const loadMoreWorkReports = useCallback(async () => {
+    if (!projectNid || !detail || loadingMoreWr) return;
     const nextOffset = detail.work_reports.offset + detail.work_reports.limit;
     if (nextOffset >= detail.work_reports.total) return;
-    setLoadingMore(true);
+    setLoadingMoreWr(true);
     try {
       const page = await fetchProjectWorkReports(projectNid, {
         limit: detail.work_reports.limit,
@@ -112,17 +147,54 @@ export function ProjectDetailModal({
         };
       });
     } catch {
-      // Keep existing list; user can retry via Load more.
+      // Keep existing list.
     } finally {
-      setLoadingMore(false);
+      setLoadingMoreWr(false);
     }
-  }, [projectNid, detail, loadingMore]);
+  }, [projectNid, detail, loadingMoreWr]);
+
+  const loadMoreShareholders = useCallback(async () => {
+    if (!projectNid || !detail || loadingMoreSh) return;
+    const nextOffset =
+      detail.shareholders.offset + detail.shareholders.limit;
+    if (nextOffset >= detail.shareholders.total) return;
+    setLoadingMoreSh(true);
+    try {
+      const page = await fetchProjectShareholders(projectNid, {
+        limit: detail.shareholders.limit,
+        offset: nextOffset,
+      });
+      setDetail((prev) => {
+        if (!prev) return prev;
+        const seen = new Set(prev.shareholders.items.map((i) => i.username));
+        const merged = [
+          ...prev.shareholders.items,
+          ...page.items.filter((i) => !seen.has(i.username)),
+        ];
+        return {
+          ...prev,
+          shareholders: {
+            ...page,
+            items: merged,
+            offset: nextOffset,
+          },
+        };
+      });
+    } catch {
+      // Keep existing list.
+    } finally {
+      setLoadingMoreSh(false);
+    }
+  }, [projectNid, detail, loadingMoreSh]);
 
   const title =
     detail?.title ?? fallbackTitle?.trim() ?? t("project.detail_title");
-  const hasMore =
+  const hasMoreWr =
     detail != null &&
     detail.work_reports.items.length < detail.work_reports.total;
+  const hasMoreSh =
+    detail != null &&
+    detail.shareholders.items.length < detail.shareholders.total;
 
   return (
     <Modal
@@ -166,16 +238,11 @@ export function ProjectDetailModal({
             ) : null}
 
             <View style={styles.metaBlock}>
-              {(detail.owner_display_name || detail.owner_username) &&
-              detail.is_public ? (
+              {detail.is_public && detail.owner_username ? (
                 <MetaRow
                   label={t("project.owner")}
-                  value={
-                    detail.owner_display_name ||
-                    (detail.owner_username
-                      ? `@${detail.owner_username}`
-                      : "—")
-                  }
+                  value={`@${detail.owner_username}`}
+                  onValuePress={() => openUser(detail.owner_username!)}
                 />
               ) : null}
               {detail.is_public && detail.total_hours != null ? (
@@ -192,8 +259,14 @@ export function ProjectDetailModal({
               ) : null}
               {detail.is_public ? (
                 <MetaRow
-                  label={t("project.work_reports")}
+                  label={t("project.work_ledgers")}
                   value={String(detail.work_report_count)}
+                />
+              ) : null}
+              {detail.is_public ? (
+                <MetaRow
+                  label={t("project.shareholders")}
+                  value={String(detail.shareholder_count)}
                 />
               ) : null}
             </View>
@@ -201,10 +274,74 @@ export function ProjectDetailModal({
             {detail.is_public ? (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
-                  {t("project.work_reports")}
+                  {t("project.shareholders")}
+                </Text>
+                {detail.shareholders.items.length === 0 ? (
+                  <Text style={styles.hint}>
+                    {t("project.shareholders_empty")}
+                  </Text>
+                ) : (
+                  <View style={styles.table}>
+                    <View style={styles.tableHeader}>
+                      <Text style={[styles.th, styles.colUser]}>
+                        {t("project.col_user")}
+                      </Text>
+                      <Text style={[styles.th, styles.colShare]}>
+                        {t("project.col_share")}
+                      </Text>
+                      <Text style={[styles.th, styles.colTime]}>
+                        {t("project.col_time")}
+                      </Text>
+                    </View>
+                    {detail.shareholders.items.map((item) => (
+                      <View key={item.username} style={styles.tableRow}>
+                        <Pressable
+                          style={styles.colUser}
+                          onPress={() => openUser(item.username)}
+                          accessibilityRole="link"
+                        >
+                          <Text style={[styles.td, styles.userLink]} numberOfLines={1}>
+                            @{item.username}
+                          </Text>
+                        </Pressable>
+                        <Text style={[styles.td, styles.colShare]} numberOfLines={2}>
+                          {formatShareKind(item)}
+                        </Text>
+                        <Text style={[styles.td, styles.colTime]}>
+                          {formatShareHours(item)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {hasMoreSh ? (
+                  <Pressable
+                    onPress={() => void loadMoreShareholders()}
+                    disabled={loadingMoreSh}
+                    style={styles.loadMore}
+                    accessibilityRole="button"
+                  >
+                    {loadingMoreSh ? (
+                      <ActivityIndicator color={colors.brand} />
+                    ) : (
+                      <Text style={styles.loadMoreText}>
+                        {t("project.load_more")}
+                      </Text>
+                    )}
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+
+            {detail.is_public ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  {t("project.work_ledgers")}
                 </Text>
                 {detail.work_reports.items.length === 0 ? (
-                  <Text style={styles.hint}>{t("project.work_reports_empty")}</Text>
+                  <Text style={styles.hint}>
+                    {t("project.work_ledgers_empty")}
+                  </Text>
                 ) : (
                   detail.work_reports.items.map((item) => (
                     <WorkReportRow
@@ -218,17 +355,18 @@ export function ProjectDetailModal({
                             : item.work_report_nid,
                         )
                       }
+                      onOpenUser={openUser}
                     />
                   ))
                 )}
-                {hasMore ? (
+                {hasMoreWr ? (
                   <Pressable
-                    onPress={() => void loadMore()}
-                    disabled={loadingMore}
+                    onPress={() => void loadMoreWorkReports()}
+                    disabled={loadingMoreWr}
                     style={styles.loadMore}
                     accessibilityRole="button"
                   >
-                    {loadingMore ? (
+                    {loadingMoreWr ? (
                       <ActivityIndicator color={colors.brand} />
                     ) : (
                       <Text style={styles.loadMoreText}>
@@ -258,11 +396,25 @@ export function ProjectDetailModal({
   );
 }
 
-function MetaRow({ label, value }: { label: string; value: string }) {
+function MetaRow({
+  label,
+  value,
+  onValuePress,
+}: {
+  label: string;
+  value: string;
+  onValuePress?: () => void;
+}) {
   return (
     <View style={styles.metaRow}>
       <Text style={styles.metaLabel}>{label}</Text>
-      <Text style={styles.metaValue}>{value}</Text>
+      {onValuePress ? (
+        <Pressable onPress={onValuePress} accessibilityRole="link">
+          <Text style={[styles.metaValue, styles.userLink]}>{value}</Text>
+        </Pressable>
+      ) : (
+        <Text style={styles.metaValue}>{value}</Text>
+      )}
     </View>
   );
 }
@@ -271,31 +423,43 @@ function WorkReportRow({
   item,
   expanded,
   onToggle,
+  onOpenUser,
 }: {
   item: ProjectWorkReportItem;
   expanded: boolean;
   onToggle: () => void;
+  onOpenUser: (username: string) => void;
 }) {
-  const author =
-    item.author_display_name ||
-    (item.author_username ? `@${item.author_username}` : null);
   const date = formatIsoDate(item.created_at);
+  const photos = item.photo_urls ?? [];
 
   return (
     <View style={styles.wrCard}>
-      <Pressable onPress={onToggle} accessibilityRole="button">
-        <Text style={styles.wrTitle}>{item.title}</Text>
-        <View style={styles.wrMeta}>
-          {item.hours != null ? (
-            <Text style={styles.wrMetaText}>
-              {formatHours(item.hours)} {t("project.hours_unit")}
+      <Text style={styles.wrTitle}>{item.title}</Text>
+      <View style={styles.wrMeta}>
+        {date ? <Text style={styles.wrMetaText}>{date}</Text> : null}
+        {item.author_username ? (
+          <Pressable
+            onPress={() => onOpenUser(item.author_username!)}
+            accessibilityRole="link"
+            hitSlop={6}
+          >
+            <Text style={[styles.wrMetaText, styles.userLink]}>
+              @{item.author_username}
             </Text>
-          ) : null}
-          {author ? <Text style={styles.wrMetaText}>{author}</Text> : null}
-          {date ? <Text style={styles.wrMetaText}>{date}</Text> : null}
-        </View>
+          </Pressable>
+        ) : null}
+        {item.hours != null ? (
+          <Text style={styles.wrMetaText}>
+            {formatHours(item.hours)} {t("project.hours_unit")}
+          </Text>
+        ) : null}
+      </View>
+      <Pressable onPress={onToggle} accessibilityRole="button">
         <Text style={styles.wrToggle}>
-          {expanded ? t("project.collapse_report") : t("project.expand_report")}
+          {expanded
+            ? t("project.collapse_ledger")
+            : t("project.expand_ledger")}
         </Text>
       </Pressable>
       {expanded ? (
@@ -303,8 +467,25 @@ function WorkReportRow({
           {item.summary ? (
             <Text style={styles.wrSummary}>{item.summary}</Text>
           ) : (
-            <Text style={styles.hint}>{t("project.no_report_summary")}</Text>
+            <Text style={styles.hint}>{t("project.no_ledger_summary")}</Text>
           )}
+          {photos.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.photoRow}
+            >
+              {photos.map((uri) => (
+                <Pressable
+                  key={uri}
+                  onPress={() => void Linking.openURL(uri)}
+                  accessibilityRole="imagebutton"
+                >
+                  <Image source={{ uri }} style={styles.photo} />
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -368,16 +549,28 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 8,
   },
-  metaRow: { gap: 2 },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   metaLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.muted,
     fontWeight: "600",
+    flexShrink: 0,
   },
   metaValue: {
     fontSize: 14,
     color: colors.ink,
     fontWeight: "500",
+    textAlign: "right",
+    flex: 1,
+  },
+  userLink: {
+    color: colors.brandSoft,
+    fontWeight: "600",
   },
   section: {
     backgroundColor: colors.surface,
@@ -392,6 +585,33 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.ink,
   },
+  table: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  tableHeader: {
+    flexDirection: "row",
+    backgroundColor: "#EEF2EF",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    gap: 8,
+  },
+  tableRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: 8,
+  },
+  th: { fontSize: 12, fontWeight: "600", color: colors.muted },
+  td: { fontSize: 13, color: colors.ink },
+  colUser: { flex: 1.2, minWidth: 0 },
+  colShare: { flex: 1, textAlign: "right" },
+  colTime: { width: 72, textAlign: "right" },
   wrCard: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
@@ -406,6 +626,7 @@ const styles = StyleSheet.create({
   wrMeta: {
     flexDirection: "row",
     flexWrap: "wrap",
+    alignItems: "center",
     gap: 8,
   },
   wrMetaText: {
@@ -421,11 +642,22 @@ const styles = StyleSheet.create({
   wrDetail: {
     paddingTop: 6,
     paddingBottom: 2,
+    gap: 10,
   },
   wrSummary: {
     fontSize: 13,
     lineHeight: 18,
     color: colors.ink,
+  },
+  photoRow: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  photo: {
+    width: 96,
+    height: 96,
+    borderRadius: 8,
+    backgroundColor: colors.border,
   },
   loadMore: {
     alignItems: "center",

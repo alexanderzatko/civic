@@ -37,6 +37,7 @@ async function main() {
       "GET /users/lookup",
       "GET /projects/:nid",
       "GET /projects/:nid/work-reports",
+      "GET /projects/:nid/shareholders",
     ],
   }));
 

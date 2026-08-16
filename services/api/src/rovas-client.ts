@@ -1,6 +1,8 @@
 import type {
   ContributionCategoryBreakdown,
   ProjectDetail,
+  ProjectShareholderItem,
+  ProjectShareholderPage,
   ProjectWorkReportItem,
   ProjectWorkReportPage,
   RankDistribution,
@@ -298,6 +300,29 @@ export class RovasClient {
       accessToken,
     );
     return normalizeWorkReportPage(body, projectNid, limit, offset);
+  }
+
+  /**
+   * Paginated project shareholders.
+   * `GET /rovas/civic_project_shareholders?project_nid=`
+   */
+  async fetchProjectShareholders(
+    accessToken: string,
+    projectNid: string,
+    opts?: { limit?: number; offset?: number },
+  ): Promise<ProjectShareholderPage> {
+    const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 50);
+    const offset = Math.max(opts?.offset ?? 0, 0);
+    const params = new URLSearchParams({
+      project_nid: projectNid,
+      limit: String(limit),
+      offset: String(offset),
+    });
+    const body = await this.getJson<Partial<ProjectShareholderPage>>(
+      `/rovas/civic_project_shareholders?${params}`,
+      accessToken,
+    );
+    return normalizeShareholderPage(body, projectNid, limit, offset);
   }
 
   /**
@@ -603,7 +628,7 @@ function normalizeProjectRows(raw: unknown): UserLookupProjectRow[] {
 
 function normalizeWorkReportItem(raw: unknown): ProjectWorkReportItem | null {
   if (!raw || typeof raw !== "object") return null;
-  const r = raw as Partial<ProjectWorkReportItem>;
+  const r = raw as Partial<ProjectWorkReportItem> & { photo_urls?: unknown };
   const workReportNid =
     r.work_report_nid != null ? String(r.work_report_nid).trim() : "";
   const title = typeof r.title === "string" ? r.title.trim() : "";
@@ -615,6 +640,11 @@ function normalizeWorkReportItem(raw: unknown): ProjectWorkReportItem | null {
       : Number.isFinite(Number(hoursRaw))
         ? Number(hoursRaw)
         : null;
+  const photoUrls = Array.isArray(r.photo_urls)
+    ? r.photo_urls
+        .filter((u): u is string => typeof u === "string" && Boolean(u.trim()))
+        .map((u) => u.trim())
+    : [];
   return {
     work_report_nid: workReportNid,
     title,
@@ -630,6 +660,7 @@ function normalizeWorkReportItem(raw: unknown): ProjectWorkReportItem | null {
         : null,
     created_at:
       typeof r.created_at === "string" && r.created_at ? r.created_at : null,
+    photo_urls: photoUrls,
   };
 }
 
@@ -656,6 +687,68 @@ function normalizeWorkReportPage(
   };
 }
 
+function normalizeShareholderItem(raw: unknown): ProjectShareholderItem | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<ProjectShareholderItem>;
+  const username = typeof r.username === "string" ? r.username.trim() : "";
+  if (!username) return null;
+  const kind =
+    r.share_kind === "percent" || r.share_kind === "time_based"
+      ? r.share_kind
+      : Number(r.share_percent) > 0
+        ? "percent"
+        : "time_based";
+  const sharePercent =
+    kind === "percent" && Number.isFinite(Number(r.share_percent))
+      ? Number(r.share_percent)
+      : null;
+  const hours =
+    r.hours == null || r.hours === ("" as unknown)
+      ? null
+      : Number.isFinite(Number(r.hours))
+        ? Number(r.hours)
+        : null;
+  return {
+    username,
+    share_kind: kind,
+    share_percent: sharePercent,
+    hours,
+  };
+}
+
+function normalizeShareholderPage(
+  raw: Partial<ProjectShareholderPage> | undefined,
+  fallbackNid: string,
+  fallbackLimit: number,
+  fallbackOffset: number,
+): ProjectShareholderPage {
+  const items = Array.isArray(raw?.items)
+    ? raw.items
+        .map(normalizeShareholderItem)
+        .filter((x): x is ProjectShareholderItem => x != null)
+    : [];
+  return {
+    project_nid:
+      raw?.project_nid != null && String(raw.project_nid).trim()
+        ? String(raw.project_nid).trim()
+        : fallbackNid,
+    total: typeof raw?.total === "number" ? raw.total : items.length,
+    limit: typeof raw?.limit === "number" ? raw.limit : fallbackLimit,
+    offset: typeof raw?.offset === "number" ? raw.offset : fallbackOffset,
+    items,
+  };
+}
+
+function emptyShareholderPage(projectNid: string): ProjectShareholderPage {
+  return {
+    project_nid: projectNid,
+    total: 0,
+    limit: 20,
+    offset: 0,
+    items: [],
+  };
+}
+
 function normalizeProjectDetail(
   raw: Partial<ProjectDetail>,
   fallbackNid: string,
@@ -677,12 +770,10 @@ function normalizeProjectDetail(
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
   };
-  const wr = normalizeWorkReportPage(
-    raw.work_reports,
-    projectNid,
-    20,
-    0,
-  );
+  const wr = normalizeWorkReportPage(raw.work_reports, projectNid, 20, 0);
+  const shareholders = raw.shareholders
+    ? normalizeShareholderPage(raw.shareholders, projectNid, 20, 0)
+    : emptyShareholderPage(projectNid);
   return {
     project_nid: projectNid,
     title,
@@ -702,10 +793,15 @@ function normalizeProjectDetail(
       typeof raw.work_report_count === "number"
         ? raw.work_report_count
         : wr.total,
+    shareholder_count:
+      typeof raw.shareholder_count === "number"
+        ? raw.shareholder_count
+        : shareholders.total,
     rovas_url:
       typeof raw.rovas_url === "string" && raw.rovas_url
         ? raw.rovas_url
         : "",
     work_reports: wr,
+    shareholders,
   };
 }

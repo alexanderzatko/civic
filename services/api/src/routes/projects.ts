@@ -1,5 +1,9 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
-import type { ProjectDetail, ProjectWorkReportPage } from "@civic/shared";
+import type {
+  ProjectDetail,
+  ProjectShareholderPage,
+  ProjectWorkReportPage,
+} from "@civic/shared";
 import { requireAuth } from "../auth.js";
 import type { AppContext } from "../context.js";
 import { RovasClientError } from "../rovas-client.js";
@@ -27,6 +31,21 @@ function parseNid(raw: unknown): string | null {
   const nid = String(raw).trim();
   if (!/^\d+$/.test(nid) || nid === "0") return null;
   return nid;
+}
+
+function parsePager(query: { limit?: unknown; offset?: unknown }) {
+  const limit =
+    typeof query.limit === "string" || typeof query.limit === "number"
+      ? Number(query.limit)
+      : undefined;
+  const offset =
+    typeof query.offset === "string" || typeof query.offset === "number"
+      ? Number(query.offset)
+      : undefined;
+  return {
+    ...(Number.isFinite(limit) ? { limit } : {}),
+    ...(Number.isFinite(offset) ? { offset } : {}),
+  };
 }
 
 export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
@@ -81,22 +100,44 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         });
       }
 
-      const q = req.query as { limit?: unknown; offset?: unknown };
-      const limit =
-        typeof q.limit === "string" || typeof q.limit === "number"
-          ? Number(q.limit)
-          : undefined;
-      const offset =
-        typeof q.offset === "string" || typeof q.offset === "number"
-          ? Number(q.offset)
-          : undefined;
-
       try {
         const page: ProjectWorkReportPage =
-          await ctx.rovas.fetchProjectWorkReports(user.accessToken, nid, {
-            ...(Number.isFinite(limit) ? { limit } : {}),
-            ...(Number.isFinite(offset) ? { offset } : {}),
-          });
+          await ctx.rovas.fetchProjectWorkReports(
+            user.accessToken,
+            nid,
+            parsePager(req.query as { limit?: unknown; offset?: unknown }),
+          );
+        return page;
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
+
+  /**
+   * Paginated shareholders for a project.
+   * Proxies Rovas `GET /rovas/civic_project_shareholders?project_nid=`.
+   */
+  app.get(
+    "/projects/:nid/shareholders",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const nid = parseNid((req.params as { nid?: unknown }).nid);
+      if (!nid) {
+        return reply.code(400).send({
+          error: "invalid_nid",
+          message: "Project nid must be a positive integer.",
+        });
+      }
+
+      try {
+        const page: ProjectShareholderPage =
+          await ctx.rovas.fetchProjectShareholders(
+            user.accessToken,
+            nid,
+            parsePager(req.query as { limit?: unknown; offset?: unknown }),
+          );
         return page;
       } catch (err) {
         return sendRovasError(reply, err);

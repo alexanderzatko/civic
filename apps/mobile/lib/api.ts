@@ -7,6 +7,7 @@ import type {
   GeoLocation,
   MeritRate,
   ProjectDetail,
+  ProjectShareholderPage,
   ProjectWorkReportPage,
   RankDistribution,
   ReceiptDetailResponse,
@@ -190,6 +191,20 @@ export function fetchProjectWorkReports(
   const qs = params.toString();
   return apiFetch<ProjectWorkReportPage>(
     `/projects/${encodeURIComponent(projectNid)}/work-reports${qs ? `?${qs}` : ""}`,
+    { auth: "required" },
+  );
+}
+
+export function fetchProjectShareholders(
+  projectNid: string,
+  opts?: { limit?: number; offset?: number },
+): Promise<ProjectShareholderPage> {
+  const params = new URLSearchParams();
+  if (opts?.limit != null) params.set("limit", String(opts.limit));
+  if (opts?.offset != null) params.set("offset", String(opts.offset));
+  const qs = params.toString();
+  return apiFetch<ProjectShareholderPage>(
+    `/projects/${encodeURIComponent(projectNid)}/shareholders${qs ? `?${qs}` : ""}`,
     { auth: "required" },
   );
 }

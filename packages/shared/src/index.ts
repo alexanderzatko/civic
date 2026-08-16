@@ -43,6 +43,8 @@ export type {
   GeoLocation,
   MeritRate,
   ProjectDetail,
+  ProjectShareholderItem,
+  ProjectShareholderPage,
   ProjectWorkReportItem,
   ProjectWorkReportPage,
   RankBucket,
