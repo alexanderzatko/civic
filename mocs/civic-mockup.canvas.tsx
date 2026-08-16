@@ -35,7 +35,7 @@ import {
  * is a symlink to the file above, so edits in either place are kept in sync.
  *
  * Auth screens (Rováš OAuth + PKCE entry points):
- * - login:    Prihlasenie — provider chooser (Google / Facebook / Rováš)
+ * - login:    Prihlasenie — single CTA opens Rováš; method chosen there
  * - register: Registracia — single CTA opens Rováš; method chosen there
  *
  * Main IA:
@@ -463,73 +463,6 @@ function HomeQuickActions({ goto }: { goto: (s: ScreenId) => void }) {
   );
 }
 
-type AuthProvider = "google" | "facebook" | "rovas";
-
-const PROVIDER_GLYPH: Record<AuthProvider, string> = {
-  google: "G",
-  facebook: "f",
-  rovas: "R",
-};
-
-const PROVIDER_LABEL_LOGIN: Record<AuthProvider, string> = {
-  google: "Pokračovať s Google",
-  facebook: "Pokračovať s Facebook",
-  rovas: "Prihlásiť sa s Rováš účtom",
-};
-
-function ProviderButton({
-  provider,
-  label,
-  onClick,
-}: {
-  provider: AuthProvider;
-  label: string;
-  onClick: () => void;
-}) {
-  const t = useHostTheme();
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        width: "100%",
-        height: 40,
-        paddingLeft: 14,
-        paddingRight: 14,
-        background: t.fill.tertiary,
-        color: t.text.primary,
-        border: `1px solid ${t.stroke.primary}`,
-        borderRadius: 8,
-        font: "inherit",
-        fontSize: 14,
-        cursor: "pointer",
-        textAlign: "left",
-      }}
-    >
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 22,
-          height: 22,
-          borderRadius: 4,
-          background: t.fill.primary,
-          color: t.text.primary,
-          fontWeight: 700,
-          fontSize: 13,
-        }}
-      >
-        {PROVIDER_GLYPH[provider]}
-      </span>
-      <span style={{ flex: 1 }}>{label}</span>
-    </button>
-  );
-}
-
 function ScreenLogin({
   goto,
   setLoggedIn,
@@ -538,7 +471,7 @@ function ScreenLogin({
   setLoggedIn: (v: boolean) => void;
 }) {
   const t = useHostTheme();
-  const signIn = (_provider: AuthProvider) => {
+  const signIn = () => {
     setLoggedIn(true);
     goto("0");
   };
@@ -550,14 +483,18 @@ function ScreenLogin({
       </Stack>
 
       <Text tone="secondary" size="small" style={{ textAlign: "center" }}>
-        Vyberte spôsob prihlásenia. Vaša identita v Civic je váš Rováš účet.
+        Vaša identita v Civic je váš Rováš účet. Spôsob prihlásenia zvolíte v Rováši.
       </Text>
 
-      <Stack gap={8}>
-        <ProviderButton provider="google" label={PROVIDER_LABEL_LOGIN.google} onClick={() => signIn("google")} />
-        <ProviderButton provider="facebook" label={PROVIDER_LABEL_LOGIN.facebook} onClick={() => signIn("facebook")} />
-        <ProviderButton provider="rovas" label={PROVIDER_LABEL_LOGIN.rovas} onClick={() => signIn("rovas")} />
-      </Stack>
+      <Button variant="primary" onClick={signIn}>
+        Prihlásiť sa
+      </Button>
+
+      <Callout tone="info">
+        <Text size="small">
+          Po kliknutí sa otvorí systémový prehliadač a presmeruje vás do Rováša.
+        </Text>
+      </Callout>
 
       <Row align="center" gap={8}>
         <div style={{ flex: 1, height: 1, background: t.stroke.tertiary }} />
@@ -576,13 +513,6 @@ function ScreenLogin({
           </span>
         </Text>
       </Row>
-
-      <Callout tone="info">
-        <Text size="small">
-          Po kliknutí sa otvorí systémový prehliadač a presmeruje vás na Rováš (PKCE Authorization Code).
-          Civic neuchováva vaše heslo — len krátkodobý prístupový token.
-        </Text>
-      </Callout>
 
       <Text tone="tertiary" size="small" style={{ textAlign: "center" }}>
         Pokračovaním súhlasíte s{" "}

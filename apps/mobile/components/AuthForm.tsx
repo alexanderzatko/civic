@@ -16,14 +16,6 @@ import { t } from "@/lib/i18n";
 
 type Mode = "login" | "register";
 
-type Provider = "google" | "facebook" | "rovas";
-
-const PROVIDER_GLYPH: Record<Provider, string> = {
-  google: "G",
-  facebook: "f",
-  rovas: "R",
-};
-
 export function AuthForm({ mode }: { mode: Mode }) {
   const { signIn } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -48,6 +40,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
     mode === "login" ? t("auth.login_title") : t("auth.register_title");
   const subtitle =
     mode === "login" ? t("auth.login_subtitle") : t("auth.register_subtitle");
+  const ctaLabel =
+    mode === "login" ? t("auth.sign_in") : t("auth.create_account");
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -74,36 +68,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </View>
       ) : null}
 
-      {mode === "login" ? (
-        <View style={styles.providers}>
-          <ProviderButton
-            provider="google"
-            label={t("auth.continue_google")}
-            disabled={busy}
-            onPress={() => void startOAuth()}
-          />
-          <ProviderButton
-            provider="facebook"
-            label={t("auth.continue_facebook")}
-            disabled={busy}
-            onPress={() => void startOAuth()}
-          />
-          <ProviderButton
-            provider="rovas"
-            label={t("auth.continue_rovas")}
-            disabled={busy}
-            onPress={() => void startOAuth()}
-          />
-        </View>
-      ) : (
-        <Pressable
-          style={[styles.primaryBtn, busy && styles.disabled]}
-          disabled={busy}
-          onPress={() => void startOAuth()}
-        >
-          <Text style={styles.primaryBtnText}>{t("auth.create_account")}</Text>
-        </Pressable>
-      )}
+      <Pressable
+        style={[styles.primaryBtn, busy && styles.disabled]}
+        disabled={busy}
+        onPress={() => void startOAuth()}
+      >
+        <Text style={styles.primaryBtnText}>{ctaLabel}</Text>
+      </Pressable>
 
       {busy ? (
         <View style={styles.busyRow}>
@@ -168,31 +139,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
   );
 }
 
-function ProviderButton({
-  provider,
-  label,
-  disabled,
-  onPress,
-}: {
-  provider: Provider;
-  label: string;
-  disabled?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={[styles.providerBtn, disabled && styles.disabled]}
-      disabled={disabled}
-      onPress={onPress}
-    >
-      <View style={styles.glyph}>
-        <Text style={styles.glyphText}>{PROVIDER_GLYPH[provider]}</Text>
-      </View>
-      <Text style={styles.providerLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     padding: 24,
@@ -213,7 +159,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: "center",
   },
-  providers: { gap: 8 },
   primaryBtn: {
     backgroundColor: colors.brand,
     borderRadius: 12,
@@ -227,27 +172,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 15,
   },
-  providerBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    minHeight: 44,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  glyph: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
-    backgroundColor: colors.bg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  glyphText: { fontWeight: "700", color: colors.ink, fontSize: 13 },
-  providerLabel: { flex: 1, color: colors.ink, fontSize: 14 },
   disabled: { opacity: 0.55 },
   busyRow: {
     flexDirection: "row",
