@@ -210,7 +210,7 @@
   "auth.rovas_callout_title": "Civic a Rováš",
   "auth.rovas_callout_body": "Civic je mobilná aplikácia; váš účet a merity (ME) žijú na Rováši. Pri registrácii sa prihlásite alebo vytvoríte Rováš účet — samostatný účet Civic neexistuje.",
   "auth.hybrid_title": "Automatické prepojenie s Rovášom",
-  "auth.hybrid_body": "Pri prihlásení cez Google alebo Facebook sa váš Rováš účet vytvorí automaticky. Žiadny separátny účet pre Civic nie je potrebný.",
+  "auth.hybrid_body": "Pri prihlásení cez Google alebo Facebook sa váš Rováš účet vytvorí automaticky.",
   "auth.or": "alebo",
   "auth.no_account": "Nemáte účet?",
   "auth.have_account": "Už máte účet?",

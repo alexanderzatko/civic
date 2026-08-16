@@ -641,7 +641,6 @@ function ScreenRegister({
       <Callout tone="info" title="Automatické prepojenie s Rovášom">
         <Text size="small">
           Pri prihlásení cez Google alebo Facebook sa váš Rováš účet vytvorí automaticky.
-          Žiadny separátny účet pre Civic nie je potrebný.
         </Text>
       </Callout>
 
