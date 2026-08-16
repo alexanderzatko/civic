@@ -36,7 +36,7 @@ import {
  *
  * Auth screens (Rováš OAuth + PKCE entry points):
  * - login:    Prihlasenie — provider chooser (Google / Facebook / Rováš)
- * - register: Registracia — same providers framed for first-time users
+ * - register: Registracia — single CTA opens Rováš; method chosen there
  *
  * Main IA:
  * - Screen 0: Home (Vas prispevok spolocnosti) — logged-in + logged-out
@@ -477,12 +477,6 @@ const PROVIDER_LABEL_LOGIN: Record<AuthProvider, string> = {
   rovas: "Prihlásiť sa s Rováš účtom",
 };
 
-const PROVIDER_LABEL_REGISTER: Record<AuthProvider, string> = {
-  google: "Vytvoriť účet cez Google",
-  facebook: "Vytvoriť účet cez Facebook",
-  rovas: "Vytvoriť nový Rováš účet",
-};
-
 function ProviderButton({
   provider,
   label,
@@ -608,7 +602,7 @@ function ScreenRegister({
   setLoggedIn: (v: boolean) => void;
 }) {
   const t = useHostTheme();
-  const signUp = (_provider: AuthProvider) => {
+  const signUp = () => {
     setLoggedIn(true);
     goto("0");
   };
@@ -620,7 +614,7 @@ function ScreenRegister({
       </Stack>
 
       <Text tone="secondary" size="small" style={{ textAlign: "center" }}>
-        Civic vám umižňuje sledovať váš príspevok spoločnosti cez dane, charitu alebo
+        Civic vám umožňuje sledovať váš príspevok spoločnosti cez dane, charitu alebo
         dobrovoľníctvo, na jednom mieste.
       </Text>
 
@@ -633,11 +627,9 @@ function ScreenRegister({
         </Text>
       </Callout>
 
-      <Stack gap={8}>
-        <ProviderButton provider="google" label={PROVIDER_LABEL_REGISTER.google} onClick={() => signUp("google")} />
-        <ProviderButton provider="facebook" label={PROVIDER_LABEL_REGISTER.facebook} onClick={() => signUp("facebook")} />
-        <ProviderButton provider="rovas" label={PROVIDER_LABEL_REGISTER.rovas} onClick={() => signUp("rovas")} />
-      </Stack>
+      <Button variant="primary" onClick={signUp}>
+        Vytvoriť účet
+      </Button>
 
       <Row align="center" gap={8}>
         <div style={{ flex: 1, height: 1, background: t.stroke.tertiary }} />

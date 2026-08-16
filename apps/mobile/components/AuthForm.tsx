@@ -74,36 +74,36 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </View>
       ) : null}
 
-      <View style={styles.providers}>
-        <ProviderButton
-          provider="google"
-          label={
-            mode === "login"
-              ? t("auth.continue_google")
-              : t("auth.create_google")
-          }
+      {mode === "login" ? (
+        <View style={styles.providers}>
+          <ProviderButton
+            provider="google"
+            label={t("auth.continue_google")}
+            disabled={busy}
+            onPress={() => void startOAuth()}
+          />
+          <ProviderButton
+            provider="facebook"
+            label={t("auth.continue_facebook")}
+            disabled={busy}
+            onPress={() => void startOAuth()}
+          />
+          <ProviderButton
+            provider="rovas"
+            label={t("auth.continue_rovas")}
+            disabled={busy}
+            onPress={() => void startOAuth()}
+          />
+        </View>
+      ) : (
+        <Pressable
+          style={[styles.primaryBtn, busy && styles.disabled]}
           disabled={busy}
           onPress={() => void startOAuth()}
-        />
-        <ProviderButton
-          provider="facebook"
-          label={
-            mode === "login"
-              ? t("auth.continue_facebook")
-              : t("auth.create_facebook")
-          }
-          disabled={busy}
-          onPress={() => void startOAuth()}
-        />
-        <ProviderButton
-          provider="rovas"
-          label={
-            mode === "login" ? t("auth.continue_rovas") : t("auth.create_rovas")
-          }
-          disabled={busy}
-          onPress={() => void startOAuth()}
-        />
-      </View>
+        >
+          <Text style={styles.primaryBtnText}>{t("auth.create_account")}</Text>
+        </Pressable>
+      )}
 
       {busy ? (
         <View style={styles.busyRow}>
@@ -214,6 +214,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   providers: { gap: 8 },
+  primaryBtn: {
+    backgroundColor: colors.brand,
+    borderRadius: 12,
+    minHeight: 44,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
   providerBtn: {
     flexDirection: "row",
     alignItems: "center",
