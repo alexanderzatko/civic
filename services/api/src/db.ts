@@ -34,8 +34,6 @@ function migrate(db: Database.Database): void {
       ON claim_attempts(submitted_by_rovas_uid, created_at);
     CREATE INDEX IF NOT EXISTS idx_attempts_claimed
       ON claim_attempts(submitted_by_rovas_uid, outcome, created_at);
-    CREATE INDEX IF NOT EXISTS idx_attempts_store
-      ON claim_attempts(submitted_by_rovas_uid, store_key, outcome, created_at);
 
     CREATE TABLE IF NOT EXISTS user_strikes (
       rovas_uid TEXT PRIMARY KEY,
@@ -45,11 +43,16 @@ function migrate(db: Database.Database): void {
     );
   `);
 
-  // Older DBs created claim_attempts without store_key — add if missing.
+  // Older DBs created claim_attempts without store_key — add before indexing it.
   const cols = db
     .prepare(`PRAGMA table_info(claim_attempts)`)
     .all() as Array<{ name: string }>;
   if (!cols.some((c) => c.name === "store_key")) {
     db.exec(`ALTER TABLE claim_attempts ADD COLUMN store_key TEXT`);
   }
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_attempts_store
+      ON claim_attempts(submitted_by_rovas_uid, store_key, outcome, created_at);
+  `);
 }

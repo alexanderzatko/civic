@@ -6,6 +6,8 @@ import type {
   ContributionsSummary,
   GeoLocation,
   MeritRate,
+  ProjectDetail,
+  ProjectWorkReportPage,
   RankDistribution,
   ReceiptDetailResponse,
   ReceiptHistoryView,
@@ -170,6 +172,26 @@ export function lookupUser(username: string): Promise<UserLookup> {
   return apiFetch<UserLookup>(`/users/lookup?${params}`, {
     auth: "required",
   });
+}
+
+export function fetchProject(projectNid: string): Promise<ProjectDetail> {
+  return apiFetch<ProjectDetail>(`/projects/${encodeURIComponent(projectNid)}`, {
+    auth: "required",
+  });
+}
+
+export function fetchProjectWorkReports(
+  projectNid: string,
+  opts?: { limit?: number; offset?: number },
+): Promise<ProjectWorkReportPage> {
+  const params = new URLSearchParams();
+  if (opts?.limit != null) params.set("limit", String(opts.limit));
+  if (opts?.offset != null) params.set("offset", String(opts.offset));
+  const qs = params.toString();
+  return apiFetch<ProjectWorkReportPage>(
+    `/projects/${encodeURIComponent(projectNid)}/work-reports${qs ? `?${qs}` : ""}`,
+    { auth: "required" },
+  );
 }
 
 export function fetchMe(): Promise<MeIdentity> {

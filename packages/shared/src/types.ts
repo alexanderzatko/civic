@@ -20,8 +20,48 @@ export interface UserSearchResult {
 
 /** Named contribution row on a public profile (charity / volunteer). */
 export interface UserLookupProjectRow {
+  /** Drupal project nid when Rovas includes it (additive). */
+  project_nid?: string;
   name: string;
   me: number;
+}
+
+/** Work-report row inside a Civic project detail / WR page. */
+export interface ProjectWorkReportItem {
+  work_report_nid: string;
+  title: string;
+  summary: string | null;
+  hours: number | null;
+  author_username: string | null;
+  author_display_name: string | null;
+  created_at: string | null;
+}
+
+/** Paginated work reports for a project. */
+export interface ProjectWorkReportPage {
+  project_nid: string;
+  total: number;
+  limit: number;
+  offset: number;
+  items: ProjectWorkReportItem[];
+}
+
+/**
+ * Project detail for the in-app modal
+ * (`GET /projects/:nid` → Rovas `GET /rovas/civic_project/{nid}`).
+ */
+export interface ProjectDetail {
+  project_nid: string;
+  title: string;
+  summary: string | null;
+  is_public: boolean;
+  owner_username: string | null;
+  owner_display_name: string | null;
+  total_hours: number | null;
+  total_me: number | null;
+  work_report_count: number;
+  rovas_url: string;
+  work_reports: ProjectWorkReportPage;
 }
 
 /** Month bucket for tax Merits on a public profile (`YYYY-MM`). */

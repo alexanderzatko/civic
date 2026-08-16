@@ -1,5 +1,8 @@
 import type {
   ContributionCategoryBreakdown,
+  ProjectDetail,
+  ProjectWorkReportItem,
+  ProjectWorkReportPage,
   RankDistribution,
   ReceiptClaimsSummary,
   ReceiptHistoryView,
@@ -256,6 +259,45 @@ export class RovasClient {
       top_charities: normalizeProjectRows(body.top_charities),
       top_volunteer_projects: normalizeProjectRows(body.top_volunteer_projects),
     };
+  }
+
+  /**
+   * Project detail for Civic modal.
+   * `GET /rovas/civic_project/{nid}`
+   */
+  async fetchProject(
+    accessToken: string,
+    projectNid: string,
+  ): Promise<ProjectDetail> {
+    const nid = encodeURIComponent(projectNid);
+    const body = await this.getJson<Partial<ProjectDetail>>(
+      `/rovas/civic_project/${nid}`,
+      accessToken,
+    );
+    return normalizeProjectDetail(body, projectNid);
+  }
+
+  /**
+   * Paginated work reports for a project.
+   * `GET /rovas/civic_project_work_reports?project_nid=`
+   */
+  async fetchProjectWorkReports(
+    accessToken: string,
+    projectNid: string,
+    opts?: { limit?: number; offset?: number },
+  ): Promise<ProjectWorkReportPage> {
+    const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 50);
+    const offset = Math.max(opts?.offset ?? 0, 0);
+    const params = new URLSearchParams({
+      project_nid: projectNid,
+      limit: String(limit),
+      offset: String(offset),
+    });
+    const body = await this.getJson<Partial<ProjectWorkReportPage>>(
+      `/rovas/civic_project_work_reports?${params}`,
+      accessToken,
+    );
+    return normalizeWorkReportPage(body, projectNid, limit, offset);
   }
 
   /**
@@ -550,7 +592,120 @@ function normalizeProjectRows(raw: unknown): UserLookupProjectRow[] {
     const name = typeof r.name === "string" ? r.name.trim() : "";
     const me = Number(r.me);
     if (!name || !Number.isFinite(me)) continue;
-    out.push({ name, me });
+    const projectNid =
+      r.project_nid != null && String(r.project_nid).trim()
+        ? String(r.project_nid).trim()
+        : undefined;
+    out.push(projectNid ? { project_nid: projectNid, name, me } : { name, me });
   }
   return out;
+}
+
+function normalizeWorkReportItem(raw: unknown): ProjectWorkReportItem | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<ProjectWorkReportItem>;
+  const workReportNid =
+    r.work_report_nid != null ? String(r.work_report_nid).trim() : "";
+  const title = typeof r.title === "string" ? r.title.trim() : "";
+  if (!workReportNid || !title) return null;
+  const hoursRaw = r.hours;
+  const hours =
+    hoursRaw == null || hoursRaw === ("" as unknown)
+      ? null
+      : Number.isFinite(Number(hoursRaw))
+        ? Number(hoursRaw)
+        : null;
+  return {
+    work_report_nid: workReportNid,
+    title,
+    summary: typeof r.summary === "string" && r.summary ? r.summary : null,
+    hours,
+    author_username:
+      typeof r.author_username === "string" && r.author_username
+        ? r.author_username
+        : null,
+    author_display_name:
+      typeof r.author_display_name === "string" && r.author_display_name
+        ? r.author_display_name
+        : null,
+    created_at:
+      typeof r.created_at === "string" && r.created_at ? r.created_at : null,
+  };
+}
+
+function normalizeWorkReportPage(
+  raw: Partial<ProjectWorkReportPage> | undefined,
+  fallbackNid: string,
+  fallbackLimit: number,
+  fallbackOffset: number,
+): ProjectWorkReportPage {
+  const items = Array.isArray(raw?.items)
+    ? raw.items
+        .map(normalizeWorkReportItem)
+        .filter((x): x is ProjectWorkReportItem => x != null)
+    : [];
+  return {
+    project_nid:
+      raw?.project_nid != null && String(raw.project_nid).trim()
+        ? String(raw.project_nid).trim()
+        : fallbackNid,
+    total: typeof raw?.total === "number" ? raw.total : items.length,
+    limit: typeof raw?.limit === "number" ? raw.limit : fallbackLimit,
+    offset: typeof raw?.offset === "number" ? raw.offset : fallbackOffset,
+    items,
+  };
+}
+
+function normalizeProjectDetail(
+  raw: Partial<ProjectDetail>,
+  fallbackNid: string,
+): ProjectDetail {
+  const projectNid =
+    raw.project_nid != null && String(raw.project_nid).trim()
+      ? String(raw.project_nid).trim()
+      : fallbackNid;
+  const title = typeof raw.title === "string" ? raw.title.trim() : "";
+  if (!title) {
+    throw new RovasClientError(
+      "Rovas civic_project missing title",
+      502,
+      raw,
+    );
+  }
+  const numOrNull = (v: unknown): number | null => {
+    if (v == null || v === "") return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const wr = normalizeWorkReportPage(
+    raw.work_reports,
+    projectNid,
+    20,
+    0,
+  );
+  return {
+    project_nid: projectNid,
+    title,
+    summary: typeof raw.summary === "string" && raw.summary ? raw.summary : null,
+    is_public: Boolean(raw.is_public),
+    owner_username:
+      typeof raw.owner_username === "string" && raw.owner_username
+        ? raw.owner_username
+        : null,
+    owner_display_name:
+      typeof raw.owner_display_name === "string" && raw.owner_display_name
+        ? raw.owner_display_name
+        : null,
+    total_hours: numOrNull(raw.total_hours),
+    total_me: numOrNull(raw.total_me),
+    work_report_count:
+      typeof raw.work_report_count === "number"
+        ? raw.work_report_count
+        : wr.total,
+    rovas_url:
+      typeof raw.rovas_url === "string" && raw.rovas_url
+        ? raw.rovas_url
+        : "",
+    work_reports: wr,
+  };
 }

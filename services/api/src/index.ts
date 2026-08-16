@@ -8,6 +8,7 @@ import type { AppContext } from "./context.js";
 import { receiptsRoutes } from "./routes/receipts.js";
 import { summaryRoutes } from "./routes/summary.js";
 import { usersRoutes } from "./routes/users.js";
+import { projectsRoutes } from "./routes/projects.js";
 
 async function main() {
   const config = loadConfig();
@@ -34,6 +35,8 @@ async function main() {
       "GET /receipts/fs-detail",
       "GET /users/search",
       "GET /users/lookup",
+      "GET /projects/:nid",
+      "GET /projects/:nid/work-reports",
     ],
   }));
 
@@ -57,6 +60,7 @@ async function main() {
   await app.register(receiptsRoutes, { ctx });
   await app.register(summaryRoutes, { ctx });
   await app.register(usersRoutes, { ctx });
+  await app.register(projectsRoutes, { ctx });
 
   await app.listen({ port: config.port, host: config.host });
 }
