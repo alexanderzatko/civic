@@ -620,8 +620,8 @@ function ScreenRegister({
       </Stack>
 
       <Text tone="secondary" size="small" style={{ textAlign: "center" }}>
-        Civic vám pomáha sledovať a rozširovať váš príspevok spoločnosti — dane, charitu i
-        dobrovoľníctvo — na jednom mieste.
+        Civic vám umižňuje sledovať váš príspevok spoločnosti cez dane, charitu alebo
+        dobrovoľníctvo, na jednom mieste.
       </Text>
 
       <Callout tone="info" title="Civic a Rováš">
@@ -640,7 +640,7 @@ function ScreenRegister({
 
       <Callout tone="info" title="Automatické prepojenie s Rovášom">
         <Text size="small">
-          Pri prihlásení cez Google alebo Facebook sa váš Rováš účet vytvorí automaticky cez HybridAuth.
+          Pri prihlásení cez Google alebo Facebook sa váš Rováš účet vytvorí automaticky.
           Žiadny separátny účet pre Civic nie je potrebný.
         </Text>
       </Callout>

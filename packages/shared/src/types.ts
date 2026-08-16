@@ -53,6 +53,8 @@ export interface VerifiedReceiptPreview {
   receipt_uid: string;
   verified: true;
   merchant_name: string | null;
+  /** Store / merchant address used for same-store fraud key (when available). */
+  store_address?: string | null;
   purchase_at: string | null;
   total_price_eur: number | null;
   vat_eur: number;
@@ -62,6 +64,15 @@ export interface VerifiedReceiptPreview {
   wage_basis: "net" | "gross";
   /** True when Rovas {civic_claims} already has this UID (signed-in verify). */
   already_claimed?: boolean;
+  /**
+   * Soft fraud gate for signed-in verify. Scan/preview still succeeds;
+   * Claim should be disabled when false.
+   */
+  claim_allowed?: boolean;
+  claim_block?: {
+    code: ClaimReceiptErrorCode;
+    message: string;
+  };
 }
 
 export interface VerifyReceiptError {
@@ -89,6 +100,9 @@ export type ClaimReceiptErrorCode =
   | "rejected_rate"
   | "rejected_vat"
   | "rejected_shares"
+  | "rejected_strikes"
+  | "rejected_account_age"
+  | "rejected_same_store"
   | "rovas_error";
 
 export interface ClaimShareResult {

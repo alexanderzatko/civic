@@ -47,9 +47,9 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 
 | Route | Notes |
 |-------|--------|
-| `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, client_id, scope, expires_at }` |
+| `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, created?, client_id, scope, expires_at }`. `created` (ISO-8601 account registration) is required for Civic fraud rule C — see Rovas **Next work: expose account created on /rovas/me**. |
 | `GET /me/contributions/summary` | `total_me` from Rovas wallet; `by_category.taxes` + receipt stats from Rovas claim summary once live (interim: zeros — see Rovas task **Civic claim reads + SoT**) |
-| `POST /receipts/claim` | Re-verify FS + GPS/rate-limit via Civic `claim_attempts`; UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (optional `shares[]`; Rovas `{civic_claims}` is sole claim registry) |
+| `POST /receipts/claim` | Re-verify FS + Civic fraud checks (strikes, window, registration, same-store, min VAT, rate limits); UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (optional `shares[]`; optional `location`). Rovas `{civic_claims}` is sole claim registry |
 | `GET /users/search` | Split-claim typeahead — proxies Rovas `GET /rovas/users_search?query=` (Civic accepts `?q=`; maps to Rovas `query` because Drupal reserves `$_GET['q']` for the path) |
 | `GET /users/lookup` | Community public profile — proxies Rovas `GET /rovas/users_lookup?username=` (Bearer; exact username). Returns `UserLookup` (`total_me`, `by_category`, tax months, top charity/volunteer). Percentile is computed on Civic from `/rank/distribution`. Friend invite on Komunita is client `mailto:` only (no Rovas invite API). |
 
@@ -104,7 +104,7 @@ Client: `services/api/src/rovas-client.ts`. Enable resources on rovdev via
 
 **Rovas** `{civic_claims}` / `{civic_claim_shares}` is the **only** claim
 registry (`receipt_uid` UNIQUE, VAT, shares, Merits). Civic SQLite keeps
-`claim_attempts` for fraud/ops (GPS, rate limits, strikes) — not a duplicate
+`claim_attempts` for fraud/ops (strikes, rate limits, same-store keys) — not a duplicate
 claim table.
 
 **Dev reset:** clear Rovas claims (see Rovas `docs/integration/civic.md`);
@@ -113,7 +113,7 @@ optionally truncate Civic `claim_attempts`.
 ## Receipt claim (solo + split)
 
 Civic `POST /receipts/claim` (Bearer required) re-verifies the eKasa receipt,
-runs Civic location/rate checks, then calls Rovas (which owns dedup + persist):
+runs Civic fraud checks, then calls Rovas (which owns dedup + persist):
 
 `POST {ROVAS}/rovas/rules/rules_proxy_claim_vat_receipt`
 

@@ -77,6 +77,25 @@ EXPO_PUBLIC_API_URL=https://civic-api.rovas.app
 hosts only the API. Mac-free *user* testing (no Metro) needs a later EAS
 preview/release build with JS baked into the binary.
 
+### Production fraud flags
+
+Dev defaults leave the claim window and same-store daily cap **off** so old
+receipts remain testable. On the VPS `/opt/docker/civic-api/.env`, set:
+
+```bash
+CLAIM_WINDOW_ENABLED=true
+CLAIM_WINDOW_DAYS=1
+SAME_STORE_DAILY_LIMIT_ENABLED=true
+SAME_STORE_DAILY_LIMIT=2
+```
+
+Then recreate/restart the API container (`./deploy/civic-api/deploy.sh` or
+`docker compose up -d`). Always-on rules (3-strike, registration-vs-purchase,
+min VAT, rate limits) do not need these toggles. Rovas must expose
+`created` on `GET /rovas/me` for the registration check — see
+`~/Documents/homeProjects/rovas/docs/integration/civic.md`
+→ **Next work: expose account created on /rovas/me**.
+
 ### Optional: local API (API development)
 
 Use when iterating on [`services/api`](services/api) itself:

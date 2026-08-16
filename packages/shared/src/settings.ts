@@ -24,12 +24,27 @@ export interface CivicSettings {
   meritsPerHour: number;
   /** Reject claims with VAT below this (EUR). */
   minVatEur: number;
-  /** Days after purchase_at during which a receipt may be claimed. */
+  /**
+   * When false (dev default), claim-window checks are skipped.
+   * Production must set CLAIM_WINDOW_ENABLED=true.
+   */
+  claimWindowEnabled: boolean;
+  /** Days after purchase_at during which a receipt may be claimed (when enabled). */
   claimWindowDays: number;
+  /**
+   * When false (dev default), same-store daily cap is skipped.
+   * Production must set SAME_STORE_DAILY_LIMIT_ENABLED=true.
+   */
+  sameStoreDailyLimitEnabled: boolean;
+  /** Max successful claims from the same store address per Bratislava calendar day. */
+  sameStoreDailyLimit: number;
   claimRateLimitDay: number;
   claimRateLimitMonth: number;
   strikeThreshold: number;
   strikeWindowDays: number;
+  /** Days a scanner stays blocked after hitting the strike threshold. */
+  strikeBlockDays: number;
+  /** Unused in v1 (location rules deferred); kept so existing .env files still load. */
   maxGroundSpeedKmh: number;
   locationBufferKm: number;
   merchantProximityKm: number;
@@ -44,11 +59,15 @@ export const DEFAULT_SETTINGS: CivicSettings = {
   formulaVersion: 1,
   meritsPerHour: 10,
   minVatEur: 0.01,
-  claimWindowDays: 30,
+  claimWindowEnabled: false,
+  claimWindowDays: 1,
+  sameStoreDailyLimitEnabled: false,
+  sameStoreDailyLimit: 2,
   claimRateLimitDay: 20,
   claimRateLimitMonth: 200,
   strikeThreshold: 3,
   strikeWindowDays: 30,
+  strikeBlockDays: 7,
   maxGroundSpeedKmh: 100,
   locationBufferKm: 25,
   merchantProximityKm: 50,
@@ -61,6 +80,15 @@ function envNumber(key: string, fallback: number): number {
   if (raw === undefined || raw === "") return fallback;
   const n = Number(raw);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function envBool(key: string, fallback: boolean): boolean {
+  const raw = process.env[key];
+  if (raw === undefined || raw === "") return fallback;
+  const v = raw.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(v)) return true;
+  if (["0", "false", "no", "off"].includes(v)) return false;
+  return fallback;
 }
 
 /**
@@ -78,7 +106,22 @@ export function loadSettings(
     formulaVersion: envNumber("FORMULA_VERSION", DEFAULT_SETTINGS.formulaVersion),
     meritsPerHour: DEFAULT_SETTINGS.meritsPerHour,
     minVatEur: envNumber("MIN_VAT_EUR", DEFAULT_SETTINGS.minVatEur),
-    claimWindowDays: envNumber("CLAIM_WINDOW_DAYS", DEFAULT_SETTINGS.claimWindowDays),
+    claimWindowEnabled: envBool(
+      "CLAIM_WINDOW_ENABLED",
+      DEFAULT_SETTINGS.claimWindowEnabled,
+    ),
+    claimWindowDays: envNumber(
+      "CLAIM_WINDOW_DAYS",
+      DEFAULT_SETTINGS.claimWindowDays,
+    ),
+    sameStoreDailyLimitEnabled: envBool(
+      "SAME_STORE_DAILY_LIMIT_ENABLED",
+      DEFAULT_SETTINGS.sameStoreDailyLimitEnabled,
+    ),
+    sameStoreDailyLimit: envNumber(
+      "SAME_STORE_DAILY_LIMIT",
+      DEFAULT_SETTINGS.sameStoreDailyLimit,
+    ),
     claimRateLimitDay: envNumber(
       "CLAIM_RATE_LIMIT_DAY",
       DEFAULT_SETTINGS.claimRateLimitDay,
@@ -91,6 +134,10 @@ export function loadSettings(
     strikeWindowDays: envNumber(
       "STRIKE_WINDOW_DAYS",
       DEFAULT_SETTINGS.strikeWindowDays,
+    ),
+    strikeBlockDays: envNumber(
+      "STRIKE_BLOCK_DAYS",
+      DEFAULT_SETTINGS.strikeBlockDays,
     ),
     maxGroundSpeedKmh: envNumber(
       "MAX_GROUND_SPEED_KMH",

@@ -15,8 +15,8 @@ import {
   useCameraPermissions,
   type BarcodeScanningResult,
 } from "expo-camera";
-import * as Location from "expo-location";
 import {
+  type ClaimReceiptErrorCode,
   type ClaimReceiptResponse,
   type ReceiptHistoryView,
   type ReceiptReceivedItem,
@@ -173,6 +173,7 @@ export default function ReceiptsScreen() {
       !preview ||
       !me ||
       preview.already_claimed ||
+      preview.claim_allowed === false ||
       claimResult?.claimed ||
       recipients.length > 0
     ) {
@@ -198,6 +199,9 @@ export default function ReceiptsScreen() {
           setManualOpen(false);
           if (result.already_claimed) {
             setError(t("receipts.error_duplicate"));
+            setRecipients([]);
+          } else if (result.claim_allowed === false && result.claim_block) {
+            setError(claimErrorMessage(result.claim_block.code, t));
             setRecipients([]);
           } else if (me) {
             await seedRecipients(me);
@@ -275,33 +279,16 @@ export default function ReceiptsScreen() {
     recipients.length > 0 && Math.abs(shareSum(recipients) - 100) < 0.01;
 
   async function runClaim() {
-    if (!preview || !sharesValid) return;
+    if (!preview || !sharesValid || preview.claim_allowed === false) return;
     setClaiming(true);
     setError(null);
     setClaimResult(null);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setError(t("receipts.error_location"));
-        return;
-      }
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
       const shares = recipients.map((r) => ({
         rovas_uid: r.rovas_uid,
         share_pct: r.sharePct,
       }));
-      const result = await claimReceipt(
-        preview.receipt_uid,
-        {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy_m:
-            pos.coords.accuracy != null ? pos.coords.accuracy : undefined,
-        },
-        shares,
-      );
+      const result = await claimReceipt(preview.receipt_uid, shares);
       setClaimResult(result);
       if (result.claimed) {
         notifyMeritsChanged();
@@ -319,26 +306,12 @@ export default function ReceiptsScreen() {
       } else {
         if (result.code === "duplicate") {
           setPreview((prev) =>
-            prev ? { ...prev, already_claimed: true } : prev,
+            prev ? { ...prev, already_claimed: true, claim_allowed: false } : prev,
           );
           setRecipients([]);
           setAddOpen(false);
         }
-        const map: Record<string, string> = {
-          unauthorized: t("receipts.error_unauthorized"),
-          invalid_uid: t("receipts.error_invalid"),
-          not_found: t("receipts.error_not_found"),
-          fs_error: t("receipts.error_fs"),
-          duplicate: t("receipts.error_duplicate"),
-          rejected_location: t("receipts.error_location"),
-          rejected_window: t("receipts.error_window"),
-          rejected_rate: t("receipts.error_rate"),
-          rejected_vat: t("receipts.error_vat"),
-          rejected_shares: t("receipts.error_rovas"),
-          rovas_error: t("receipts.error_rovas"),
-          offline_unsupported: t("receipts.error_fs"),
-        };
-        setError(map[result.code] ?? result.message);
+        setError(claimErrorMessage(result.code, t, result.message));
       }
     } catch (err) {
       const status = (err as { status?: number }).status;
@@ -415,8 +388,14 @@ export default function ReceiptsScreen() {
   const showScanner = scanning && permission?.granted;
   const claimSucceeded = claimResult?.claimed === true;
   const alreadyClaimed = preview?.already_claimed === true;
+  const claimBlocked = preview?.claim_allowed === false;
   const canShowSplit =
-    signedIn && me && recipients.length > 0 && !claimSucceeded && !alreadyClaimed;
+    signedIn &&
+    me &&
+    recipients.length > 0 &&
+    !claimSucceeded &&
+    !alreadyClaimed &&
+    !claimBlocked;
 
   return (
     <ScrollView
@@ -516,6 +495,12 @@ export default function ReceiptsScreen() {
             </Text>
           ) : alreadyClaimed ? (
             <Text style={styles.error}>{t("receipts.error_duplicate")}</Text>
+          ) : claimBlocked ? (
+            <Text style={styles.error}>
+              {preview.claim_block
+                ? claimErrorMessage(preview.claim_block.code, t)
+                : t("receipts.error_claim_blocked")}
+            </Text>
           ) : signedIn ? (
             <>
               {canShowSplit ? (
@@ -753,6 +738,31 @@ function formatHistoryDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
   return d.toLocaleDateString("sk-SK");
+}
+
+function claimErrorMessage(
+  code: ClaimReceiptErrorCode | string,
+  translate: (key: string) => string,
+  fallback?: string,
+): string {
+  const map: Record<string, string> = {
+    unauthorized: translate("receipts.error_unauthorized"),
+    invalid_uid: translate("receipts.error_invalid"),
+    not_found: translate("receipts.error_not_found"),
+    fs_error: translate("receipts.error_fs"),
+    duplicate: translate("receipts.error_duplicate"),
+    rejected_location: translate("receipts.error_claim_blocked"),
+    rejected_window: translate("receipts.error_window"),
+    rejected_rate: translate("receipts.error_rate"),
+    rejected_vat: translate("receipts.error_vat"),
+    rejected_shares: translate("receipts.error_rovas"),
+    rejected_strikes: translate("receipts.error_strikes"),
+    rejected_account_age: translate("receipts.error_account_age"),
+    rejected_same_store: translate("receipts.error_same_store"),
+    rovas_error: translate("receipts.error_rovas"),
+    offline_unsupported: translate("receipts.error_fs"),
+  };
+  return map[code] ?? fallback ?? translate("receipts.error_claim_blocked");
 }
 
 function formatScannerLabel(

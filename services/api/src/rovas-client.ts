@@ -17,6 +17,8 @@ export type RovasMe = {
   username: string;
   display_name: string;
   total_me: number;
+  /** ISO-8601 account registration time from Drupal `$user->created`. */
+  created: string | null;
 };
 
 export type RovasAggregate = {
@@ -56,7 +58,10 @@ export class RovasClient {
   }
 
   async fetchMe(accessToken: string): Promise<RovasMe> {
-    const body = await this.getJson<Partial<RovasMe>>("/rovas/me", accessToken);
+    const body = await this.getJson<Partial<RovasMe> & { created?: unknown }>(
+      "/rovas/me",
+      accessToken,
+    );
     if (
       typeof body.uid !== "number" ||
       typeof body.username !== "string" ||
@@ -72,6 +77,7 @@ export class RovasClient {
           ? body.display_name
           : body.username,
       total_me: body.total_me,
+      created: typeof body.created === "string" && body.created ? body.created : null,
     };
   }
 

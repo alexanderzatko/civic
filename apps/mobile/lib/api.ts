@@ -106,15 +106,15 @@ export function verifyReceipt(qrOrUid: string): Promise<VerifyReceiptResponse> {
 
 export function claimReceipt(
   qrOrUid: string,
-  location: GeoLocation,
   shares?: ClaimShareInput[],
+  location?: GeoLocation,
 ): Promise<ClaimReceiptResponse> {
   return apiFetch<ClaimReceiptResponse>("/receipts/claim", {
     method: "POST",
     auth: "required",
     body: JSON.stringify({
       qr_or_uid: qrOrUid,
-      location,
+      ...(location ? { location } : {}),
       ...(shares && shares.length > 0 ? { shares } : {}),
     }),
   }).catch((err: Error & { body?: ClaimReceiptResponse; status?: number }) => {
