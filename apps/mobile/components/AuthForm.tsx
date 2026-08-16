@@ -61,7 +61,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
       {mode === "register" ? (
         <View style={styles.callout}>
           <Text style={styles.calloutTitle}>{t("auth.rovas_callout_title")}</Text>
-          <Text style={styles.calloutBody}>{t("auth.rovas_callout_body")}</Text>
+          <Text style={styles.calloutBody}>
+            {t("auth.rovas_callout_body_before")}
+            <Text
+              style={styles.calloutLink}
+              onPress={() => void Linking.openURL("https://rovas.app")}
+            >
+              {t("auth.rovas_callout_link")}
+            </Text>
+            {t("auth.rovas_callout_body_after")}
+          </Text>
         </View>
       ) : null}
 
@@ -250,6 +259,7 @@ const styles = StyleSheet.create({
   },
   calloutTitle: { fontWeight: "700", color: colors.ink, fontSize: 13 },
   calloutBody: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  calloutLink: { color: colors.brandSoft, fontWeight: "600" },
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   divider: { flex: 1, height: 1, backgroundColor: colors.border },
   or: { color: colors.muted, fontSize: 12 },

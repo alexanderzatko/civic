@@ -626,9 +626,10 @@ function ScreenRegister({
 
       <Callout tone="info" title="Civic a Rováš">
         <Text size="small">
-          Civic je mobilná aplikácia; váš účet a merity (ME) žijú na{" "}
-          <Link href="https://rovas.app">Rováši</Link>. Pri registrácii sa prihlásite alebo
-          vytvoríte Rováš účet — samostatný účet Civic neexistuje.
+          Civic je mobilný spoločník webovej aplikácie{" "}
+          <Link href="https://rovas.app">Rováš</Link>, kde sa spravuje váš účet a merity
+          (ME). Pri registrácii sa prihlásite alebo vytvoríte Rováš účet — samostatný účet
+          Civic neexistuje.
         </Text>
       </Callout>
 
