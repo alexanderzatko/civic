@@ -25,6 +25,7 @@ import {
 } from "@/lib/api";
 import { rememberRecentProfile } from "@/lib/profile-recents";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 
 function formatMe(n: number): string {
   return displayMerits(n).toLocaleString("sk-SK");
@@ -41,6 +42,7 @@ function formatEurApprox(me: number, rate: MeritRate | null): string {
 }
 
 export default function CommunityProfileScreen() {
+  const { locale } = useLocale();
   const params = useLocalSearchParams<{ username: string }>();
   const usernameParam = Array.isArray(params.username)
     ? params.username[0]
@@ -92,7 +94,7 @@ export default function CommunityProfileScreen() {
       return () => {
         cancelled = true;
       };
-    }, [username]),
+    }, [username, locale]),
   );
 
   if (loading) {

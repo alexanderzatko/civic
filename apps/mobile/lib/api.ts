@@ -18,6 +18,7 @@ import type {
   UserLookup,
   VerifyReceiptResponse,
 } from "@civic/shared";
+import { getLocale } from "@/lib/i18n";
 
 const fallbackUrl = "http://localhost:3001";
 
@@ -171,28 +172,29 @@ export function searchUsers(q: string): Promise<UserSearchResult[]> {
 }
 
 export function lookupUser(username: string): Promise<UserLookup> {
-  const params = new URLSearchParams({ username });
+  const params = new URLSearchParams({ username, lang: getLocale() });
   return apiFetch<UserLookup>(`/users/lookup?${params}`, {
     auth: "required",
   });
 }
 
 export function fetchProject(projectNid: string): Promise<ProjectDetail> {
-  return apiFetch<ProjectDetail>(`/projects/${encodeURIComponent(projectNid)}`, {
-    auth: "required",
-  });
+  const params = new URLSearchParams({ lang: getLocale() });
+  return apiFetch<ProjectDetail>(
+    `/projects/${encodeURIComponent(projectNid)}?${params}`,
+    { auth: "required" },
+  );
 }
 
 export function fetchProjectWorkReports(
   projectNid: string,
   opts?: { limit?: number; offset?: number },
 ): Promise<ProjectWorkReportPage> {
-  const params = new URLSearchParams();
+  const params = new URLSearchParams({ lang: getLocale() });
   if (opts?.limit != null) params.set("limit", String(opts.limit));
   if (opts?.offset != null) params.set("offset", String(opts.offset));
-  const qs = params.toString();
   return apiFetch<ProjectWorkReportPage>(
-    `/projects/${encodeURIComponent(projectNid)}/work-reports${qs ? `?${qs}` : ""}`,
+    `/projects/${encodeURIComponent(projectNid)}/work-reports?${params}`,
     { auth: "required" },
   );
 }

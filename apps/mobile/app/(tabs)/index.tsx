@@ -29,6 +29,7 @@ import {
 } from "@/lib/api";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 
 function formatMe(n: number): string {
   return displayMerits(n).toLocaleString("sk-SK");
@@ -46,6 +47,7 @@ function formatEurApprox(me: number, rate: MeritRate | null): string {
 
 export default function HomeScreen() {
   const { status } = useAuth();
+  const { locale } = useLocale();
   const signedIn = status === "signedIn";
   const [loading, setLoading] = useState(true);
   const [communityMe, setCommunityMe] = useState(0);
@@ -102,7 +104,7 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  }, [signedIn, status]);
+  }, [signedIn, status, locale]);
 
   useMeritsAutoRefresh(() => {
     void refresh();

@@ -5,6 +5,7 @@ import type {
   ProjectWorkReportPage,
 } from "@civic/shared";
 import { requireAuth } from "../auth.js";
+import { resolveCivicContentLang } from "../content-lang.js";
 import type { AppContext } from "../context.js";
 import { RovasClientError } from "../rovas-client.js";
 
@@ -48,6 +49,12 @@ function parsePager(query: { limit?: unknown; offset?: unknown }) {
   };
 }
 
+function parseLang(query: { lang?: unknown }): "sk" | "en" | undefined {
+  return typeof query.lang === "string"
+    ? resolveCivicContentLang(query.lang)
+    : undefined;
+}
+
 export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   app,
   opts,
@@ -56,7 +63,7 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
 
   /**
    * Project detail for in-app modal.
-   * Proxies Rovas `GET /rovas/civic_project/{nid}`.
+   * Proxies Rovas `GET /rovas/civic_project/{nid}?lang=`.
    */
   app.get(
     "/projects/:nid",
@@ -75,6 +82,7 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         const detail: ProjectDetail = await ctx.rovas.fetchProject(
           user.accessToken,
           nid,
+          { lang: parseLang(req.query as { lang?: unknown }) },
         );
         return detail;
       } catch (err) {
@@ -85,7 +93,7 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
 
   /**
    * Paginated work reports for a project.
-   * Proxies Rovas `GET /rovas/civic_project_work_reports?project_nid=`.
+   * Proxies Rovas `GET /rovas/civic_project_work_reports?project_nid=&lang=`.
    */
   app.get(
     "/projects/:nid/work-reports",
@@ -100,13 +108,17 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         });
       }
 
+      const query = req.query as {
+        limit?: unknown;
+        offset?: unknown;
+        lang?: unknown;
+      };
       try {
         const page: ProjectWorkReportPage =
-          await ctx.rovas.fetchProjectWorkReports(
-            user.accessToken,
-            nid,
-            parsePager(req.query as { limit?: unknown; offset?: unknown }),
-          );
+          await ctx.rovas.fetchProjectWorkReports(user.accessToken, nid, {
+            ...parsePager(query),
+            lang: parseLang(query),
+          });
         return page;
       } catch (err) {
         return sendRovasError(reply, err);

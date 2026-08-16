@@ -16,6 +16,10 @@ import type {
   UserLookupProjectRow,
   UserLookupTaxMonth,
 } from "@civic/shared";
+import {
+  appendLangParam,
+  type CivicContentLang,
+} from "./content-lang.js";
 
 export type RovasMe = {
   uid: number;
@@ -236,10 +240,15 @@ export class RovasClient {
 
   /**
    * Community public profile by exact username.
-   * `GET /rovas/users_lookup?username=`
+   * `GET /rovas/users_lookup?username=&lang=`
    */
-  async lookupUser(accessToken: string, username: string): Promise<UserLookup> {
+  async lookupUser(
+    accessToken: string,
+    username: string,
+    opts?: { lang?: CivicContentLang },
+  ): Promise<UserLookup> {
     const params = new URLSearchParams({ username });
+    appendLangParam(params, opts?.lang);
     const body = await this.getJson<Partial<UserLookup>>(
       `/rovas/users_lookup?${params}`,
       accessToken,
@@ -270,15 +279,19 @@ export class RovasClient {
 
   /**
    * Project detail for Civic modal.
-   * `GET /rovas/civic_project/{nid}`
+   * `GET /rovas/civic_project/{nid}?lang=`
    */
   async fetchProject(
     accessToken: string,
     projectNid: string,
+    opts?: { lang?: CivicContentLang },
   ): Promise<ProjectDetail> {
     const nid = encodeURIComponent(projectNid);
+    const params = new URLSearchParams();
+    appendLangParam(params, opts?.lang);
+    const qs = params.toString();
     const body = await this.getJson<Partial<ProjectDetail>>(
-      `/rovas/civic_project/${nid}`,
+      `/rovas/civic_project/${nid}${qs ? `?${qs}` : ""}`,
       accessToken,
     );
     return normalizeProjectDetail(body, projectNid);
@@ -286,12 +299,12 @@ export class RovasClient {
 
   /**
    * Paginated work reports for a project.
-   * `GET /rovas/civic_project_work_reports?project_nid=`
+   * `GET /rovas/civic_project_work_reports?project_nid=&lang=`
    */
   async fetchProjectWorkReports(
     accessToken: string,
     projectNid: string,
-    opts?: { limit?: number; offset?: number },
+    opts?: { limit?: number; offset?: number; lang?: CivicContentLang },
   ): Promise<ProjectWorkReportPage> {
     const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 50);
     const offset = Math.max(opts?.offset ?? 0, 0);
@@ -300,6 +313,7 @@ export class RovasClient {
       limit: String(limit),
       offset: String(offset),
     });
+    appendLangParam(params, opts?.lang);
     const body = await this.getJson<Partial<ProjectWorkReportPage>>(
       `/rovas/civic_project_work_reports?${params}`,
       accessToken,

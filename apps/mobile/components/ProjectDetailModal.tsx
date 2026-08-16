@@ -24,6 +24,7 @@ import {
   fetchProjectWorkReports,
 } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 
 type Props = {
   projectNid: string | null;
@@ -69,6 +70,7 @@ export function ProjectDetailModal({
   onClose,
 }: Props) {
   const router = useRouter();
+  const { locale } = useLocale();
   const visible = projectNid != null;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +110,7 @@ export function ProjectDetailModal({
     return () => {
       cancelled = true;
     };
-  }, [projectNid]);
+  }, [projectNid, locale]);
 
   const openUser = useCallback(
     (username: string) => {

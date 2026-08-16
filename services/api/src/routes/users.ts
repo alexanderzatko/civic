@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import type { UserLookup, UserSearchResult } from "@civic/shared";
 import { requireAuth } from "../auth.js";
+import { resolveCivicContentLang } from "../content-lang.js";
 import type { AppContext } from "../context.js";
 import { RovasClientError } from "../rovas-client.js";
 
@@ -62,17 +63,16 @@ export const usersRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
 
   /**
    * Community public profile by exact Rovas username.
-   * Proxies Rovas `GET /rovas/users_lookup?username=`.
+   * Proxies Rovas `GET /rovas/users_lookup?username=&lang=`.
    */
   app.get(
     "/users/lookup",
     { preHandler: [requireAuth(ctx)] },
     async (req, reply) => {
       const user = req.authUser!;
+      const q = req.query as { username?: unknown; lang?: unknown };
       const username =
-        typeof (req.query as { username?: unknown }).username === "string"
-          ? (req.query as { username: string }).username.trim()
-          : "";
+        typeof q.username === "string" ? q.username.trim() : "";
       if (!username) {
         return reply.code(400).send({
           error: "invalid_username",
@@ -80,10 +80,14 @@ export const usersRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         });
       }
 
+      const lang =
+        typeof q.lang === "string" ? resolveCivicContentLang(q.lang) : undefined;
+
       try {
         const profile: UserLookup = await ctx.rovas.lookupUser(
           user.accessToken,
           username,
+          { lang },
         );
         return profile;
       } catch (err) {
