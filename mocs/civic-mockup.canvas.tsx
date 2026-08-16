@@ -628,7 +628,7 @@ function ScreenRegister({
         <Text size="small">
           Civic je mobilný spoločník webovej aplikácie{" "}
           <Link href="https://rovas.app">Rováš</Link>, kde sa spravuje váš účet a merity
-          (ME). Účet si vytvoríte priamo na Rováši, alebo prepojením Google či Facebook
+          (ME). Účet si vytvoríte priamo v Rováši, alebo prepojením Google či Facebook
           účtu.
         </Text>
       </Callout>
