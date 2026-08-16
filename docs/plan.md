@@ -179,7 +179,7 @@ Optional: multi-root Cursor workspace file linking `civic` and `rovas` when edit
 | Docs (this plan, ADRs, API specs) | **English** | — |
 | User-facing Slack/email support copy | Slovak | English |
 
-i18n implementation: a flat key/value JSON per locale at `apps/mobile/locales/{sk,en}.json` with `en` as the fallback chain. UI strings live behind keys (no hard-coded SK literals in components), so adding more locales later is mechanical. **Runtime:** anonymous → device preferred languages (`expo-localization`); signed-in → Rovas `language` from `/me` (see Rovas **Next work: expose preferred language on /rovas/me**); profile screen can override to `sk`/`en`. Mapping: `sk`→`sk`, `cs`/`cz`→`sk`, else `en`. Currency/date/number formatting uses `Intl` with `sk-SK` or `en-US` from the active UI locale.
+i18n implementation: a flat key/value JSON per locale at `apps/mobile/locales/{sk,en}.json` with `en` as the fallback chain. UI strings live behind keys (no hard-coded SK literals in components), so adding more locales later is mechanical. **Runtime:** anonymous → device preferred languages (iOS `AppleLanguages` / Android locale); signed-in → Rovas `language` from `/me` (see Rovas **Next work: expose preferred language on /rovas/me**); profile screen can override to `sk`/`en`. Mapping: `sk`→`sk`, `cs`/`cz`→`sk`, else `en`. Currency/date/number formatting uses `Intl` with `sk-SK` or `en-US` from the active UI locale.
 
 ---
 

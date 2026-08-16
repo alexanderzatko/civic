@@ -7,13 +7,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getLocales } from "expo-localization";
 import * as SecureStore from "expo-secure-store";
 import { useAuth } from "@/lib/auth";
 import { fetchMe } from "@/lib/api";
+import { deviceLocale } from "@/lib/device-locale";
 import {
   getLocale,
-  localeFromDeviceTags,
   mapToCivicLocale,
   setLocale as applyLocale,
   type Locale,
@@ -31,13 +30,6 @@ type LocaleContextValue = {
 };
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
-
-function deviceLocale(): Locale {
-  const tags = getLocales().map(
-    (l) => l.languageTag || l.languageCode || "",
-  );
-  return localeFromDeviceTags(tags.filter(Boolean));
-}
 
 async function loadOverride(): Promise<Locale | null> {
   try {
