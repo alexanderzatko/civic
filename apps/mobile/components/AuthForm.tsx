@@ -114,16 +114,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {mode === "register" ? (
-        <View style={styles.callout}>
-          <Text style={styles.calloutTitle}>{t("auth.hybrid_title")}</Text>
-          <Text style={styles.calloutBody}>{t("auth.hybrid_body")}</Text>
-        </View>
-      ) : (
+      {mode === "login" ? (
         <View style={styles.callout}>
           <Text style={styles.calloutBody}>{t("auth.pkce_hint")}</Text>
         </View>
-      )}
+      ) : null}
 
       <View style={styles.dividerRow}>
         <View style={styles.divider} />

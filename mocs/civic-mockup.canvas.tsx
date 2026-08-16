@@ -628,8 +628,8 @@ function ScreenRegister({
         <Text size="small">
           Civic je mobilný spoločník webovej aplikácie{" "}
           <Link href="https://rovas.app">Rováš</Link>, kde sa spravuje váš účet a merity
-          (ME). Pri registrácii sa prihlásite alebo vytvoríte Rováš účet — samostatný účet
-          Civic neexistuje.
+          (ME). Účet si vytvoríte priamo na Rováši, alebo prepojením Google či Facebook
+          účtu.
         </Text>
       </Callout>
 
@@ -638,12 +638,6 @@ function ScreenRegister({
         <ProviderButton provider="facebook" label={PROVIDER_LABEL_REGISTER.facebook} onClick={() => signUp("facebook")} />
         <ProviderButton provider="rovas" label={PROVIDER_LABEL_REGISTER.rovas} onClick={() => signUp("rovas")} />
       </Stack>
-
-      <Callout tone="info" title="Automatické prepojenie s Rovášom">
-        <Text size="small">
-          Pri prihlásení cez Google alebo Facebook sa váš Rováš účet vytvorí automaticky.
-        </Text>
-      </Callout>
 
       <Row align="center" gap={8}>
         <div style={{ flex: 1, height: 1, background: t.stroke.tertiary }} />
