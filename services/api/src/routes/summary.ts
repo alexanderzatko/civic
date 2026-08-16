@@ -38,6 +38,7 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         username: profile.username,
         display_name: profile.display_name,
         total_me: profile.total_me,
+        language: profile.language,
         client_id: user.token.client_id,
         scope: user.token.scope ?? null,
         expires_at: user.token.expires,

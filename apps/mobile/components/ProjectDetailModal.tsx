@@ -227,52 +227,43 @@ export function ProjectDetailModal({
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator
           >
-            {!detail.is_public ? (
-              <Text style={styles.hint}>{t("project.private_hint")}</Text>
-            ) : null}
-
             {detail.summary ? (
               <Text style={styles.summary}>{detail.summary}</Text>
-            ) : detail.is_public ? (
+            ) : (
               <Text style={styles.hint}>{t("project.no_summary")}</Text>
-            ) : null}
+            )}
 
             <View style={styles.metaBlock}>
-              {detail.is_public && detail.owner_username ? (
+              {detail.owner_username ? (
                 <MetaRow
                   label={t("project.owner")}
                   value={`@${detail.owner_username}`}
                   onValuePress={() => openUser(detail.owner_username!)}
                 />
               ) : null}
-              {detail.is_public && detail.total_hours != null ? (
+              {detail.total_hours != null ? (
                 <MetaRow
                   label={t("project.total_hours")}
                   value={formatHours(detail.total_hours)}
                 />
               ) : null}
-              {detail.is_public && detail.total_me != null ? (
+              {detail.total_me != null ? (
                 <MetaRow
                   label={t("project.total_me")}
                   value={`${formatMe(detail.total_me)} ${t("common.me")}`}
                 />
               ) : null}
-              {detail.is_public ? (
-                <MetaRow
-                  label={t("project.work_ledgers")}
-                  value={String(detail.work_report_count)}
-                />
-              ) : null}
-              {detail.is_public ? (
-                <MetaRow
-                  label={t("project.shareholders")}
-                  value={String(detail.shareholder_count)}
-                />
-              ) : null}
+              <MetaRow
+                label={t("project.work_ledgers")}
+                value={String(detail.work_report_count)}
+              />
+              <MetaRow
+                label={t("project.shareholders")}
+                value={String(detail.shareholder_count)}
+              />
             </View>
 
-            {detail.is_public ? (
-              <View style={styles.section}>
+            <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
                   {t("project.shareholders")}
                 </Text>
@@ -330,11 +321,9 @@ export function ProjectDetailModal({
                     )}
                   </Pressable>
                 ) : null}
-              </View>
-            ) : null}
+            </View>
 
-            {detail.is_public ? (
-              <View style={styles.section}>
+            <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
                   {t("project.work_ledgers")}
                 </Text>
@@ -375,8 +364,7 @@ export function ProjectDetailModal({
                     )}
                   </Pressable>
                 ) : null}
-              </View>
-            ) : null}
+            </View>
 
             {detail.rovas_url ? (
               <Pressable

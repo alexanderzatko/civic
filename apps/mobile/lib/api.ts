@@ -34,6 +34,8 @@ export type MeIdentity = {
   username?: string;
   display_name?: string;
   total_me?: number;
+  /** Rovas preferred language when exposed on `/rovas/me` (e.g. `sk`, `en`). */
+  language?: string | null;
   client_id: string;
   scope: string | null;
   expires_at: number;

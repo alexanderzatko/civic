@@ -1,9 +1,12 @@
 import { Tabs } from "expo-router";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { colors } from "@/constants/theme";
+import { useLocale } from "@/lib/locale";
 import { t } from "@/lib/i18n";
 
 export default function TabLayout() {
+  useLocale();
+
   return (
     <Tabs
       screenOptions={{

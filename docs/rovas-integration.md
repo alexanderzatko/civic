@@ -4,6 +4,11 @@
 `~/Documents/homeProjects/rovas/docs/integration/civic.md` — that file is the
 source of truth for agents in the **rovas** repo. Do not send them here first.
 
+**Standing rule for Civic agents:** whenever Civic needs something built or
+changed on Rovas, describe that work in the Rovas doc above (a **Next work:**
+section with checklist + smoke test). Do not leave Rovas tasks only in chat —
+Rovas agents read that file, not this conversation.
+
 This document is the **Civic-side** companion (Expo login + Civic API Bearer).
 
 ## Expo client
@@ -47,7 +52,7 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 
 | Route | Notes |
 |-------|--------|
-| `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, created?, client_id, scope, expires_at }`. `created` (ISO-8601 account registration) is required for Civic fraud rule C — see Rovas **Next work: expose account created on /rovas/me**. |
+| `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, created?, language?, client_id, scope, expires_at }`. `created` (ISO-8601 account registration) is required for Civic fraud rule C — see Rovas **Next work: expose account created on /rovas/me**. `language` (Drupal preferred langcode) drives signed-in UI locale — see Rovas **Next work: expose preferred language on /rovas/me**. |
 | `GET /me/contributions/summary` | `total_me` from Rovas wallet; `by_category.taxes` + receipt stats from Rovas claim summary once live (interim: zeros — see Rovas task **Civic claim reads + SoT**) |
 | `POST /receipts/claim` | Re-verify FS + Civic fraud checks (strikes, window, registration, same-store, min VAT, rate limits); UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (optional `shares[]`; optional `location`). Rovas `{civic_claims}` is sole claim registry |
 | `GET /users/search` | Split-claim typeahead — proxies Rovas `GET /rovas/users_search?query=` (Civic accepts `?q=`; maps to Rovas `query` because Drupal reserves `$_GET['q']` for the path) |

@@ -79,6 +79,10 @@ export interface ProjectDetail {
   project_nid: string;
   title: string;
   summary: string | null;
+  /**
+   * Reflects Rovas `field_participation` (Public vs owner-managed joining).
+   * Does **not** hide project content — private projects are still fully readable.
+   */
   is_public: boolean;
   owner_username: string | null;
   owner_display_name: string | null;

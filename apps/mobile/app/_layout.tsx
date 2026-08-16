@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { colors } from "@/constants/theme";
 import { AuthProvider } from "@/lib/auth";
+import { LocaleProvider, useLocale } from "@/lib/locale";
 import { t } from "@/lib/i18n";
 
 export { ErrorBoundary } from "expo-router";
@@ -10,9 +11,12 @@ export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
 
-export default function RootLayout() {
+function RootNavigator() {
+  // Subscribe so header titles refresh when the UI locale changes.
+  useLocale();
+
   return (
-    <AuthProvider>
+    <>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -40,6 +44,16 @@ export default function RootLayout() {
           options={{ title: t("auth.register_nav_title") }}
         />
       </Stack>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <LocaleProvider>
+        <RootNavigator />
+      </LocaleProvider>
     </AuthProvider>
   );
 }

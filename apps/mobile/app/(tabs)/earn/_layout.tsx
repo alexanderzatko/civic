@@ -1,8 +1,11 @@
 import { Stack } from "expo-router";
 import { colors } from "@/constants/theme";
+import { useLocale } from "@/lib/locale";
 import { t } from "@/lib/i18n";
 
 export default function EarnLayout() {
+  useLocale();
+
   return (
     <Stack
       screenOptions={{
