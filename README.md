@@ -146,36 +146,60 @@ target must use **Automatically manage signing** with your Personal Team.
 
 **Each test session** (VPS API is always on; start Metro for the JS bundle):
 
+One-time: claim your free static domain at [ngrok Domains](https://dashboard.ngrok.com/domains)
+and set it in `apps/mobile/.env` (see [`apps/mobile/.env.example`](apps/mobile/.env.example)):
+
+```bash
+NGROK_STATIC_DOMAIN=your-name.ngrok-free.dev
+EXPO_PACKAGER_PROXY_URL=https://your-name.ngrok-free.dev
+```
+
+Requires the **system** [ngrok CLI](https://ngrok.com/download) authenticated to your
+account (`ngrok config add-authtoken …`).
+
 ```bash
 # Confirm API (optional)
 curl -fsS https://civic-api.rovas.app/health
 
-# Metro via tunnel (preferred when ngrok cooperates)
-pnpm dev:mobile:tunnel
+# Terminal 1 — Metro (uses NGROK_STATIC_DOMAIN from apps/mobile/.env)
+pnpm dev:mobile:ngrok
+
+# Terminal 2 — expose localhost:8081 on your reserved domain
+pnpm ngrok:tunnel
 ```
 
 Ensure `apps/mobile/.env` has `EXPO_PUBLIC_API_URL=https://civic-api.rovas.app`
 before starting Metro.
 
+On the phone → **Enter URL manually** → `https://<NGROK_STATIC_DOMAIN>` (same
+every session).
+
+1. Open the **Civic** app on the phone (not Expo Go).
+2. If nothing appears under Development Servers: **Enter URL manually** → your
+   static ngrok URL (not a gray Recently Opened `exp.direct` entry).
+3. Start Metro before ngrok (`pnpm dev:mobile:ngrok`, then `pnpm ngrok:tunnel`).
+4. If port 8081 is already in use, cancel a second `pnpm dev:mobile` / Expo
+   start — reuse the existing Metro, or kill the old process and start one
+   Metro session. Prefer one bundler on 8081; don’t switch the phone to 8082
+   unless you mean to.
+5. The API is reached over HTTPS at `EXPO_PUBLIC_API_URL`; ngrok only carries
+   the JS bundle (Metro). Same Wi‑Fi as the Mac is not required for the VPS API.
+
+**Alternative — Expo built-in tunnel** (random `*.exp.direct` URL every session):
+
+```bash
+pnpm dev:mobile:tunnel
+```
+
 Wait until the terminal prints a tunnel URL (`https://….exp.direct`). That URL
 is **new every session** — an old one in the app’s Recently Opened list (gray
 dot) is dead; do not reuse it.
 
-1. Open the **Civic** app on the phone (not Expo Go).
-2. If nothing appears under Development Servers: **Enter URL manually** → paste
-   the **fresh** tunnel URL from the terminal (not Recently Opened).
-3. If port 8081 is already in use, cancel a second `pnpm dev:mobile` / Expo
-   start — reuse the existing Metro, or kill the old process and start one
-   Metro session. Prefer one bundler on 8081; don’t switch the phone to 8082
-   unless you mean to.
-4. The API is reached over HTTPS at `EXPO_PUBLIC_API_URL`; the tunnel only
-   carries the JS bundle (Metro). Same Wi‑Fi as the Mac is not required for
-   the VPS API.
-
 ### If tunnel fails (`remote gone away` / ngrok error)
 
 Expo’s built-in tunnel (`@expo/ngrok`) is flaky even when
-[ngrok status](https://status.ngrok.com/) is green. Retry once.
+[ngrok status](https://status.ngrok.com/) is green. Prefer **`pnpm dev:mobile:ngrok`**
+above; otherwise retry `pnpm dev:mobile:tunnel` once.
 
 **LAN fallback** (only if phone ↔ Mac on the same Wi‑Fi can talk — some APs
 block client-to-client):
@@ -186,9 +210,8 @@ pnpm dev:mobile:lan
 
 On the phone → **Enter URL manually** → `http://<Mac-LAN-IP>:8081`.
 
-**If LAN is blocked** (common here): run Metro on LAN locally, then expose it
-with the **system** `ngrok` CLI (authenticated install), and point Expo at that
-public URL:
+**If LAN is blocked** (common here) but you have not set up a static ngrok
+domain: run Metro on LAN locally, then expose it with the system ngrok CLI:
 
 ```bash
 # Terminal 1 — Metro (binds localhost:8081)
