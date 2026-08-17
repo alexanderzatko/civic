@@ -57,7 +57,7 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `POST /receipts/claim` | Re-verify FS + Civic fraud checks (strikes, window, registration, same-store, min VAT, rate limits); UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (optional `shares[]`; optional `location`). Rovas `{civic_claims}` is sole claim registry |
 | `GET /users/search` | Split-claim typeahead — proxies Rovas `GET /rovas/users_search?query=` (Civic accepts `?q=`; maps to Rovas `query` because Drupal reserves `$_GET['q']` for the path) |
 | `GET /users/lookup` | Community public profile — proxies Rovas `GET /rovas/users_lookup?username=&lang=` (Bearer; exact username). Optional `lang=sk|en` for translated project `name`s — see Rovas **Next work: localized project and work-report text**. Returns `UserLookup` (`total_me`, `by_category`, tax months, top charity/volunteer). Percentile is computed on Civic from `/rank/distribution`. Friend invite on Komunita is client `mailto:` only (no Rovas invite API). |
-| `GET /users/me/merit-history` | Signed-in Merit ledger for Profil — proxies Rovas `GET /rovas/civic_merit_history?limit=&offset=&lang=` (Bearer). Same rows as Views `merit_history` / `page_1` (`/user/%/merits`). See Rovas **Next work: merit history (profile ledger)**. |
+| `GET /users/me/merit-history` | Signed-in Merit ledger for Profil — proxies Rovas `GET /rovas/civic_merit_history?limit=&offset=&lang=` (Bearer). Same rows as Views `merit_history` / `page_1` (`/user/%/merits`). Rovas **live** — see **merit history (profile ledger)**. |
 | `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}?lang=` (Bearer). Optional `lang=sk|en` for translated `title`/`summary` (+ embedded WR text). See Rovas **project detail + work reports** and **localized project and work-report text**. |
 | `GET /projects/:nid/work-reports` | Paginated work ledgers — proxies Rovas `GET /rovas/civic_project_work_reports?project_nid=&lang=` (Bearer). Same `lang` rules as project detail. |
 | `GET /projects/:nid/shareholders` | Paginated shareholders — proxies Rovas `GET /rovas/civic_project_shareholders?project_nid=` (Bearer). See Rovas **Next work: project shareholders + WR photos**. |
@@ -146,4 +146,4 @@ history includes `scanner_username` + `scanner_display_name` (with
 National rate read: → **Next work: public national hourly rate API**. Users
 search: → **Next work: users search (split typeahead)**. Users lookup
 (Komunita): → **Next work: users lookup (community public profile)**.
-Merit history (Profil): → **Next work: merit history (profile ledger)**.
+Merit history (Profil): → **Done: merit history (profile ledger)** (`GET /rovas/civic_merit_history`).
