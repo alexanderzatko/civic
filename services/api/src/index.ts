@@ -35,6 +35,7 @@ async function main() {
       "GET /receipts/fs-detail",
       "GET /users/search",
       "GET /users/lookup",
+      "GET /users/me/merit-history",
       "GET /projects/:nid",
       "GET /projects/:nid/work-reports",
       "GET /projects/:nid/shareholders",

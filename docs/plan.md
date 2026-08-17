@@ -74,7 +74,6 @@ Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**). 
 - Tax refunds or legal tax advice
 - Native in-app charity donation flow (v1 hyperlinks to Rovas)
 - Native in-app volunteer-report submission (v1 hyperlinks to Rovas)
-- Cross-path **Merit acquisition history** (full ledger of where/when/how much ME was earned — see §16)
 
 **Future (not planned here):** donation receipts, eFaktúra B2B (2027+), bank estimates as non-Merit dashboard, in-app investment flow with auto-Merit yield. **Income-tax Merits + ÚPVS / slovensko.sk citizen identity** are sketched in §16 (post-v1).
 
@@ -311,6 +310,7 @@ When a single receipt is claimed for multiple Rovas users (§7), the **total** i
 | GET | `/charities/projects` | Public | Proxies the new Rovas charity-projects endpoint (§8c); query param `?type=charity\|invest` differentiates screens 3 and 5; each item carries a canonical `rovas_url` for v1 hyperlink-out |
 | GET | `/rank/distribution` | Public (Rovas Bearer optional) | Proxies the existing **Rovas Merit Distribution** module Services endpoint; returns log-scale buckets `[{ label, count }]` for the histogram on screen 0. With a Bearer token, the response also returns `user_bucket_index` so the mobile app can highlight the caller's bucket and label it with their Rovas username |
 | GET | `/users/lookup` | Rovas Bearer required | Community public profile — `?username=<rovas_username>` proxies Rovas `GET /rovas/users_lookup`; returns `UserLookup` (`rovas_uid`, `display_name`, `total_me`, `by_category`, tax months, top charity/volunteer). Percentile computed on Civic from `/rank/distribution`. |
+| GET | `/users/me/merit-history` | Rovas Bearer required | Paginated Merit ledger for Profil — proxies Rovas `GET /rovas/civic_merit_history` (Views `merit_history` / `page_1`). |
 
 No local auth endpoints — login happens entirely via Rovas OAuth in the Expo app.
 
@@ -563,6 +563,7 @@ Civic's home, earn-hub, and community screens consume read-only signals from Rov
 | `GET /rovas/civic/claims?view=submitted\|received` | Screen 2 history tabs | Paginated claim/share rows from `{civic_claims}` / `{civic_claim_shares}` (sole claim SoT) | **Done** — Rovas live; Civic proxies via `GET /receipts?view=` |
 | `GET /rovas/civic/claims/summary` | `/me/contributions/summary` taxes + receipt stats | `{ receipt_count, total_vat_eur, taxes_me }` (or equivalent fields on `/rovas/me`) | **Done** — Rovas live; Civic wires into `/me/contributions/summary` |
 | `GET /rovas/users_lookup?username=…` | Screen 6 (Komunita) | Public-profile shape: `rovas_uid, username, display_name, total_me, by_category, taxes_last_3_months[], top_charities[], top_volunteer_projects[]`. Machine-name path (no slash). Honours searchable preference (404 if private). Percentile computed on Civic. | **Live** — see Rovas `docs/integration/civic.md` → users lookup |
+| `GET /rovas/civic_merit_history` | Profil (Merit ledger) | Paginated `{ total, items[] }` mirroring Views `merit_history` / `page_1` (`/user/%/merits`): date, source kind (project / report / purchase), title, ME. Bearer = reward recipient. | **Phase 2** — see Rovas **Next work: merit history (profile ledger)** |
 | `POST /rovas/rules/rules_proxy_volunteer_report` | Screen 4 (Dobrovoľnícka práca) | Submits a simplified volunteer report (project, date, hours, description) and returns Merit grant outcome | Phase 3 |
 
 **v1 behaviour:**
@@ -605,7 +606,7 @@ Slovak labels are the user-facing source of truth (see §3 Language strategy). R
 | 6 | `/(tabs)/community` | Komunita | Community / user lookup by Rovas username | **Built** — search + public profile stack; recents in SecureStore; invite-friend mailto last |
 | — | `/(auth)/login` | Prihlásenie | Login | **Fully built** — Rovas OAuth (Google / Facebook / Rovas) |
 | — | `/(auth)/register` | Registrácia | Registration | **Fully built** — same OAuth providers, framed for first-time users; HybridAuth auto-creates the Rovas account |
-| — | `/(tabs)/profile` | Profil | Profile | **Fully built** — Rovas user info, Merit balance, sign out. **Post-v1:** entry point to a Merit acquisition history screen (§16) — parity with the Rovas user-profile Merit ledger |
+| — | `/(tabs)/profile` | Profil | Profile | **Fully built** — Rovas user info, sign out, language. **Phase 2:** Merit acquisition history on this screen — parity with Rovas `/user/<uid>/merits` (Views `merit_history` / `page_1`), proxied via `GET /users/me/merit-history`. |
 
 The earn-hub child routes (`/earn/receipts`, `/earn/charity`, `/earn/volunteer`, `/earn/invest`) are reached from screen 1's primary CTAs and from the inter-screen links shown in the canvas mockup. Screen 0 surfaces a single primary CTA — "Získať merity" — that routes to screen 1, and inline links such as "komunite" inside the **Vaša pozícia v komunite** callout deep-link to screen 6.
 
@@ -765,6 +766,7 @@ Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to pa
   - Mobile: location permission prompt before first claim; GPS attached to verify + claim requests
   - Mobile: screen 2 split UI (search, memory, always-share toggle, default equal split with override, auto-rebalance, sum-to-100 validation); history split into "received Merits" vs "submitted receipts"
 - `/me/contributions/summary` reads real Merit history per category, aggregating across received shares
+- **Profil Merit ledger:** Rovas `GET /rovas/civic_merit_history` (Views `merit_history` / `page_1`) proxied as Civic `GET /users/me/merit-history`; Expo profile lists date / source / ME
 - **Stretch:** if the new Rovas read endpoints from §8c land, swap `/charities/projects` and `/community/contributions/summary` from static config to live proxies
 - **Rovas:** create the public `/charity-projects` page linked from screen 3's invite-organisation e-mail template
 
@@ -859,7 +861,7 @@ Implications for Civic:
 - Auto-deduct Merits as fraud punishment, Merit leaderboard in app
 - **ÚPVS / slovensko.sk citizen identity + income-tax Merits** — see §16 (identity attach + claim flow sketched; personal tax machine API not available today)
 - **Lock-screen / home-screen receipt-scan widget (post-v1)** — iOS WidgetKit / Android App Widget (or a lock-screen quick action) that deep-links into Civic scan mode. Target UX: user pays in-store with the phone, keeps the receipt in hand, taps the widget on the lock/home screen, and lands directly in QR scanning without navigating the earn hub. Not in the current implementation pass.
-- **Merit acquisition history (post-v1)** — a profile-linked screen that lists every Merit credit the user received: source/path (receipt VAT, charity, volunteer, investment yield, split-claim share from another scanner, etc.), timestamp, and amount (whole-number ME in the UI). Rovas already exposes this on the user profile; Civic needs the same transparency so users can see *whether* Merits arrived, *from where*, and *how much*. v1 already covers the receipt-only slice on screen 2 ("Moje merity z bločkov" / "Moje naskenované bločky"); the deferred screen is the **cross-path ledger**, likely backed by a Rovas Merit-history read endpoint proxied through Civic API (`GET /users/me/merit-history` or similar) and reached from Profil. Not required for version 1.
+- **Merit acquisition history** — **Phase 2 on Profil** (was post-v1). Cross-path ledger from Rovas Views `merit_history` / `page_1`, proxied as `GET /users/me/merit-history`. Receipt-only tabs on screen 2 remain.
 
 ---
 

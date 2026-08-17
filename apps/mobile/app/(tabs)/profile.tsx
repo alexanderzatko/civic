@@ -1,45 +1,122 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "expo-router";
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { displayMerits, type MeritHistoryItem } from "@civic/shared";
+import { MeritHistoryList } from "@/components/MeritHistoryList";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
-import { fetchMe } from "@/lib/api";
+import { fetchMe, fetchMeritHistory } from "@/lib/api";
 import { CIVIC_LOCALES, type Locale, t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
+import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
+
+const PAGE_SIZE = 20;
 
 const LOCALE_LABELS: Record<Locale, string> = {
   sk: "Slovenčina",
   en: "English",
 };
 
+function formatMe(n: number): string {
+  return displayMerits(n).toLocaleString("sk-SK");
+}
+
 export default function ProfileScreen() {
   const { status, signOut } = useAuth();
   const { locale, setAppLocale } = useLocale();
   const [username, setUsername] = useState<string | null>(null);
+  const [totalMe, setTotalMe] = useState<number | null>(null);
+  const [items, setItems] = useState<MeritHistoryItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
+
+  const loadFirstPage = useCallback(async () => {
+    if (status !== "signedIn") return;
+    setHistoryLoading(true);
+    setHistoryError(false);
+    try {
+      const page = await fetchMeritHistory({ limit: PAGE_SIZE, offset: 0 });
+      setItems(page.items);
+      setTotal(page.total);
+    } catch {
+      setItems([]);
+      setTotal(0);
+      setHistoryError(true);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [status]);
 
   useEffect(() => {
     if (status !== "signedIn") {
       setUsername(null);
+      setTotalMe(null);
+      setItems([]);
+      setTotal(0);
+      setHistoryError(false);
       return;
     }
     let cancelled = false;
     fetchMe()
       .then((me) => {
-        if (!cancelled) setUsername(me.username ?? me.rovas_uid);
+        if (cancelled) return;
+        setUsername(me.username ?? me.rovas_uid);
+        setTotalMe(typeof me.total_me === "number" ? me.total_me : null);
       })
       .catch(() => {
-        if (!cancelled) setUsername(null);
+        if (!cancelled) {
+          setUsername(null);
+          setTotalMe(null);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [status]);
+
+  useMeritsAutoRefresh(loadFirstPage);
+
+  const localeRef = useRef(locale);
+  useEffect(() => {
+    if (status !== "signedIn") {
+      localeRef.current = locale;
+      return;
+    }
+    if (localeRef.current === locale) return;
+    localeRef.current = locale;
+    void loadFirstPage();
+  }, [locale, loadFirstPage, status]);
+
+  const onLoadMore = useCallback(() => {
+    if (loadingMore || items.length >= total) return;
+    setLoadingMore(true);
+    void fetchMeritHistory({ limit: PAGE_SIZE, offset: items.length })
+      .then((page) => {
+        setItems((prev) => {
+          const seen = new Set(prev.map((r) => r.disbursement_nid));
+          return [
+            ...prev,
+            ...page.items.filter((r) => !seen.has(r.disbursement_nid)),
+          ];
+        });
+        setTotal(page.total);
+      })
+      .catch(() => {
+        setHistoryError(true);
+      })
+      .finally(() => {
+        setLoadingMore(false);
+      });
+  }, [items.length, loadingMore, total]);
 
   const languageSwitcher = (
     <View style={styles.langBlock}>
@@ -74,7 +151,7 @@ export default function ProfileScreen() {
 
   if (status === "loading") {
     return (
-      <View style={styles.container}>
+      <View style={styles.centered}>
         <ActivityIndicator color={colors.brand} />
       </View>
     );
@@ -82,12 +159,17 @@ export default function ProfileScreen() {
 
   if (status === "signedIn") {
     return (
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.brand}>Civic</Text>
         <Text style={styles.body}>{t("profile.signed_in")}</Text>
         {username ? (
           <Text style={styles.meta}>
             {t("profile.username")}: @{username}
+          </Text>
+        ) : null}
+        {totalMe != null ? (
+          <Text style={styles.balance}>
+            {formatMe(totalMe)} {t("common.me")}
           </Text>
         ) : null}
         {languageSwitcher}
@@ -99,7 +181,15 @@ export default function ProfileScreen() {
         >
           <Text style={styles.btnText}>{t("profile.sign_out")}</Text>
         </Pressable>
-      </View>
+        <MeritHistoryList
+          items={items}
+          total={total}
+          loading={historyLoading}
+          loadingMore={loadingMore}
+          error={historyError}
+          onLoadMore={onLoadMore}
+        />
+      </ScrollView>
     );
   }
 
@@ -118,10 +208,12 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, gap: 16 },
+  centered: { flex: 1, padding: 24, justifyContent: "center" },
+  container: { padding: 24, gap: 16, paddingBottom: 48 },
   brand: { fontSize: 24, fontWeight: "700", color: colors.brand },
   body: { color: colors.muted, lineHeight: 22 },
   meta: { color: colors.ink, fontWeight: "600" },
+  balance: { fontSize: 22, fontWeight: "700", color: colors.ink },
   langBlock: { gap: 8 },
   langLabel: { color: colors.ink, fontWeight: "600" },
   langRow: { flexDirection: "row", gap: 8 },

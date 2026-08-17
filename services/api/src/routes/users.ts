@@ -95,4 +95,41 @@ export const usersRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       }
     },
   );
+
+  /**
+   * Signed-in Merit ledger (Profil).
+   * Proxies Rovas `GET /rovas/civic_merit_history?limit=&offset=&lang=`.
+   */
+  app.get(
+    "/users/me/merit-history",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const q = req.query as {
+        limit?: unknown;
+        offset?: unknown;
+        lang?: unknown;
+      };
+      const limit =
+        typeof q.limit === "string" || typeof q.limit === "number"
+          ? Number(q.limit)
+          : undefined;
+      const offset =
+        typeof q.offset === "string" || typeof q.offset === "number"
+          ? Number(q.offset)
+          : undefined;
+      const lang =
+        typeof q.lang === "string" ? resolveCivicContentLang(q.lang) : undefined;
+
+      try {
+        return await ctx.rovas.fetchMeritHistory(user.accessToken, {
+          ...(Number.isFinite(limit) ? { limit } : {}),
+          ...(Number.isFinite(offset) ? { offset } : {}),
+          lang,
+        });
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
 };

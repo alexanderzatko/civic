@@ -17,6 +17,7 @@ import type {
   UserSearchResult,
   UserLookup,
   VerifyReceiptResponse,
+  MeritHistoryPage,
 } from "@civic/shared";
 import { getLocale } from "@/lib/i18n";
 
@@ -174,6 +175,18 @@ export function searchUsers(q: string): Promise<UserSearchResult[]> {
 export function lookupUser(username: string): Promise<UserLookup> {
   const params = new URLSearchParams({ username, lang: getLocale() });
   return apiFetch<UserLookup>(`/users/lookup?${params}`, {
+    auth: "required",
+  });
+}
+
+export function fetchMeritHistory(opts?: {
+  limit?: number;
+  offset?: number;
+}): Promise<MeritHistoryPage> {
+  const params = new URLSearchParams({ lang: getLocale() });
+  if (opts?.limit != null) params.set("limit", String(opts.limit));
+  if (opts?.offset != null) params.set("offset", String(opts.offset));
+  return apiFetch<MeritHistoryPage>(`/users/me/merit-history?${params}`, {
     auth: "required",
   });
 }

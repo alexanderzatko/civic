@@ -357,3 +357,26 @@ export interface ReceiptDetailError {
 }
 
 export type ReceiptDetailResponse = ReceiptDetail | ReceiptDetailError;
+
+/** Source kind from Rovas Views `merit_history` Source PHP field. */
+export type MeritHistorySourceKind = "project" | "report" | "purchase";
+
+/** One row of the signed-in user's Merit ledger (`GET /users/me/merit-history`). */
+export interface MeritHistoryItem {
+  disbursement_nid: string;
+  node_type: "merits_disbursement" | "merit_penalty";
+  created_at: string;
+  merits: number;
+  source_kind: MeritHistorySourceKind;
+  /** Localized project or work-report title; null for `purchase`. */
+  source_title: string | null;
+  project_nid: string | null;
+  work_report_nid: string | null;
+}
+
+export interface MeritHistoryPage {
+  items: MeritHistoryItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}

@@ -1,5 +1,8 @@
 import type {
   ContributionCategoryBreakdown,
+  MeritHistoryItem,
+  MeritHistoryPage,
+  MeritHistorySourceKind,
   ProjectDetail,
   ProjectShareholderItem,
   ProjectShareholderPage,
@@ -275,6 +278,28 @@ export class RovasClient {
       top_charities: normalizeProjectRows(body.top_charities),
       top_volunteer_projects: normalizeProjectRows(body.top_volunteer_projects),
     };
+  }
+
+  /**
+   * Signed-in Merit ledger (Views merit_history / page_1).
+   * `GET /rovas/civic_merit_history?limit=&offset=&lang=`
+   */
+  async fetchMeritHistory(
+    accessToken: string,
+    opts?: { limit?: number; offset?: number; lang?: CivicContentLang },
+  ): Promise<MeritHistoryPage> {
+    const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 50);
+    const offset = Math.max(opts?.offset ?? 0, 0);
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    });
+    appendLangParam(params, opts?.lang);
+    const body = await this.getJson<Partial<MeritHistoryPage>>(
+      `/rovas/civic_merit_history?${params}`,
+      accessToken,
+    );
+    return normalizeMeritHistoryPage(body, limit, offset);
   }
 
   /**
@@ -822,5 +847,65 @@ function normalizeProjectDetail(
         : "",
     work_reports: wr,
     shareholders,
+  };
+}
+
+function nidOrNull(raw: unknown): string | null {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  return s && s !== "0" ? s : null;
+}
+
+function normalizeMeritHistoryItem(raw: unknown): MeritHistoryItem | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<MeritHistoryItem>;
+  const disbursementNid = nidOrNull(r.disbursement_nid);
+  const merits = Number(r.merits);
+  if (!disbursementNid || !Number.isFinite(merits)) return null;
+  const kind: MeritHistorySourceKind =
+    r.source_kind === "project" ||
+    r.source_kind === "report" ||
+    r.source_kind === "purchase"
+      ? r.source_kind
+      : "purchase";
+  const nodeType =
+    r.node_type === "merit_penalty" ? "merit_penalty" : "merits_disbursement";
+  const title =
+    typeof r.source_title === "string" && r.source_title.trim()
+      ? r.source_title.trim()
+      : null;
+  return {
+    disbursement_nid: disbursementNid,
+    node_type: nodeType,
+    created_at:
+      typeof r.created_at === "string" && r.created_at ? r.created_at : "",
+    merits,
+    source_kind: kind,
+    source_title: kind === "purchase" ? null : title,
+    project_nid: nidOrNull(r.project_nid),
+    work_report_nid: nidOrNull(r.work_report_nid),
+  };
+}
+
+function normalizeMeritHistoryPage(
+  raw: Partial<MeritHistoryPage> | undefined,
+  fallbackLimit: number,
+  fallbackOffset: number,
+): MeritHistoryPage {
+  if (!Array.isArray(raw?.items) || typeof raw?.total !== "number") {
+    throw new RovasClientError(
+      "Rovas civic_merit_history missing items/total",
+      502,
+      raw,
+    );
+  }
+  const items = raw.items
+    .map(normalizeMeritHistoryItem)
+    .filter((x): x is MeritHistoryItem => x != null);
+  return {
+    total: raw.total,
+    limit: typeof raw.limit === "number" ? raw.limit : fallbackLimit,
+    offset: typeof raw.offset === "number" ? raw.offset : fallbackOffset,
+    items,
   };
 }
