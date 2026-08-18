@@ -201,7 +201,7 @@
   "volunteer.error_date": "Enter the date as DD.MM.YYYY.",
   "volunteer.error_hours": "Hours must be a positive number.",
   "volunteer.error_photo": "Could not load the photo.",
-  "volunteer.error_photo_native": "Photo picking needs a fresh Civic development build (after adding expo-image-picker). Use a web URL for proof in the meantime.",
+  "volunteer.error_photo_native": "Photo picking is not in this app install. After adding expo-image-picker run: pnpm --filter @civic/mobile ios:device:clean (not Expo Go). Use a web URL meanwhile.",
 
   "invest.title": "Investment projects",
   "invest.stub": "List links out to Rovas projects.",

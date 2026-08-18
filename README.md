@@ -141,6 +141,17 @@ launcher shows “No development servers found” / “error loading app”.
 pnpm --filter @civic/mobile ios:device
 ```
 
+After adding or upgrading a **native module** (e.g. `expo-image-picker`), the
+existing `ios/` folder must be regenerated or the new native code is not linked.
+Use a clean prebuild once:
+
+```bash
+pnpm --filter @civic/mobile ios:device:clean
+```
+
+Open the **Civic** app on the phone (not Expo Go). `ios:device` alone reuses
+stale native projects and modules like photo picking will still fail.
+
 Xcode must have your Apple ID under **Settings → Accounts**, and the Civic
 target must use **Automatically manage signing** with your Personal Team.
 

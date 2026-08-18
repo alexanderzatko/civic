@@ -201,7 +201,7 @@
   "volunteer.error_date": "Zadajte dátum v tvare DD.MM.RRRR.",
   "volunteer.error_hours": "Hodiny musia byť kladné číslo.",
   "volunteer.error_photo": "Fotografiu sa nepodarilo načítať.",
-  "volunteer.error_photo_native": "Výber fotografií vyžaduje nový vývojársky build aplikácie Civic (po pridaní expo-image-picker). Medzitým použite webovú adresu ako dôkaz.",
+  "volunteer.error_photo_native": "Výber fotografií nie je v tejto inštalácii aplikácie. Po pridaní expo-image-picker spustite: pnpm --filter @civic/mobile ios:device:clean (nie Expo Go). Medzitým použite webovú adresu.",
 
   "invest.title": "Investičné projekty",
   "invest.stub": "Zoznam odkazuje na projekty v Rovase.",
