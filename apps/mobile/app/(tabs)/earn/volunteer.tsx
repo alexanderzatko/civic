@@ -12,7 +12,6 @@ import {
   View,
 } from "react-native";
 import { Link, router, useFocusEffect } from "expo-router";
-import * as ImagePicker from "expo-image-picker";
 import type {
   CreateWorkReportErrorCode,
   NaceNode,
@@ -30,6 +29,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
+import { pickVolunteerPhoto } from "@/lib/pick-volunteer-photo";
 import { useProjectSearch } from "@/lib/use-project-search";
 
 const ROVAS_API_DOCS = "https://dev.rovas.app/api";
@@ -124,24 +124,21 @@ export default function VolunteerScreen() {
 
   const onPickPhoto = async () => {
     setFormError(null);
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      setFormError(t("volunteer.error_photo"));
+    const result = await pickVolunteerPhoto(photos.length);
+    if (result.ok) {
+      setPhotos((prev) => {
+        if (prev.length >= 5) return prev;
+        return [...prev, result.photo];
+      });
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.6,
-      base64: true,
-    });
-    if (result.canceled || !result.assets[0]?.base64) return;
-    const asset = result.assets[0];
-    const mime = asset.mimeType ?? "image/jpeg";
-    const filename = asset.fileName ?? `photo-${photos.length + 1}.jpg`;
-    setPhotos((prev) => {
-      if (prev.length >= 5) return prev;
-      return [...prev, { filename, mime, data: asset.base64! }];
-    });
+    if (result.reason === "unavailable") {
+      setFormError(t("volunteer.error_photo_native"));
+      return;
+    }
+    if (result.reason === "denied") {
+      setFormError(t("volunteer.error_photo"));
+    }
   };
 
   const onSubmit = async () => {
