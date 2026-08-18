@@ -1,24 +1,48 @@
+import { Platform } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { requireOptionalNativeModule } from "expo-modules-core";
 import type { WorkReportPhotoInput } from "@civic/shared";
 
 export type PickVolunteerPhotoResult =
   | { ok: true; photo: WorkReportPhotoInput }
-  | { ok: false; reason: "unavailable" | "denied" | "cancelled" };
+  | {
+      ok: false;
+      reason: "unavailable" | "denied" | "cancelled" | "error";
+      message?: string;
+    };
 
-/** Lazy-loads expo-image-picker so the route works without a native rebuild. */
+/** True when the native ExponentImagePicker module is registered in this app binary. */
+export function volunteerPhotoPickerAvailable(): boolean {
+  return requireOptionalNativeModule("ExponentImagePicker") != null;
+}
+
+function isNativeModuleError(message: string): boolean {
+  return (
+    message.includes("Cannot find native module") ||
+    message.includes("UnavailabilityError") ||
+    message.includes("ExponentImagePicker")
+  );
+}
+
 export async function pickVolunteerPhoto(
   index: number,
 ): Promise<PickVolunteerPhotoResult> {
-  let ImagePicker: typeof import("expo-image-picker");
-  try {
-    ImagePicker = await import("expo-image-picker");
-  } catch {
+  if (!volunteerPhotoPickerAvailable()) {
+    if (__DEV__) {
+      console.warn(
+        "[volunteer] ExponentImagePicker is not registered in this app binary",
+      );
+    }
     return { ok: false, reason: "unavailable" };
   }
 
   try {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      return { ok: false, reason: "denied" };
+    // iOS 14+ PHPicker does not require photo-library permission beforehand.
+    if (Platform.OS !== "ios") {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        return { ok: false, reason: "denied" };
+      }
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -26,7 +50,7 @@ export async function pickVolunteerPhoto(
       quality: 0.6,
       base64: true,
     });
-    if (result.canceled || !result.assets[0]?.base64) {
+    if (result.canceled || !result.assets[0]) {
       return { ok: false, reason: "cancelled" };
     }
 
@@ -43,7 +67,14 @@ export async function pickVolunteerPhoto(
         data,
       },
     };
-  } catch {
-    return { ok: false, reason: "unavailable" };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (__DEV__) {
+      console.error("[volunteer] launchImageLibraryAsync failed", err);
+    }
+    if (isNativeModuleError(message)) {
+      return { ok: false, reason: "unavailable" };
+    }
+    return { ok: false, reason: "error", message };
   }
 }

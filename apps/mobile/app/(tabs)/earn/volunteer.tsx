@@ -29,7 +29,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
-import { pickVolunteerPhoto } from "@/lib/pick-volunteer-photo";
+import { pickVolunteerPhoto, volunteerPhotoPickerAvailable } from "@/lib/pick-volunteer-photo";
 import { useProjectSearch } from "@/lib/use-project-search";
 
 const ROVAS_API_DOCS = "https://dev.rovas.app/api";
@@ -138,6 +138,11 @@ export default function VolunteerScreen() {
     }
     if (result.reason === "denied") {
       setFormError(t("volunteer.error_photo"));
+      return;
+    }
+    if (result.reason === "error") {
+      setFormError(result.message ?? t("volunteer.error_photo"));
+      return;
     }
   };
 
@@ -407,6 +412,11 @@ export default function VolunteerScreen() {
           editable={signedIn}
         />
         <Text style={styles.label}>{t("volunteer.proof_photos")}</Text>
+        {__DEV__ && !volunteerPhotoPickerAvailable() ? (
+          <Text style={styles.warn}>
+            {t("volunteer.error_photo_native")}
+          </Text>
+        ) : null}
         {photos.map((p, i) => (
           <View key={`${p.filename}-${i}`} style={styles.photoRow}>
             <Text style={styles.choiceText} numberOfLines={1}>

@@ -149,6 +149,13 @@ Use a clean prebuild once:
 pnpm --filter @civic/mobile ios:device:clean
 ```
 
+If that command builds but fails at **launch** (common after trusting the
+developer profile), finish from Xcode:
+
+1. Open **`apps/mobile/ios/Civic.xcworkspace`** (not `.xcodeproj`).
+2. **Product → Clean Build Folder**, then **Run** on your iPhone.
+3. If photos still fail, delete the app from the phone and run again.
+
 Open the **Civic** app on the phone (not Expo Go). `ios:device` alone reuses
 stale native projects and modules like photo picking will still fail.
 
