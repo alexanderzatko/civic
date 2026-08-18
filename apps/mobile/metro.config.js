@@ -12,7 +12,6 @@ config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, "node_modules"),
   path.resolve(monorepoRoot, "node_modules"),
 ];
-config.resolver.disableHierarchicalLookup = true;
 
 // packages/shared uses NodeNext-style `./foo.js` imports that map to `./foo.ts`.
 const upstreamResolveRequest = config.resolver.resolveRequest;
