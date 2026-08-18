@@ -1,13 +1,18 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import type {
+  CreateProjectResponse,
   ProjectDetail,
   ProjectShareholderPage,
   ProjectWorkReportPage,
+  VolunteerProjectRow,
 } from "@civic/shared";
 import { requireAuth } from "../auth.js";
 import { resolveCivicContentLang } from "../content-lang.js";
 import type { AppContext } from "../context.js";
-import { RovasClientError } from "../rovas-client.js";
+import {
+  RovasClientError,
+  volunteerErrorCodeFromRovas,
+} from "../rovas-client.js";
 
 function sendRovasError(reply: FastifyReply, err: unknown) {
   if (err instanceof RovasClientError) {
@@ -16,9 +21,11 @@ function sendRovasError(reply: FastifyReply, err: unknown) {
         ? "not_found"
         : err.status === 400
           ? "invalid_request"
-          : err.status === 503
-            ? "rovas_unavailable"
-            : "rovas_error";
+          : err.status === 403
+            ? volunteerErrorCodeFromRovas(err)
+            : err.status === 503
+              ? "rovas_unavailable"
+              : "rovas_error";
     return reply.code(err.status).send({
       error,
       message: err.message,
@@ -60,6 +67,114 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   opts,
 ) => {
   const { ctx } = opts;
+
+  /**
+   * Projects the signed-in user shares in or authored.
+   * Proxies Rovas `GET /rovas/civic_my_projects?lang=`.
+   */
+  app.get(
+    "/projects/mine",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      try {
+        const projects: VolunteerProjectRow[] = await ctx.rovas.fetchMyProjects(
+          user.accessToken,
+          { lang: parseLang(req.query as { lang?: unknown }) },
+        );
+        return { projects };
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
+
+  /**
+   * Project title typeahead. Civic `?q=` → Rovas `query`.
+   */
+  app.get(
+    "/projects/search",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const q =
+        typeof (req.query as { q?: unknown }).q === "string"
+          ? (req.query as { q: string }).q.trim()
+          : "";
+      if (q.length < 3) {
+        return reply.code(400).send({
+          error: "invalid_query",
+          message: "Query q must be at least 3 characters.",
+        });
+      }
+      try {
+        const projects: VolunteerProjectRow[] = await ctx.rovas.searchProjects(
+          user.accessToken,
+          q,
+          { lang: parseLang(req.query as { lang?: unknown }) },
+        );
+        return { projects };
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
+
+  /**
+   * Create a Public for-sale project.
+   * Proxies Rovas `POST /rovas/civic_create_project`.
+   */
+  app.post(
+    "/projects",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const body = (req.body ?? {}) as {
+        name?: unknown;
+        description?: unknown;
+        url?: unknown;
+      };
+      const name = typeof body.name === "string" ? body.name.trim() : "";
+      const description =
+        typeof body.description === "string" ? body.description.trim() : "";
+      const url = typeof body.url === "string" ? body.url.trim() : "";
+      if (!name || !description) {
+        const res: CreateProjectResponse = {
+          ok: false,
+          error: "invalid_input",
+          message: "name and description are required.",
+        };
+        return reply.code(400).send(res);
+      }
+      try {
+        const created = await ctx.rovas.createProject(user.accessToken, {
+          name,
+          description,
+          ...(url ? { url } : {}),
+        });
+        const res: CreateProjectResponse = {
+          ok: true,
+          project_nid: created.project_nid,
+        };
+        return res;
+      } catch (err) {
+        if (err instanceof RovasClientError) {
+          const res: CreateProjectResponse = {
+            ok: false,
+            error:
+              err.status === 401
+                ? "unauthorized"
+                : err.status === 400
+                  ? "invalid_input"
+                  : "rovas_error",
+            message: err.message,
+          };
+          return reply.code(err.status === 401 ? 401 : err.status === 400 ? 400 : 502).send(res);
+        }
+        throw err;
+      }
+    },
+  );
 
   /**
    * Project detail for in-app modal.

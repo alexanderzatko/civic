@@ -380,3 +380,82 @@ export interface MeritHistoryPage {
   limit: number;
   offset: number;
 }
+
+/** Project row for volunteer picker (`GET /projects/mine`, `/projects/search`). */
+export interface VolunteerProjectRow {
+  project_nid: string;
+  title: string;
+  is_public: boolean;
+}
+
+/** Nested NACE taxonomy node (`GET /nace`). */
+export interface NaceNode {
+  tid: string;
+  code: string;
+  label: string;
+  children: NaceNode[];
+}
+
+export type RewardKind = "merits" | "chrons";
+
+export interface WorkReportPhotoInput {
+  filename: string;
+  mime: string;
+  data: string;
+}
+
+export interface CreateProjectBody {
+  name: string;
+  description: string;
+  url?: string;
+}
+
+export interface CreateProjectSuccess {
+  ok: true;
+  project_nid: string;
+}
+
+export interface CreateProjectError {
+  ok: false;
+  error: "invalid_input" | "unauthorized" | "rovas_error";
+  message: string;
+}
+
+export type CreateProjectResponse = CreateProjectSuccess | CreateProjectError;
+
+export interface CreateWorkReportBody {
+  project_nid: string;
+  date_started: number;
+  hours: number;
+  description: string;
+  title?: string;
+  nace_tid: string;
+  web_url?: string;
+  reward_kind?: RewardKind;
+  photos?: WorkReportPhotoInput[];
+}
+
+export type CreateWorkReportErrorCode =
+  | "not_shareholder"
+  | "date_before_registration"
+  | "pending_verifications"
+  | "invalid_input"
+  | "project_not_found"
+  | "unauthorized"
+  | "rovas_error";
+
+export interface CreateWorkReportSuccess {
+  ok: true;
+  work_report_nid: string;
+  reward_kind: RewardKind;
+}
+
+export interface CreateWorkReportError {
+  ok: false;
+  error: CreateWorkReportErrorCode;
+  message: string;
+}
+
+export type CreateWorkReportResponse =
+  | CreateWorkReportSuccess
+  | CreateWorkReportError;

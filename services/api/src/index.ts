@@ -9,6 +9,7 @@ import { receiptsRoutes } from "./routes/receipts.js";
 import { summaryRoutes } from "./routes/summary.js";
 import { usersRoutes } from "./routes/users.js";
 import { projectsRoutes } from "./routes/projects.js";
+import { workReportsRoutes } from "./routes/work-reports.js";
 
 async function main() {
   const config = loadConfig();
@@ -39,6 +40,11 @@ async function main() {
       "GET /projects/:nid",
       "GET /projects/:nid/work-reports",
       "GET /projects/:nid/shareholders",
+      "GET /projects/mine",
+      "GET /projects/search",
+      "POST /projects",
+      "GET /nace",
+      "POST /work-reports",
     ],
   }));
 
@@ -63,6 +69,7 @@ async function main() {
   await app.register(summaryRoutes, { ctx });
   await app.register(usersRoutes, { ctx });
   await app.register(projectsRoutes, { ctx });
+  await app.register(workReportsRoutes, { ctx });
 
   await app.listen({ port: config.port, host: config.host });
 }

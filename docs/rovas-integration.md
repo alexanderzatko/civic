@@ -61,6 +61,11 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}?lang=` (Bearer). Optional `lang=sk|en` for translated `title`/`summary` (+ embedded WR text). See Rovas **project detail + work reports** and **localized project and work-report text**. |
 | `GET /projects/:nid/work-reports` | Paginated work ledgers — proxies Rovas `GET /rovas/civic_project_work_reports?project_nid=&lang=` (Bearer). Same `lang` rules as project detail. |
 | `GET /projects/:nid/shareholders` | Paginated shareholders — proxies Rovas `GET /rovas/civic_project_shareholders?project_nid=` (Bearer). See Rovas **Next work: project shareholders + WR photos**. |
+| `GET /projects/mine` | Volunteer form — proxies Rovas `GET /rovas/civic_my_projects?lang=` (Bearer). Shareholder + authored projects. See Rovas **volunteer report (Civic deferred form)**. |
+| `GET /projects/search` | Volunteer typeahead — proxies Rovas `GET /rovas/civic_projects_search?query=` (Civic `?q=`; maps to Rovas `query`). |
+| `POST /projects` | Create project — proxies Rovas `POST /rovas/civic_create_project` (`name`, `description`, optional `url`). Defaults on Rovas: status for sale, Public. |
+| `GET /nace` | NACE drill-down tree — proxies Rovas `GET /rovas/civic_nace_tree?lang=`. |
+| `POST /work-reports` | Submit volunteer report — proxies Rovas `POST /rovas/civic_create_work_report` (hours, date, description, NACE, proof URL and/or photos, `reward_kind`). |
 
 `POST /receipts/verify` sends optional Bearer; when present, Civic checks
 `GET /rovas/civic_claims?receipt_uid=` and returns `already_claimed` so the
@@ -147,3 +152,7 @@ National rate read: → **Next work: public national hourly rate API**. Users
 search: → **Next work: users search (split typeahead)**. Users lookup
 (Komunita): → **Next work: users lookup (community public profile)**.
 Merit history (Profil): → **Done: merit history (profile ledger)** (`GET /rovas/civic_merit_history`).
+Volunteer report (screen 4): → **Next work: volunteer report (Civic deferred form)**
+(`GET /rovas/civic_my_projects`, `civic_projects_search`, `civic_nace_tree`,
+`POST /rovas/civic_create_project`, `civic_create_work_report`). Later: AI NACE,
+CHR→ME on verification, geofield.

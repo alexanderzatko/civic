@@ -18,6 +18,11 @@ import type {
   UserLookup,
   VerifyReceiptResponse,
   MeritHistoryPage,
+  VolunteerProjectRow,
+  NaceNode,
+  CreateProjectResponse,
+  CreateWorkReportBody,
+  CreateWorkReportResponse,
 } from "@civic/shared";
 import { getLocale } from "@/lib/i18n";
 
@@ -250,4 +255,55 @@ export function fetchProjects(
   type: "charity" | "invest",
 ): Promise<{ projects: CharityProject[] }> {
   return apiFetch(`/charities/projects?type=${type}`);
+}
+
+export function fetchMyProjects(): Promise<{ projects: VolunteerProjectRow[] }> {
+  const params = new URLSearchParams({ lang: getLocale() });
+  return apiFetch(`/projects/mine?${params}`, { auth: "required" });
+}
+
+export function searchProjects(
+  q: string,
+): Promise<{ projects: VolunteerProjectRow[] }> {
+  const params = new URLSearchParams({ q, lang: getLocale() });
+  return apiFetch(`/projects/search?${params}`, { auth: "required" });
+}
+
+export function createProject(body: {
+  name: string;
+  description: string;
+  url?: string;
+}): Promise<CreateProjectResponse> {
+  return apiFetch<CreateProjectResponse>("/projects", {
+    method: "POST",
+    auth: "required",
+    body: JSON.stringify(body),
+  }).catch((err: Error & { body?: CreateProjectResponse; status?: number }) => {
+    if (err.body && typeof err.body === "object" && "ok" in err.body) {
+      return err.body;
+    }
+    throw err;
+  });
+}
+
+export function fetchNaceTree(): Promise<{ tree: NaceNode[] }> {
+  const params = new URLSearchParams({ lang: getLocale() });
+  return apiFetch(`/nace?${params}`, { auth: "required" });
+}
+
+export function createWorkReport(
+  body: CreateWorkReportBody,
+): Promise<CreateWorkReportResponse> {
+  return apiFetch<CreateWorkReportResponse>("/work-reports", {
+    method: "POST",
+    auth: "required",
+    body: JSON.stringify(body),
+  }).catch(
+    (err: Error & { body?: CreateWorkReportResponse; status?: number }) => {
+      if (err.body && typeof err.body === "object" && "ok" in err.body) {
+        return err.body;
+      }
+      throw err;
+    },
+  );
 }

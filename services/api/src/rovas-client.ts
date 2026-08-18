@@ -18,6 +18,12 @@ import type {
   UserLookup,
   UserLookupProjectRow,
   UserLookupTaxMonth,
+  VolunteerProjectRow,
+  NaceNode,
+  CreateProjectBody,
+  CreateWorkReportBody,
+  CreateWorkReportErrorCode,
+  RewardKind,
 } from "@civic/shared";
 import {
   appendLangParam,
@@ -55,7 +61,7 @@ export type RovasMeritDistribution = {
 export class RovasClientError extends Error {
   constructor(
     message: string,
-    readonly status: 400 | 401 | 404 | 409 | 502 | 503 = 502,
+    readonly status: 400 | 401 | 403 | 404 | 409 | 422 | 502 | 503 = 502,
     readonly body?: unknown,
   ) {
     super(message);
@@ -370,6 +376,108 @@ export class RovasClient {
   }
 
   /**
+   * Projects the Bearer user shares in or authored.
+   * `GET /rovas/civic_my_projects?lang=`
+   */
+  async fetchMyProjects(
+    accessToken: string,
+    opts?: { lang?: CivicContentLang },
+  ): Promise<VolunteerProjectRow[]> {
+    const params = new URLSearchParams();
+    appendLangParam(params, opts?.lang);
+    const qs = params.toString();
+    const body = await this.getJson<unknown>(
+      `/rovas/civic_my_projects${qs ? `?${qs}` : ""}`,
+      accessToken,
+    );
+    return normalizeVolunteerProjectRows(body);
+  }
+
+  /**
+   * Project title typeahead. Param is `query` (never `q`).
+   * `GET /rovas/civic_projects_search?query=&lang=`
+   */
+  async searchProjects(
+    accessToken: string,
+    q: string,
+    opts?: { lang?: CivicContentLang },
+  ): Promise<VolunteerProjectRow[]> {
+    const params = new URLSearchParams({ query: q });
+    appendLangParam(params, opts?.lang);
+    const body = await this.getJson<unknown>(
+      `/rovas/civic_projects_search?${params}`,
+      accessToken,
+    );
+    return normalizeVolunteerProjectRows(body);
+  }
+
+  /**
+   * Nested NACE tree. `GET /rovas/civic_nace_tree?lang=`
+   */
+  async fetchNaceTree(
+    accessToken: string,
+    opts?: { lang?: CivicContentLang },
+  ): Promise<NaceNode[]> {
+    const params = new URLSearchParams();
+    appendLangParam(params, opts?.lang);
+    const qs = params.toString();
+    const body = await this.getJson<unknown>(
+      `/rovas/civic_nace_tree${qs ? `?${qs}` : ""}`,
+      accessToken,
+    );
+    return normalizeNaceTree(body);
+  }
+
+  /**
+   * Create a Public for-sale project.
+   * `POST /rovas/civic_create_project`
+   */
+  async createProject(
+    accessToken: string,
+    payload: CreateProjectBody,
+  ): Promise<{ project_nid: string }> {
+    const body = await this.postJson<Partial<{ project_nid: string }>>(
+      "/rovas/civic_create_project",
+      accessToken,
+      payload,
+    );
+    const nid =
+      body.project_nid != null ? String(body.project_nid).trim() : "";
+    if (!/^\d+$/.test(nid) || nid === "0") {
+      throw new RovasClientError(
+        "Rovas create_project missing project_nid",
+        502,
+        body,
+      );
+    }
+    return { project_nid: nid };
+  }
+
+  /**
+   * Create a volunteer work report.
+   * `POST /rovas/civic_create_work_report`
+   */
+  async createWorkReport(
+    accessToken: string,
+    payload: CreateWorkReportBody,
+  ): Promise<{ work_report_nid: string; reward_kind: RewardKind }> {
+    const body = await this.postJson<
+      Partial<{ work_report_nid: string; reward_kind: string }>
+    >("/rovas/civic_create_work_report", accessToken, payload);
+    const nid =
+      body.work_report_nid != null ? String(body.work_report_nid).trim() : "";
+    if (!/^\d+$/.test(nid) || nid === "0") {
+      throw new RovasClientError(
+        "Rovas create_work_report missing work_report_nid",
+        502,
+        body,
+      );
+    }
+    const kind = body.reward_kind === "merits" ? "merits" : "chrons";
+    return { work_report_nid: nid, reward_kind: kind };
+  }
+
+  /**
    * Global receipt UID claim check for verify preview.
    * `GET /rovas/civic_claims?receipt_uid=`
    */
@@ -577,8 +685,19 @@ export class RovasClient {
     if (res.status === 401) {
       throw new RovasClientError(`Rovas unauthorized (${path})`, 401, parsed);
     }
+    if (res.status === 403) {
+      throw new RovasClientError(
+        volunteerErrorMessage(parsed, `Rovas forbidden (${path})`),
+        403,
+        parsed,
+      );
+    }
     if (res.status === 400) {
-      throw new RovasClientError(`Rovas bad request (${path})`, 400, parsed);
+      throw new RovasClientError(
+        volunteerErrorMessage(parsed, `Rovas bad request (${path})`),
+        400,
+        parsed,
+      );
     }
     if (res.status === 404) {
       throw new RovasClientError(`Rovas not found (${path})`, 404, parsed);
@@ -908,4 +1027,98 @@ function normalizeMeritHistoryPage(
     offset: typeof raw.offset === "number" ? raw.offset : fallbackOffset,
     items,
   };
+}
+
+function volunteerErrorMessage(parsed: unknown, fallback: string): string {
+  if (typeof parsed === "string" && parsed.trim()) return parsed.trim();
+  if (parsed && typeof parsed === "object") {
+    const o = parsed as { error?: unknown; message?: unknown };
+    if (typeof o.message === "string" && o.message.trim()) {
+      return o.message.trim();
+    }
+    if (typeof o.error === "string" && o.error.trim()) {
+      return o.error.trim();
+    }
+  }
+  return fallback;
+}
+
+/** Map a Rovas error body/message to a Civic volunteer error code. */
+export function volunteerErrorCodeFromRovas(
+  err: RovasClientError,
+): CreateWorkReportErrorCode {
+  const blob = [
+    err.message,
+    typeof err.body === "string" ? err.body : "",
+    err.body && typeof err.body === "object"
+      ? JSON.stringify(err.body)
+      : "",
+  ]
+    .join(" ")
+    .toLowerCase();
+  if (blob.includes("not_shareholder")) return "not_shareholder";
+  if (blob.includes("date_before_registration")) {
+    return "date_before_registration";
+  }
+  if (blob.includes("pending_verifications")) return "pending_verifications";
+  if (blob.includes("project_not_found") || err.status === 404) {
+    return "project_not_found";
+  }
+  if (err.status === 401) return "unauthorized";
+  if (err.status === 400) return "invalid_input";
+  if (err.status === 403) return "not_shareholder";
+  return "rovas_error";
+}
+
+function unwrapList(body: unknown): unknown[] {
+  if (Array.isArray(body)) return body;
+  if (body && typeof body === "object") {
+    const o = body as { results?: unknown; projects?: unknown; tree?: unknown };
+    if (Array.isArray(o.results)) return o.results;
+    if (Array.isArray(o.projects)) return o.projects;
+    if (Array.isArray(o.tree)) return o.tree;
+  }
+  return [];
+}
+
+function normalizeVolunteerProjectRows(body: unknown): VolunteerProjectRow[] {
+  return unwrapList(body)
+    .map((raw) => {
+      if (!raw || typeof raw !== "object") return null;
+      const r = raw as Partial<VolunteerProjectRow>;
+      const nid = r.project_nid != null ? String(r.project_nid) : "";
+      const title = typeof r.title === "string" ? r.title.trim() : "";
+      if (!/^\d+$/.test(nid) || nid === "0" || !title) return null;
+      return {
+        project_nid: nid,
+        title,
+        is_public: Boolean(r.is_public),
+      };
+    })
+    .filter((x): x is VolunteerProjectRow => x != null);
+}
+
+function normalizeNaceNode(raw: unknown): NaceNode | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<NaceNode> & { children?: unknown };
+  const tid = r.tid != null ? String(r.tid) : "";
+  const label = typeof r.label === "string" ? r.label.trim() : "";
+  if (!/^\d+$/.test(tid) || tid === "0" || !label) return null;
+  const children = Array.isArray(r.children)
+    ? r.children
+        .map(normalizeNaceNode)
+        .filter((x): x is NaceNode => x != null)
+    : [];
+  return {
+    tid,
+    code: typeof r.code === "string" ? r.code : "",
+    label,
+    children,
+  };
+}
+
+function normalizeNaceTree(body: unknown): NaceNode[] {
+  return unwrapList(body)
+    .map(normalizeNaceNode)
+    .filter((x): x is NaceNode => x != null);
 }
