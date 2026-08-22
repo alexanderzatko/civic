@@ -376,7 +376,7 @@ export class RovasClient {
   }
 
   /**
-   * Projects the Bearer user shares in or authored.
+   * Up to 3 projects where the Bearer user filed work reports most recently.
    * `GET /rovas/civic_my_projects?lang=`
    */
   async fetchMyProjects(
@@ -1093,6 +1093,7 @@ function normalizeVolunteerProjectRows(body: unknown): VolunteerProjectRow[] {
         project_nid: nid,
         title,
         is_public: Boolean(r.is_public),
+        can_report: r.can_report !== false,
       };
     })
     .filter((x): x is VolunteerProjectRow => x != null);

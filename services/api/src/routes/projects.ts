@@ -69,7 +69,7 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   const { ctx } = opts;
 
   /**
-   * Projects the signed-in user shares in or authored.
+   * Up to 3 projects where the signed-in user filed work reports most recently.
    * Proxies Rovas `GET /rovas/civic_my_projects?lang=`.
    */
   app.get(

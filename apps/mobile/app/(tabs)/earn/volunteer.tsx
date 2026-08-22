@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -152,7 +153,7 @@ export default function VolunteerScreen() {
       setFormError(t("volunteer.project_placeholder"));
       return;
     }
-    if (!selected.is_public && !mine.some((p) => p.project_nid === selected.project_nid)) {
+    if (!selected.can_report) {
       setFormError(t("volunteer.private_project"));
       return;
     }
@@ -251,6 +252,9 @@ export default function VolunteerScreen() {
         ) : null}
 
         <Text style={styles.label}>{t("volunteer.project")}</Text>
+        {signedIn ? (
+          <Text style={styles.hint}>{t("volunteer.project_recent_hint")}</Text>
+        ) : null}
         {mineLoading ? <ActivityIndicator color={colors.brand} /> : null}
         {signedIn && !mineLoading && mine.length === 0 && !selected ? (
           <Text style={styles.hint}>{t("volunteer.project_empty")}</Text>
@@ -274,11 +278,11 @@ export default function VolunteerScreen() {
             style={[
               styles.choice,
               styles.choiceOn,
-              !selected.is_public && styles.choiceWarn,
+              !selected.can_report && styles.choiceWarn,
             ]}
           >
             <Text style={styles.choiceText}>{selected.title}</Text>
-            {!selected.is_public ? (
+            {!selected.can_report ? (
               <Text style={styles.warn}>{t("volunteer.private_project")}</Text>
             ) : null}
           </View>
@@ -319,7 +323,7 @@ export default function VolunteerScreen() {
                     }}
                   >
                     <Text style={styles.choiceText}>{p.title}</Text>
-                    {!p.is_public ? (
+                    {!p.can_report ? (
                       <Text style={styles.warnMuted}>
                         {t("volunteer.private_project")}
                       </Text>
@@ -441,36 +445,18 @@ export default function VolunteerScreen() {
           </Pressable>
         ) : null}
 
-        <Text style={styles.label}>{t("volunteer.reward")}</Text>
-        <View style={styles.rewardRow}>
-          <Pressable
-            style={[styles.radio, reward === "merits" && styles.radioOn]}
-            onPress={() => setReward("merits")}
+        <View style={styles.checkboxRow}>
+          <Switch
+            value={reward === "chrons"}
+            onValueChange={(checked) =>
+              setReward(checked ? "chrons" : "merits")
+            }
             disabled={!signedIn}
-          >
-            <Text
-              style={[
-                styles.radioText,
-                reward === "merits" && styles.radioTextOn,
-              ]}
-            >
-              {t("volunteer.reward_merits")}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.radio, reward === "chrons" && styles.radioOn]}
-            onPress={() => setReward("chrons")}
-            disabled={!signedIn}
-          >
-            <Text
-              style={[
-                styles.radioText,
-                reward === "chrons" && styles.radioTextOn,
-              ]}
-            >
-              {t("volunteer.reward_chrons")}
-            </Text>
-          </Pressable>
+            trackColor={{ false: colors.border, true: colors.brandSoft }}
+          />
+          <Text style={styles.checkboxLabel}>
+            {t("volunteer.reward_chrons_instead")}
+          </Text>
         </View>
         {reward === "merits" ? (
           <Text style={styles.hint}>{t("volunteer.reward_hint")}</Text>
@@ -526,6 +512,7 @@ export default function VolunteerScreen() {
             project_nid: p.project_nid,
             title: p.title,
             is_public: true,
+            can_report: true,
           };
           setMine((prev) => [row, ...prev.filter((x) => x.project_nid !== row.project_nid)]);
           setSelected(row);
@@ -599,19 +586,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   secondaryText: { color: colors.brand, fontWeight: "700" },
-  rewardRow: { flexDirection: "row", gap: 10 },
-  radio: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 12,
+  checkboxRow: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
+    gap: 10,
+    marginTop: 6,
   },
-  radioOn: { borderColor: colors.brand, backgroundColor: colors.brand },
-  radioText: { color: colors.ink, fontWeight: "700" },
-  radioTextOn: { color: "#fff" },
+  checkboxLabel: { flex: 1, color: colors.ink, fontSize: 15, lineHeight: 20 },
   error: { color: colors.danger, fontSize: 14 },
   actions: { flexDirection: "row", gap: 10, marginTop: 8, alignItems: "center" },
   btn: {

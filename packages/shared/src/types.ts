@@ -386,6 +386,8 @@ export interface VolunteerProjectRow {
   project_nid: string;
   title: string;
   is_public: boolean;
+  /** Whether the signed-in user may submit a work report (owner/shareholder/public). */
+  can_report: boolean;
 }
 
 /** Nested NACE taxonomy node (`GET /nace`). */
