@@ -154,5 +154,7 @@ search: → **Next work: users search (split typeahead)**. Users lookup
 Merit history (Profil): → **Done: merit history (profile ledger)** (`GET /rovas/civic_merit_history`).
 Volunteer report (screen 4): → **Next work: volunteer report (Civic deferred form)**
 (`GET /rovas/civic_my_projects`, `civic_projects_search`, `civic_nace_tree`,
-`POST /rovas/civic_create_project`, `civic_create_work_report`). Later: AI NACE,
+`POST /rovas/civic_create_project`, `civic_create_work_report`). **Next work:**
+[pending verifications gate (assigned slots only)](~/Documents/homeProjects/rovas/docs/integration/civic.md#next-work-pending-verifications-gate-assigned-slots-only)
+— empty obligation slots must not block new reports. Later: AI NACE,
 CHR→ME on verification, geofield.
