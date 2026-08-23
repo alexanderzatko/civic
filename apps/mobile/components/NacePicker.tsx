@@ -6,7 +6,6 @@ import {
   type RefObject,
 } from "react";
 import {
-  Dimensions,
   Pressable,
   StyleSheet,
   Text,
@@ -17,16 +16,11 @@ import type { NaceNode } from "@civic/shared";
 import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
 
-/** ~one NACE row; nudge at most two rows when children sit below the fold. */
-const ROW_HEIGHT_APPROX = 48;
-const MAX_NUDGE = ROW_HEIGHT_APPROX * 2;
-const BOTTOM_PAD = 28;
-
 type Props = {
   tree: NaceNode[];
   selectedTid: string | null;
   onSelect: (node: NaceNode) => void;
-  /** Parent form ScrollView — gentle reveal scroll only on drill-down. */
+  /** Parent form ScrollView — compensates scroll on drill-down so the tap stays put. */
   scrollRef?: RefObject<ScrollView | null>;
   getScrollY?: () => number;
 };
@@ -39,8 +33,9 @@ export function NacePicker({
   getScrollY,
 }: Props) {
   const [path, setPath] = useState<NaceNode[]>([]);
-  const firstChildRef = useRef<View>(null);
-  const pathLenRef = useRef(0);
+  const revealRef = useRef<View>(null);
+  /** Window Y of the row the user tapped; consumed after the next level paints. */
+  const pendingAnchorY = useRef<number | null>(null);
 
   const level =
     path.length === 0 ? tree : (path[path.length - 1]?.children ?? []);
@@ -50,33 +45,26 @@ export function NacePicker({
     [tree, selectedTid],
   );
 
-  // After drill-down only: if the first new child row sits below the fold,
-  // scroll down a line or two. Never scroll up — layout shrink handles that.
+  // After drill-down: scroll just enough so the reveal row sits where the user tapped.
   useEffect(() => {
-    const prevLen = pathLenRef.current;
-    pathLenRef.current = path.length;
-    if (path.length <= prevLen || !scrollRef?.current || path.length === 0) {
-      return;
-    }
+    const anchorY = pendingAnchorY.current;
+    if (anchorY == null || !scrollRef?.current) return;
 
     let cancelled = false;
     const id = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (cancelled) return;
-        firstChildRef.current?.measureInWindow((_x, y, _w, h) => {
+        revealRef.current?.measureInWindow((_x, revealY) => {
           if (cancelled) return;
-          if (typeof y !== "number" || Number.isNaN(y)) return;
-
-          const bottom = y + Math.max(h, ROW_HEIGHT_APPROX);
-          const maxVisible = Dimensions.get("window").height - BOTTOM_PAD;
-          const overflow = bottom - maxVisible;
-          if (overflow <= 0) return;
+          pendingAnchorY.current = null;
+          if (typeof revealY !== "number" || Number.isNaN(revealY)) return;
 
           const scrollY = getScrollY?.() ?? 0;
-          const nudge = Math.min(overflow, MAX_NUDGE);
+          const nextY = scrollY + (revealY - anchorY);
+          if (Math.abs(nextY - scrollY) < 1) return;
           scrollRef.current?.scrollTo({
-            y: scrollY + nudge,
-            animated: true,
+            y: Math.max(0, nextY),
+            animated: false,
           });
         });
       });
@@ -87,6 +75,18 @@ export function NacePicker({
     };
   }, [path, scrollRef, getScrollY]);
 
+  const drillInto = (node: NaceNode, row: View | null) => {
+    if (!row || !scrollRef) {
+      setPath((p) => [...p, node]);
+      return;
+    }
+    row.measureInWindow((_x, tapY) => {
+      pendingAnchorY.current =
+        typeof tapY === "number" && !Number.isNaN(tapY) ? tapY : null;
+      setPath((p) => [...p, node]);
+    });
+  };
+
   return (
     <View style={styles.wrap}>
       {selectedLabel ? (
@@ -94,45 +94,80 @@ export function NacePicker({
       ) : null}
       {path.length > 0 ? (
         <Pressable
-          onPress={() => setPath((p) => p.slice(0, -1))}
+          onPress={() => {
+            pendingAnchorY.current = null;
+            setPath((p) => p.slice(0, -1));
+          }}
           style={styles.back}
         >
           <Text style={styles.backText}>{t("volunteer.nace_back")}</Text>
         </Pressable>
       ) : null}
       {current ? (
-        <Pressable style={styles.pickCurrent} onPress={() => onSelect(current)}>
-          <Text style={styles.pickCurrentText}>
-            {t("volunteer.nace_select")}: {formatNode(current)}
-          </Text>
-        </Pressable>
-      ) : null}
-      {level.map((node, index) => (
-        <View
-          key={node.tid}
-          ref={index === 0 && path.length > 0 ? firstChildRef : undefined}
-          collapsable={false}
-        >
+        <View ref={revealRef} collapsable={false}>
           <Pressable
-            style={[
-              styles.row,
-              selectedTid === node.tid && styles.rowSelected,
-            ]}
-            onPress={() => {
-              if (node.children.length > 0) {
-                setPath((p) => [...p, node]);
-              } else {
-                onSelect(node);
-              }
-            }}
+            style={styles.pickCurrent}
+            onPress={() => onSelect(current)}
           >
-            <Text style={styles.rowText}>{formatNode(node)}</Text>
-            {node.children.length > 0 ? (
-              <Text style={styles.chevron}>›</Text>
-            ) : null}
+            <Text style={styles.pickCurrentText}>
+              {t("volunteer.nace_select")}: {formatNode(current)}
+            </Text>
           </Pressable>
         </View>
+      ) : null}
+      {level.map((node, index) => (
+        <NaceRow
+          key={node.tid}
+          node={node}
+          selected={selectedTid === node.tid}
+          isRevealAnchor={!current && index === 0}
+          revealRef={revealRef}
+          onPress={(row) => {
+            if (node.children.length > 0) {
+              drillInto(node, row);
+            } else {
+              onSelect(node);
+            }
+          }}
+        />
       ))}
+    </View>
+  );
+}
+
+function NaceRow({
+  node,
+  selected,
+  onPress,
+  isRevealAnchor,
+  revealRef,
+}: {
+  node: NaceNode;
+  selected: boolean;
+  onPress: (row: View | null) => void;
+  isRevealAnchor: boolean;
+  revealRef: RefObject<View | null>;
+}) {
+  const rowRef = useRef<View>(null);
+  return (
+    <View
+      ref={(el) => {
+        rowRef.current = el;
+        if (isRevealAnchor) {
+          revealRef.current = el;
+        }
+      }}
+      collapsable={false}
+    >
+      <Pressable
+        style={[styles.row, selected && styles.rowSelected]}
+        onPress={() => onPress(rowRef.current)}
+      >
+        <Text style={styles.rowText}>{formatNode(node)}</Text>
+        {node.children.length > 0 ? (
+          <Text style={styles.chevron}>›</Text>
+        ) : null}
+      </Pressable>
     </View>
   );
 }
