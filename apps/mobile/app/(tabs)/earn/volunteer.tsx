@@ -21,7 +21,7 @@ import type {
   VolunteerProjectRow,
   WorkReportPhotoInput,
 } from "@civic/shared";
-import { CreateProjectModal } from "@/components/CreateProjectModal";
+import { CreateProjectSection } from "@/components/CreateProjectSection";
 import { NacePicker } from "@/components/NacePicker";
 import { colors } from "@/constants/theme";
 import {
@@ -363,13 +363,25 @@ export default function VolunteerScreen() {
             </View>
           ) : null}
 
-          <Pressable
-            style={styles.projectLink}
-            onPress={() => setCreateOpen(true)}
+          <CreateProjectSection
+            open={createOpen}
+            onToggle={() => setCreateOpen((v) => !v)}
             disabled={!signedIn}
-          >
-            <Text style={styles.link}>{t("volunteer.create_project")}</Text>
-          </Pressable>
+            onCreated={(p) => {
+              const row: VolunteerProjectRow = {
+                project_nid: p.project_nid,
+                title: p.title,
+                is_public: true,
+                can_report: true,
+              };
+              setMine((prev) => [
+                row,
+                ...prev.filter((x) => x.project_nid !== row.project_nid),
+              ]);
+              setSelected(row);
+              setCreateOpen(false);
+            }}
+          />
         </View>
 
         <Text style={styles.label}>{t("volunteer.date")}</Text>
@@ -541,22 +553,6 @@ export default function VolunteerScreen() {
         <Text style={styles.footerMuted}>{t("volunteer.chron_footer_1")}</Text>
         <Text style={styles.footerMuted}>{t("volunteer.chron_footer_2")}</Text>
       </ScrollView>
-
-      <CreateProjectModal
-        visible={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={(p) => {
-          const row: VolunteerProjectRow = {
-            project_nid: p.project_nid,
-            title: p.title,
-            is_public: true,
-            can_report: true,
-          };
-          setMine((prev) => [row, ...prev.filter((x) => x.project_nid !== row.project_nid)]);
-          setSelected(row);
-          setCreateOpen(false);
-        }}
-      />
     </KeyboardAvoidingView>
   );
 }

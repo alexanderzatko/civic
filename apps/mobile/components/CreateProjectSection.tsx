@@ -1,37 +1,42 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { colors } from "@/constants/theme";
 import { createProject } from "@/lib/api";
 import { t } from "@/lib/i18n";
 
 type Props = {
-  visible: boolean;
-  onClose: () => void;
+  open: boolean;
+  onToggle: () => void;
   onCreated: (project: { project_nid: string; title: string }) => void;
+  disabled?: boolean;
 };
 
-export function CreateProjectModal({ visible, onClose, onCreated }: Props) {
+export function CreateProjectSection({
+  open,
+  onToggle,
+  onCreated,
+  disabled = false,
+}: Props) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!open) return;
     setName("");
     setDescription("");
     setError(null);
     setBusy(false);
-  }, [visible]);
+  }, [open]);
 
   const canSubmit = useMemo(
     () => name.trim().length > 0 && description.trim().length > 0 && !busy,
@@ -60,24 +65,28 @@ export function CreateProjectModal({ visible, onClose, onCreated }: Props) {
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={styles.sheet}>
-        <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={8}>
-            <Text style={styles.back}>{t("common.back")}</Text>
-          </Pressable>
-          <Text style={styles.title}>{t("volunteer.create_title")}</Text>
-          <View style={{ width: 48 }} />
+    <View style={styles.card}>
+      <Pressable
+        style={styles.header}
+        onPress={onToggle}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+      >
+        <Text style={[styles.title, disabled && styles.titleDisabled]}>
+          {t("volunteer.create_project")}
+        </Text>
+        <View style={styles.chevronWrap}>
+          <MaterialIcons
+            name={open ? "expand-more" : "chevron-right"}
+            size={24}
+            color={colors.muted}
+            style={styles.chevronIcon}
+          />
         </View>
-        <ScrollView
-          contentContainerStyle={styles.body}
-          keyboardShouldPersistTaps="handled"
-        >
+      </Pressable>
+      {open ? (
+        <View style={styles.body}>
           <Text style={styles.label}>{t("volunteer.create_name")}</Text>
           <TextInput
             value={name}
@@ -108,30 +117,43 @@ export function CreateProjectModal({ visible, onClose, onCreated }: Props) {
               <Text style={styles.btnText}>{t("volunteer.create_submit")}</Text>
             )}
           </Pressable>
-        </ScrollView>
-      </View>
-    </Modal>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: colors.bg },
+  card: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    overflow: "hidden",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
   },
-  back: { color: colors.brand, fontWeight: "700", width: 48 },
-  title: { fontWeight: "700", color: colors.ink, fontSize: 16 },
-  body: { padding: 20, gap: 10 },
+  title: { fontSize: 15, fontWeight: "600", color: colors.ink, flex: 1 },
+  titleDisabled: { opacity: 0.5 },
+  chevronWrap: {
+    width: 24,
+    height: 24,
+    marginLeft: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chevronIcon: {
+    transform: [{ scale: 1.25 }],
+  },
+  body: { paddingHorizontal: 14, paddingBottom: 14, gap: 10 },
   label: { fontWeight: "600", color: colors.ink, fontSize: 13 },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bg,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
@@ -147,7 +169,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 4,
   },
   btnDisabled: { opacity: 0.5 },
   btnText: { color: "#fff", fontWeight: "700" },
