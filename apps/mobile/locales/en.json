@@ -148,7 +148,7 @@
   "volunteer.search_empty": "No projects found.",
   "volunteer.search_error": "Search failed. Try again.",
   "volunteer.private_project": "This project is private — the owner must add you as a shareholder before you can report work.",
-  "volunteer.create_project": "Create a new project",
+  "volunteer.create_project": "Create a project",
   "volunteer.create_name": "Name",
   "volunteer.create_name_placeholder": "Project name",
   "volunteer.create_description": "Description",

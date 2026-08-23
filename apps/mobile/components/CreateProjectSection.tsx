@@ -65,28 +65,26 @@ export function CreateProjectSection({
   };
 
   return (
-    <View style={styles.card}>
+    <View>
       <Pressable
-        style={styles.header}
+        style={styles.projectLink}
         onPress={onToggle}
         disabled={disabled}
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
       >
-        <Text style={[styles.title, disabled && styles.titleDisabled]}>
+        <MaterialIcons
+          name="add"
+          size={18}
+          color={colors.brand}
+          style={styles.projectLinkIcon}
+        />
+        <Text style={[styles.link, disabled && styles.linkDisabled]}>
           {t("volunteer.create_project")}
         </Text>
-        <View style={styles.chevronWrap}>
-          <MaterialIcons
-            name={open ? "expand-more" : "chevron-right"}
-            size={24}
-            color={colors.muted}
-            style={styles.chevronIcon}
-          />
-        </View>
       </Pressable>
       {open ? (
-        <View style={styles.body}>
+        <View style={styles.formBox}>
           <Text style={styles.label}>{t("volunteer.create_name")}</Text>
           <TextInput
             value={name}
@@ -124,36 +122,19 @@ export function CreateProjectSection({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    overflow: "hidden",
-  },
-  header: {
+  projectLink: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 2,
   },
-  title: { fontSize: 15, fontWeight: "600", color: colors.ink, flex: 1 },
-  titleDisabled: { opacity: 0.5 },
-  chevronWrap: {
-    width: 24,
-    height: 24,
-    marginLeft: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chevronIcon: {
-    transform: [{ scale: 1.25 }],
-  },
-  body: { paddingHorizontal: 14, paddingBottom: 14, gap: 10 },
+  projectLinkIcon: { marginRight: 4 },
+  link: { color: colors.brand, fontWeight: "700" },
+  linkDisabled: { opacity: 0.5 },
+  formBox: { gap: 8, marginBottom: 4 },
   label: { fontWeight: "600", color: colors.ink, fontSize: 13 },
   input: {
-    backgroundColor: colors.bg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
