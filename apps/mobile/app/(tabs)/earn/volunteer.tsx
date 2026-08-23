@@ -233,18 +233,13 @@ export default function VolunteerScreen() {
       <View style={styles.container}>
         <Text style={styles.success}>{t("volunteer.success")}</Text>
         <Pressable
-          style={styles.btn}
+          style={styles.ghost}
           onPress={() => {
             resetForm();
+            router.replace("/(tabs)");
           }}
         >
-          <Text style={styles.btnText}>{t("volunteer.success_another")}</Text>
-        </Pressable>
-        <Pressable
-          style={styles.ghost}
-          onPress={() => router.push("/(tabs)/earn")}
-        >
-          <Text style={styles.ghostText}>{t("volunteer.cancel")}</Text>
+          <Text style={styles.ghostText}>{t("Domov")}</Text>
         </Pressable>
       </View>
     );

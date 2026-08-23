@@ -40,6 +40,8 @@ export function NacePicker({
   const level =
     path.length === 0 ? tree : (path[path.length - 1]?.children ?? []);
   const current = path.length > 0 ? path[path.length - 1] : null;
+  const levelIndent = path.length * 5;
+  const parentIndent = path.length > 0 ? (path.length - 1) * 5 : 0;
   const selectedLabel = useMemo(
     () => (selectedTid ? findLabel(tree, selectedTid) : null),
     [tree, selectedTid],
@@ -104,14 +106,19 @@ export function NacePicker({
         </Pressable>
       ) : null}
       {current ? (
-        <View ref={revealRef} collapsable={false}>
+        <View
+          ref={revealRef}
+          style={{ marginLeft: parentIndent }}
+          collapsable={false}
+        >
           <Pressable
-            style={styles.pickCurrent}
+            style={[styles.row, styles.rowActive]}
             onPress={() => onSelect(current)}
           >
-            <Text style={styles.pickCurrentText}>
-              {t("volunteer.nace_select")}: {formatNode(current)}
+            <Text style={[styles.rowText, styles.rowTextActive]}>
+              {formatNode(current)}
             </Text>
+            <Text style={styles.chevron}>›</Text>
           </Pressable>
         </View>
       ) : null}
@@ -119,6 +126,7 @@ export function NacePicker({
         <NaceRow
           key={node.tid}
           node={node}
+          indent={levelIndent}
           selected={selectedTid === node.tid}
           isRevealAnchor={!current && index === 0}
           revealRef={revealRef}
@@ -137,12 +145,14 @@ export function NacePicker({
 
 function NaceRow({
   node,
+  indent,
   selected,
   onPress,
   isRevealAnchor,
   revealRef,
 }: {
   node: NaceNode;
+  indent: number;
   selected: boolean;
   onPress: (row: View | null) => void;
   isRevealAnchor: boolean;
@@ -157,13 +167,16 @@ function NaceRow({
           revealRef.current = el;
         }
       }}
+      style={indent > 0 ? { marginLeft: indent } : undefined}
       collapsable={false}
     >
       <Pressable
-        style={[styles.row, selected && styles.rowSelected]}
+        style={[styles.row, selected && styles.rowActive]}
         onPress={() => onPress(rowRef.current)}
       >
-        <Text style={styles.rowText}>{formatNode(node)}</Text>
+        <Text style={[styles.rowText, selected && styles.rowTextActive]}>
+          {formatNode(node)}
+        </Text>
         {node.children.length > 0 ? (
           <Text style={styles.chevron}>›</Text>
         ) : null}
@@ -190,12 +203,6 @@ const styles = StyleSheet.create({
   selected: { color: colors.brandSoft, fontWeight: "600", fontSize: 13 },
   back: { alignSelf: "flex-start", paddingVertical: 4 },
   backText: { color: colors.brand, fontWeight: "700" },
-  pickCurrent: {
-    backgroundColor: "#E8EFEA",
-    borderRadius: 10,
-    padding: 10,
-  },
-  pickCurrentText: { color: colors.ink, fontWeight: "600", fontSize: 13 },
   row: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -207,7 +214,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  rowSelected: { borderColor: colors.brand },
-  rowText: { color: colors.ink, flex: 1, fontSize: 14 },
+  rowActive: { backgroundColor: "#E8EFEA" },
+  rowText: { color: colors.ink, flex: 1, fontSize: 14, fontWeight: "400" },
+  rowTextActive: { fontWeight: "700" },
   chevron: { color: colors.muted, fontSize: 20, marginLeft: 8 },
 });
