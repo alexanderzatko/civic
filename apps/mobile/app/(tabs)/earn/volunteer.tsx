@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -103,6 +103,8 @@ export default function VolunteerScreen() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollYRef = useRef(0);
 
   const { results, searching, searchError, queryLongEnough } = useProjectSearch(
     searchQ,
@@ -254,8 +256,13 @@ export default function VolunteerScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
+        onScroll={(e) => {
+          scrollYRef.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
       >
         <Text style={styles.heading}>{t("volunteer.heading")}</Text>
         <Text style={styles.intro}>{t("volunteer.intro")}</Text>
@@ -452,6 +459,8 @@ export default function VolunteerScreen() {
             tree={naceTree}
             selectedTid={nace?.tid ?? null}
             onSelect={setNace}
+            scrollRef={scrollRef}
+            getScrollY={() => scrollYRef.current}
           />
         ) : null}
 
