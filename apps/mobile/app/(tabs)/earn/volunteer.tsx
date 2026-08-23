@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Link, router, useFocusEffect } from "expo-router";
 import type {
   CreateWorkReportErrorCode,
@@ -33,7 +34,7 @@ import { t } from "@/lib/i18n";
 import { pickVolunteerPhoto, volunteerPhotoPickerAvailable } from "@/lib/pick-volunteer-photo";
 import { useProjectSearch } from "@/lib/use-project-search";
 
-const ROVAS_API_DOCS = "https://dev.rovas.app/api";
+const ROVAS_API_DOCS = "https://neofund.sk/rovas-api";
 
 function todaySk(): string {
   const n = new Date();
@@ -61,6 +62,23 @@ function errorCopy(code: CreateWorkReportErrorCode | string): string {
   return mapped === key ? t("volunteer.error_generic") : mapped;
 }
 
+/** Combine whole hours + minutes into a decimal hours value for the API. */
+function parseDurationHours(
+  hoursStr: string,
+  minutesStr: string,
+): number | null {
+  const hRaw = hoursStr.trim() === "" ? 0 : Number(hoursStr.replace(",", "."));
+  const mRaw =
+    minutesStr.trim() === "" ? 0 : Number(minutesStr.replace(",", "."));
+  if (!Number.isFinite(hRaw) || !Number.isFinite(mRaw)) return null;
+  if (hRaw < 0 || mRaw < 0) return null;
+  if (!Number.isInteger(hRaw) || !Number.isInteger(mRaw)) return null;
+  if (mRaw > 59) return null;
+  const total = hRaw + mRaw / 60;
+  if (total <= 0) return null;
+  return Math.round(total * 1000) / 1000;
+}
+
 export default function VolunteerScreen() {
   const { status } = useAuth();
   const signedIn = status === "signedIn";
@@ -74,6 +92,7 @@ export default function VolunteerScreen() {
 
   const [date, setDate] = useState(todaySk);
   const [hours, setHours] = useState("");
+  const [minutes, setMinutes] = useState("");
   const [description, setDescription] = useState("");
   const [title, setTitle] = useState("");
   const [naceTree, setNaceTree] = useState<NaceNode[]>([]);
@@ -111,6 +130,7 @@ export default function VolunteerScreen() {
   const resetForm = useCallback(() => {
     setDate(todaySk());
     setHours("");
+    setMinutes("");
     setDescription("");
     setTitle("");
     setNace(null);
@@ -162,8 +182,8 @@ export default function VolunteerScreen() {
       setFormError(t("volunteer.error_date"));
       return;
     }
-    const hrs = Number(hours.replace(",", "."));
-    if (!Number.isFinite(hrs) || hrs <= 0) {
+    const hrs = parseDurationHours(hours, minutes);
+    if (hrs == null) {
       setFormError(t("volunteer.error_hours"));
       return;
     }
@@ -288,72 +308,81 @@ export default function VolunteerScreen() {
           </View>
         ) : null}
 
-        <Pressable
-          onPress={() => setFindOpen((v) => !v)}
-          disabled={!signedIn}
-        >
-          <Text style={styles.link}>{t("volunteer.find_another")}</Text>
-        </Pressable>
-        {findOpen && signedIn ? (
-          <View style={styles.searchBox}>
-            <TextInput
-              value={searchQ}
-              onChangeText={setSearchQ}
-              placeholder={t("volunteer.search_placeholder")}
-              placeholderTextColor={colors.muted}
-              autoCapitalize="none"
-              style={styles.input}
+        <View style={styles.projectLinks}>
+          <Pressable
+            style={styles.projectLink}
+            onPress={() => setFindOpen((v) => !v)}
+            disabled={!signedIn}
+          >
+            <MaterialIcons
+              name="search"
+              size={18}
+              color={colors.brand}
+              style={styles.projectLinkIcon}
             />
-            {searching ? <ActivityIndicator color={colors.brand} /> : null}
-            {searchError ? (
-              <Text style={styles.error}>{t("volunteer.search_error")}</Text>
-            ) : null}
-            {queryLongEnough && !searching && !searchError ? (
-              results.length === 0 ? (
-                <Text style={styles.hint}>{t("volunteer.search_empty")}</Text>
-              ) : (
-                results.map((p) => (
-                  <Pressable
-                    key={p.project_nid}
-                    style={styles.choice}
-                    onPress={() => {
-                      setSelected(p);
-                      setFindOpen(false);
-                      setSearchQ("");
-                    }}
-                  >
-                    <Text style={styles.choiceText}>{p.title}</Text>
-                    {!p.can_report ? (
-                      <Text style={styles.warnMuted}>
-                        {t("volunteer.private_project")}
-                      </Text>
-                    ) : null}
-                  </Pressable>
-                ))
-              )
-            ) : null}
-          </View>
-        ) : null}
+            <Text style={styles.link}>{t("volunteer.find_another")}</Text>
+          </Pressable>
+          {findOpen && signedIn ? (
+            <View style={styles.searchBox}>
+              <TextInput
+                value={searchQ}
+                onChangeText={setSearchQ}
+                placeholder={t("volunteer.search_placeholder")}
+                placeholderTextColor={colors.muted}
+                autoCapitalize="none"
+                style={styles.input}
+              />
+              {searching ? <ActivityIndicator color={colors.brand} /> : null}
+              {searchError ? (
+                <Text style={styles.error}>{t("volunteer.search_error")}</Text>
+              ) : null}
+              {queryLongEnough && !searching && !searchError ? (
+                results.length === 0 ? (
+                  <Text style={styles.hint}>{t("volunteer.search_empty")}</Text>
+                ) : (
+                  results.map((p) => (
+                    <Pressable
+                      key={p.project_nid}
+                      style={styles.choice}
+                      onPress={() => {
+                        setSelected(p);
+                        setFindOpen(false);
+                        setSearchQ("");
+                      }}
+                    >
+                      <Text style={styles.choiceText}>{p.title}</Text>
+                      {!p.can_report ? (
+                        <Text style={styles.warnMuted}>
+                          {t("volunteer.private_project")}
+                        </Text>
+                      ) : null}
+                    </Pressable>
+                  ))
+                )
+              ) : null}
+            </View>
+          ) : null}
 
-        <Pressable
-          onPress={() => setCreateOpen(true)}
-          disabled={!signedIn}
-        >
-          <Text style={styles.link}>{t("volunteer.create_project")}</Text>
-        </Pressable>
+          <Pressable
+            style={styles.projectLink}
+            onPress={() => setCreateOpen(true)}
+            disabled={!signedIn}
+          >
+            <Text style={styles.link}>{t("volunteer.create_project")}</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.label}>{t("volunteer.date")}</Text>
+        <TextInput
+          value={date}
+          onChangeText={setDate}
+          placeholder={t("volunteer.date_placeholder")}
+          placeholderTextColor={colors.muted}
+          style={styles.input}
+          editable={signedIn}
+        />
 
         <View style={styles.row2}>
-          <View style={styles.col}>
-            <Text style={styles.label}>{t("volunteer.date")}</Text>
-            <TextInput
-              value={date}
-              onChangeText={setDate}
-              placeholder={t("volunteer.date_placeholder")}
-              placeholderTextColor={colors.muted}
-              style={styles.input}
-              editable={signedIn}
-            />
-          </View>
           <View style={styles.col}>
             <Text style={styles.label}>{t("volunteer.hours")}</Text>
             <TextInput
@@ -361,7 +390,19 @@ export default function VolunteerScreen() {
               onChangeText={setHours}
               placeholder={t("volunteer.hours_placeholder")}
               placeholderTextColor={colors.muted}
-              keyboardType="decimal-pad"
+              keyboardType="number-pad"
+              style={styles.input}
+              editable={signedIn}
+            />
+          </View>
+          <View style={styles.col}>
+            <Text style={styles.label}>{t("volunteer.minutes")}</Text>
+            <TextInput
+              value={minutes}
+              onChangeText={setMinutes}
+              placeholder={t("volunteer.minutes_placeholder")}
+              placeholderTextColor={colors.muted}
+              keyboardType="number-pad"
               style={styles.input}
               editable={signedIn}
             />
@@ -458,9 +499,7 @@ export default function VolunteerScreen() {
             {t("volunteer.reward_chrons_instead")}
           </Text>
         </View>
-        {reward === "merits" ? (
-          <Text style={styles.hint}>{t("volunteer.reward_hint")}</Text>
-        ) : null}
+        <Text style={styles.hint}>{t("volunteer.chron_footer_3")}</Text>
 
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
@@ -501,7 +540,6 @@ export default function VolunteerScreen() {
         </Text>
         <Text style={styles.footerMuted}>{t("volunteer.chron_footer_1")}</Text>
         <Text style={styles.footerMuted}>{t("volunteer.chron_footer_2")}</Text>
-        <Text style={styles.footerMuted}>{t("volunteer.chron_footer_3")}</Text>
       </ScrollView>
 
       <CreateProjectModal
@@ -565,7 +603,15 @@ const styles = StyleSheet.create({
   warn: { color: colors.danger, fontSize: 12 },
   warnMuted: { color: colors.muted, fontSize: 12 },
   link: { color: colors.brand, fontWeight: "700" },
-  searchBox: { gap: 8 },
+  projectLinks: { gap: 4, marginVertical: 4 },
+  projectLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 2,
+  },
+  projectLinkIcon: { marginRight: 4 },
+  searchBox: { gap: 8, marginBottom: 4 },
   row2: { flexDirection: "row", gap: 12 },
   col: { flex: 1, gap: 6 },
   photoRow: {
@@ -594,7 +640,13 @@ const styles = StyleSheet.create({
   },
   checkboxLabel: { flex: 1, color: colors.ink, fontSize: 15, lineHeight: 20 },
   error: { color: colors.danger, fontSize: 14 },
-  actions: { flexDirection: "row", gap: 10, marginTop: 8, alignItems: "center" },
+  actions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 20,
+    marginBottom: 16,
+    alignItems: "center",
+  },
   btn: {
     flex: 1,
     backgroundColor: colors.brand,
