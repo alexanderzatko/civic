@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import type {
+  ClassifyNaceResponse,
   CreateWorkReportErrorCode,
   CreateWorkReportResponse,
   NaceNode,
@@ -110,6 +111,54 @@ export const workReportsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async 
       return sendRovasError(reply, err);
     }
   });
+
+  /**
+   * AI NACE classification from work description.
+   * Proxies Rovas `POST /rovas/civic_ai_nace`.
+   */
+  app.post(
+    "/nace/classify",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const description =
+        typeof body.description === "string" ? body.description.trim() : "";
+      const projectNid =
+        body.project_nid != null ? String(body.project_nid).trim() : "";
+      const langRaw = typeof body.lang === "string" ? body.lang : undefined;
+      const lang = langRaw ? resolveCivicContentLang(langRaw) : undefined;
+
+      if (!description) {
+        return reply.code(400).send({
+          status: "error",
+          nace_tid: "",
+          nace_code: "",
+          nace_label: "",
+          title: "",
+          clarifying_question: "",
+          confidence: 0,
+          error: "description is required.",
+        } satisfies ClassifyNaceResponse);
+      }
+
+      try {
+        const result = await ctx.rovas.classifyNaceFromDescription(
+          user.accessToken,
+          {
+            description,
+            lang,
+            ...(projectNid && /^\d+$/.test(projectNid) && projectNid !== "0"
+              ? { project_nid: projectNid }
+              : {}),
+          },
+        );
+        return result;
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
 
   /**
    * Map layers / view for volunteer work-report map proof.

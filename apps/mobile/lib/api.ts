@@ -20,6 +20,8 @@ import type {
   MeritHistoryPage,
   VolunteerProjectRow,
   NaceNode,
+  ClassifyNaceBody,
+  ClassifyNaceResponse,
   CreateProjectResponse,
   CreateWorkReportBody,
   CreateWorkReportResponse,
@@ -290,6 +292,16 @@ export function createProject(body: {
 export function fetchNaceTree(): Promise<{ tree: NaceNode[] }> {
   const params = new URLSearchParams({ lang: getLocale() });
   return apiFetch(`/nace?${params}`, { auth: "required" });
+}
+
+export function classifyNaceFromDescription(
+  body: ClassifyNaceBody,
+): Promise<ClassifyNaceResponse> {
+  return apiFetch<ClassifyNaceResponse>("/nace/classify", {
+    method: "POST",
+    auth: "required",
+    body: JSON.stringify({ ...body, lang: body.lang ?? getLocale() }),
+  });
 }
 
 export function fetchWorkReportMapConfig(): Promise<WorkReportMapConfig> {

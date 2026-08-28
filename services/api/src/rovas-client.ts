@@ -20,6 +20,8 @@ import type {
   UserLookupTaxMonth,
   VolunteerProjectRow,
   NaceNode,
+  ClassifyNaceResponse,
+  AiNaceStatus,
   CreateProjectBody,
   CreateWorkReportBody,
   CreateWorkReportErrorCode,
@@ -427,6 +429,40 @@ export class RovasClient {
       accessToken,
     );
     return normalizeNaceTree(body);
+  }
+
+  /**
+   * Classify NACE (+ optional title) from work description.
+   * `POST /rovas/civic_ai_nace`
+   */
+  async classifyNaceFromDescription(
+    accessToken: string,
+    payload: {
+      description: string;
+      lang?: CivicContentLang;
+      project_nid?: string;
+    },
+  ): Promise<ClassifyNaceResponse> {
+    try {
+      const body = await this.postJson<unknown>(
+        "/rovas/civic_ai_nace",
+        accessToken,
+        {
+          description: payload.description,
+          ...(payload.lang ? { lang: payload.lang } : {}),
+          ...(payload.project_nid ? { project_nid: payload.project_nid } : {}),
+        },
+      );
+      return normalizeClassifyNaceResponse(body);
+    } catch (err) {
+      if (
+        err instanceof RovasClientError &&
+        (err.status === 404 || err.status === 503)
+      ) {
+        return emptyClassifyNaceResponse("unavailable");
+      }
+      throw err;
+    }
   }
 
   /**
@@ -1133,4 +1169,51 @@ function normalizeNaceTree(body: unknown): NaceNode[] {
   return unwrapList(body)
     .map(normalizeNaceNode)
     .filter((x): x is NaceNode => x != null);
+}
+
+const AI_NACE_STATUSES = new Set<AiNaceStatus>([
+  "ok",
+  "need_more_info",
+  "unavailable",
+  "error",
+]);
+
+function emptyClassifyNaceResponse(status: AiNaceStatus): ClassifyNaceResponse {
+  return {
+    status,
+    nace_tid: "",
+    nace_code: "",
+    nace_label: "",
+    title: "",
+    clarifying_question: "",
+    confidence: 0,
+    error: "",
+  };
+}
+
+function normalizeClassifyNaceResponse(body: unknown): ClassifyNaceResponse {
+  if (!body || typeof body !== "object") {
+    return emptyClassifyNaceResponse("error");
+  }
+  const r = body as Partial<ClassifyNaceResponse>;
+  const statusRaw = typeof r.status === "string" ? r.status.trim() : "";
+  const status = AI_NACE_STATUSES.has(statusRaw as AiNaceStatus)
+    ? (statusRaw as AiNaceStatus)
+    : "error";
+  return {
+    status,
+    nace_tid: r.nace_tid != null ? String(r.nace_tid).trim() : "",
+    nace_code: typeof r.nace_code === "string" ? r.nace_code.trim() : "",
+    nace_label: typeof r.nace_label === "string" ? r.nace_label.trim() : "",
+    title: typeof r.title === "string" ? r.title.trim() : "",
+    clarifying_question:
+      typeof r.clarifying_question === "string"
+        ? r.clarifying_question.trim()
+        : "",
+    confidence:
+      typeof r.confidence === "number" && Number.isFinite(r.confidence)
+        ? r.confidence
+        : 0,
+    error: typeof r.error === "string" ? r.error.trim() : "",
+  };
 }

@@ -22,12 +22,13 @@ import type {
 } from "@civic/shared";
 import type { WorkReportGeoJsonGeometry } from "@civic/shared";
 import { CreateProjectSection } from "@/components/CreateProjectSection";
-import { NacePicker } from "@/components/NacePicker";
+import { NacePicker, findNaceNode } from "@/components/NacePicker";
 import { VolunteerMapProofSection } from "@/components/VolunteerMapProofSection";
 import { VolunteerPhotoList } from "@/components/VolunteerPhotoList";
 import { colors } from "@/constants/theme";
 import {
   createWorkReport,
+  classifyNaceFromDescription,
   fetchMyProjects,
   fetchNaceTree,
 } from "@/lib/api";
@@ -105,6 +106,8 @@ export default function VolunteerScreen() {
   const [title, setTitle] = useState("");
   const [naceTree, setNaceTree] = useState<NaceNode[]>([]);
   const [nace, setNace] = useState<NaceNode | null>(null);
+  const [naceAiSuggested, setNaceAiSuggested] = useState(false);
+  const [naceClassifying, setNaceClassifying] = useState(false);
   const [webUrl, setWebUrl] = useState("");
   const [photos, setPhotos] = useState<VolunteerPhotoDraft[]>([]);
   const [mapLocation, setMapLocation] = useState<WorkReportGeoJsonGeometry | null>(
@@ -150,6 +153,7 @@ export default function VolunteerScreen() {
     setDescription("");
     setTitle("");
     setNace(null);
+    setNaceAiSuggested(false);
     setWebUrl("");
     setPhotos([]);
     setMapLocation(null);
@@ -198,6 +202,51 @@ export default function VolunteerScreen() {
       setFormError(t("volunteer.error_photo"));
     } finally {
       setRotatingPhotoIndex(null);
+    }
+  };
+
+  const onClassifyNace = async () => {
+    setFormError(null);
+    const desc = description.trim();
+    if (!desc) {
+      setFormError(t("volunteer.nace_ai_need_description"));
+      return;
+    }
+    setNaceClassifying(true);
+    try {
+      const res = await classifyNaceFromDescription({
+        description: desc,
+        ...(selected?.project_nid ? { project_nid: selected.project_nid } : {}),
+      });
+      if (res.status === "ok" && res.nace_tid) {
+        const fromTree = findNaceNode(naceTree, res.nace_tid);
+        setNace(
+          fromTree ?? {
+            tid: res.nace_tid,
+            code: res.nace_code,
+            label: res.nace_label || res.nace_code || res.nace_tid,
+            children: [],
+          },
+        );
+        setNaceAiSuggested(true);
+        return;
+      }
+      setNaceAiSuggested(false);
+      if (res.status === "need_more_info") {
+        setFormError(
+          res.clarifying_question || t("volunteer.nace_ai_need_more"),
+        );
+        return;
+      }
+      if (res.status === "unavailable") {
+        setFormError(t("volunteer.nace_ai_unavailable"));
+        return;
+      }
+      setFormError(res.error || t("volunteer.nace_ai_error"));
+    } catch {
+      setFormError(t("volunteer.nace_ai_error"));
+    } finally {
+      setNaceClassifying(false);
     }
   };
 
@@ -472,6 +521,23 @@ export default function VolunteerScreen() {
           editable={signedIn}
         />
 
+        <Pressable
+          style={[
+            styles.secondary,
+            (!signedIn || naceClassifying) && styles.btnDisabled,
+          ]}
+          onPress={() => void onClassifyNace()}
+          disabled={!signedIn || naceClassifying}
+        >
+          {naceClassifying ? (
+            <ActivityIndicator color={colors.brand} />
+          ) : (
+            <Text style={styles.secondaryText}>
+              {t("volunteer.nace_ai_button")}
+            </Text>
+          )}
+        </Pressable>
+
         <Text style={styles.label}>{t("volunteer.title_field")}</Text>
         <TextInput
           value={title}
@@ -490,7 +556,11 @@ export default function VolunteerScreen() {
           <NacePicker
             tree={naceTree}
             selectedTid={nace?.tid ?? null}
-            onSelect={setNace}
+            aiSuggested={naceAiSuggested}
+            onSelect={(node) => {
+              setNace(node);
+              setNaceAiSuggested(false);
+            }}
             scrollRef={scrollRef}
             getScrollY={() => scrollYRef.current}
           />

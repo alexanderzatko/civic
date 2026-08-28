@@ -20,6 +20,8 @@ type Props = {
   tree: NaceNode[];
   selectedTid: string | null;
   onSelect: (node: NaceNode) => void;
+  /** When true, the current selection came from AI classification. */
+  aiSuggested?: boolean;
   /** Parent form ScrollView — compensates scroll on drill-down so the tap stays put. */
   scrollRef?: RefObject<ScrollView | null>;
   getScrollY?: () => number;
@@ -29,6 +31,7 @@ export function NacePicker({
   tree,
   selectedTid,
   onSelect,
+  aiSuggested = false,
   scrollRef,
   getScrollY,
 }: Props) {
@@ -91,6 +94,9 @@ export function NacePicker({
 
   return (
     <View style={styles.wrap}>
+      {aiSuggested && selectedTid ? (
+        <Text style={styles.selectedAiHint}>{t("volunteer.nace_ai_suggested")}</Text>
+      ) : null}
       {selectedLabel ? (
         <Text style={styles.selected}>{selectedLabel}</Text>
       ) : null}
@@ -198,9 +204,20 @@ function findLabel(nodes: NaceNode[], tid: string): string | null {
   return null;
 }
 
+/** Find a NACE node by taxonomy tid (searches the full tree). */
+export function findNaceNode(nodes: NaceNode[], tid: string): NaceNode | null {
+  for (const n of nodes) {
+    if (n.tid === tid) return n;
+    const nested = findNaceNode(n.children, tid);
+    if (nested) return nested;
+  }
+  return null;
+}
+
 const styles = StyleSheet.create({
   wrap: { gap: 6 },
   selected: { color: colors.brandSoft, fontWeight: "600", fontSize: 13 },
+  selectedAiHint: { color: colors.brand, fontWeight: "700", fontSize: 12 },
   back: { alignSelf: "flex-start", paddingVertical: 4 },
   backText: { color: colors.brand, fontWeight: "700" },
   row: {

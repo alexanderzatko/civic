@@ -398,6 +398,27 @@ export interface NaceNode {
   children: NaceNode[];
 }
 
+export type AiNaceStatus = "ok" | "need_more_info" | "unavailable" | "error";
+
+/** Request body for `POST /nace/classify` (proxies Rovas civic_ai_nace). */
+export interface ClassifyNaceBody {
+  description: string;
+  project_nid?: string;
+  lang?: "sk" | "en";
+}
+
+/** Response from AI NACE classification. */
+export interface ClassifyNaceResponse {
+  status: AiNaceStatus;
+  nace_tid: string;
+  nace_code: string;
+  nace_label: string;
+  title: string;
+  clarifying_question: string;
+  confidence: number;
+  error: string;
+}
+
 export type RewardKind = "merits" | "chrons";
 
 export type WorkReportGeometryType = "Point" | "LineString" | "Polygon";
