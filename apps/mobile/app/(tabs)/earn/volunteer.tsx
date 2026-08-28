@@ -20,8 +20,10 @@ import type {
   RewardKind,
   VolunteerProjectRow,
 } from "@civic/shared";
+import type { WorkReportGeoJsonGeometry } from "@civic/shared";
 import { CreateProjectSection } from "@/components/CreateProjectSection";
 import { NacePicker } from "@/components/NacePicker";
+import { VolunteerMapProofSection } from "@/components/VolunteerMapProofSection";
 import { VolunteerPhotoList } from "@/components/VolunteerPhotoList";
 import { colors } from "@/constants/theme";
 import {
@@ -94,6 +96,7 @@ export default function VolunteerScreen() {
   const [findOpen, setFindOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
 
   const [date, setDate] = useState(todaySk);
   const [hours, setHours] = useState("");
@@ -104,6 +107,9 @@ export default function VolunteerScreen() {
   const [nace, setNace] = useState<NaceNode | null>(null);
   const [webUrl, setWebUrl] = useState("");
   const [photos, setPhotos] = useState<VolunteerPhotoDraft[]>([]);
+  const [mapLocation, setMapLocation] = useState<WorkReportGeoJsonGeometry | null>(
+    null,
+  );
   const [rotatingPhotoIndex, setRotatingPhotoIndex] = useState<number | null>(
     null,
   );
@@ -146,6 +152,7 @@ export default function VolunteerScreen() {
     setNace(null);
     setWebUrl("");
     setPhotos([]);
+    setMapLocation(null);
     setReward("merits");
     setFormError(null);
     setSuccess(false);
@@ -224,7 +231,7 @@ export default function VolunteerScreen() {
       return;
     }
     const url = webUrl.trim();
-    if (!url && photos.length === 0) {
+    if (!url && photos.length === 0 && !mapLocation) {
       setFormError(t("volunteer.proof_hint"));
       return;
     }
@@ -240,6 +247,7 @@ export default function VolunteerScreen() {
         ...(title.trim() ? { title: title.trim() } : {}),
         ...(url ? { web_url: url } : {}),
         ...(photos.length > 0 ? { photos } : {}),
+        ...(mapLocation ? { field_location: mapLocation } : {}),
       });
       if (!res.ok) {
         setFormError(errorCopy(res.error));
@@ -527,6 +535,14 @@ export default function VolunteerScreen() {
             <Text style={styles.secondaryText}>{t("volunteer.add_photo")}</Text>
           </Pressable>
         ) : null}
+
+        <VolunteerMapProofSection
+          open={mapOpen}
+          onToggle={() => setMapOpen((v) => !v)}
+          disabled={!signedIn}
+          geometry={mapLocation}
+          onChange={setMapLocation}
+        />
 
         <View style={styles.checkboxRow}>
           <Switch

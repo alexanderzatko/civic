@@ -45,6 +45,7 @@ async function main() {
       "POST /projects",
       "GET /nace",
       "POST /work-reports",
+      "GET /work-reports/map-config",
     ],
   }));
 

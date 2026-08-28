@@ -4,6 +4,7 @@ import type {
   CreateWorkReportResponse,
   NaceNode,
   RewardKind,
+  WorkReportGeoJsonGeometry,
   WorkReportPhotoInput,
 } from "@civic/shared";
 import { requireAuth } from "../auth.js";
@@ -13,6 +14,8 @@ import {
   RovasClientError,
   volunteerErrorCodeFromRovas,
 } from "../rovas-client.js";
+import { FALLBACK_WORK_REPORT_MAP_CONFIG } from "../work-report-map-config.js";
+import { parseFieldLocation } from "../work-report-location.js";
 
 const MAX_PHOTOS = 5;
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
@@ -109,6 +112,26 @@ export const workReportsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async 
   });
 
   /**
+   * Map layers / view for volunteer work-report map proof.
+   * Proxies Rovas `GET /rovas/civic_work_report_map_config`.
+   */
+  app.get(
+    "/work-reports/map-config",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      try {
+        return await ctx.rovas.fetchWorkReportMapConfig(user.accessToken);
+      } catch (err) {
+        if (err instanceof RovasClientError && err.status === 404) {
+          return FALLBACK_WORK_REPORT_MAP_CONFIG;
+        }
+        return sendRovasError(reply, err);
+      }
+    },
+  );
+
+  /**
    * Submit a volunteer work report.
    * Proxies Rovas `POST /rovas/civic_create_work_report`.
    */
@@ -134,6 +157,7 @@ export const workReportsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async 
       const rewardKind: RewardKind =
         body.reward_kind === "merits" ? "merits" : "chrons";
       const photosOrErr = parsePhotos(body.photos);
+      const fieldLocationOrErr = parseFieldLocation(body.field_location);
 
       const fail = (
         error: CreateWorkReportErrorCode,
@@ -173,11 +197,20 @@ export const workReportsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async 
       if ("error" in photosOrErr) {
         return reply.code(400).send(fail("invalid_input", photosOrErr.error));
       }
-      if (!webUrl && photosOrErr.length === 0) {
+      if (fieldLocationOrErr && "error" in fieldLocationOrErr) {
+        return reply
+          .code(400)
+          .send(fail("invalid_input", fieldLocationOrErr.error));
+      }
+      const fieldLocation = fieldLocationOrErr as WorkReportGeoJsonGeometry | null;
+      if (!webUrl && photosOrErr.length === 0 && !fieldLocation) {
         return reply
           .code(400)
           .send(
-            fail("invalid_input", "Provide a proof URL and/or at least one photo."),
+            fail(
+              "invalid_input",
+              "Provide a proof URL, at least one photo, and/or a map location.",
+            ),
           );
       }
 
@@ -192,6 +225,7 @@ export const workReportsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async 
           ...(title ? { title } : {}),
           ...(webUrl ? { web_url: webUrl } : {}),
           ...(photosOrErr.length > 0 ? { photos: photosOrErr } : {}),
+          ...(fieldLocation ? { field_location: fieldLocation } : {}),
         });
         const res: CreateWorkReportResponse = {
           ok: true,

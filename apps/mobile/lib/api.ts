@@ -23,6 +23,7 @@ import type {
   CreateProjectResponse,
   CreateWorkReportBody,
   CreateWorkReportResponse,
+  WorkReportMapConfig,
 } from "@civic/shared";
 import { getLocale } from "@/lib/i18n";
 
@@ -289,6 +290,10 @@ export function createProject(body: {
 export function fetchNaceTree(): Promise<{ tree: NaceNode[] }> {
   const params = new URLSearchParams({ lang: getLocale() });
   return apiFetch(`/nace?${params}`, { auth: "required" });
+}
+
+export function fetchWorkReportMapConfig(): Promise<WorkReportMapConfig> {
+  return apiFetch("/work-reports/map-config", { auth: "required" });
 }
 
 export function createWorkReport(

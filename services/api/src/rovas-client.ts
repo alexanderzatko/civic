@@ -24,6 +24,7 @@ import type {
   CreateWorkReportBody,
   CreateWorkReportErrorCode,
   RewardKind,
+  WorkReportMapConfig,
 } from "@civic/shared";
 import {
   appendLangParam,
@@ -451,6 +452,16 @@ export class RovasClient {
       );
     }
     return { project_nid: nid };
+  }
+
+  /**
+   * Map widget config for volunteer work-report map proof.
+   * `GET /rovas/civic_work_report_map_config`
+   */
+  async fetchWorkReportMapConfig(
+    accessToken: string,
+  ): Promise<WorkReportMapConfig> {
+    return this.getJson("/rovas/civic_work_report_map_config", accessToken);
   }
 
   /**

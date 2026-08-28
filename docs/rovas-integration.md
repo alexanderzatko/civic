@@ -65,7 +65,8 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `GET /projects/search` | Volunteer typeahead — proxies Rovas `GET /rovas/civic_projects_search?query=` (Civic `?q=`; maps to Rovas `query`). |
 | `POST /projects` | Create project — proxies Rovas `POST /rovas/civic_create_project` (`name`, `description`, optional `url`). Defaults on Rovas: status for sale, Public. |
 | `GET /nace` | NACE drill-down tree — proxies Rovas `GET /rovas/civic_nace_tree?lang=`. |
-| `POST /work-reports` | Submit volunteer report — proxies Rovas `POST /rovas/civic_create_work_report` (hours, date, description, NACE, proof URL and/or photos, `reward_kind`). |
+| `GET /work-reports/map-config` | Map proof widget — proxies Rovas `GET /rovas/civic_work_report_map_config` (basemap tiles, centre, allowed geometry types). Civic serves an OSM fallback until Rovas ships the endpoint. |
+| `POST /work-reports` | Submit volunteer report — proxies Rovas `POST /rovas/civic_create_work_report` (hours, date, description, NACE, proof URL and/or photos and/or `field_location` GeoJSON, `reward_kind`). |
 
 `POST /receipts/verify` sends optional Bearer; when present, Civic checks
 `GET /rovas/civic_claims?receipt_uid=` and returns `already_claimed` so the
@@ -155,6 +156,8 @@ Merit history (Profil): → **Done: merit history (profile ledger)** (`GET /rova
 Volunteer report (screen 4): → **Next work: volunteer report (Civic deferred form)**
 (`GET /rovas/civic_my_projects`, `civic_projects_search`, `civic_nace_tree`,
 `POST /rovas/civic_create_project`, `civic_create_work_report`). **Next work:**
+[geofield on Civic work reports](~/Documents/homeProjects/rovas/docs/integration/civic.md#next-work-geofield-on-civic-work-reports)
+— map proof (`GET /rovas/civic_work_report_map_config`, `field_location` on create).
+**Next work:**
 [pending verifications gate (assigned slots only)](~/Documents/homeProjects/rovas/docs/integration/civic.md#next-work-pending-verifications-gate-assigned-slots-only)
-— empty obligation slots must not block new reports. Later: AI NACE,
-CHR→ME on verification, geofield.
+— empty obligation slots must not block new reports.

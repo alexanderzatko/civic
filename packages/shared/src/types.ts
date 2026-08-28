@@ -400,6 +400,31 @@ export interface NaceNode {
 
 export type RewardKind = "merits" | "chrons";
 
+export type WorkReportGeometryType = "Point" | "LineString" | "Polygon";
+
+/** GeoJSON geometry for work-report map proof (RFC 7946, lon/lat order). */
+export type WorkReportGeoJsonGeometry =
+  | { type: "Point"; coordinates: [number, number] }
+  | { type: "LineString"; coordinates: [number, number][] }
+  | { type: "Polygon"; coordinates: [number, number][][] };
+
+export interface WorkReportMapRasterLayer {
+  id: string;
+  name: string;
+  /** XYZ tile URL with `{z}`, `{x}`, `{y}` placeholders. */
+  url_template: string;
+  attribution?: string;
+  max_zoom?: number;
+}
+
+export interface WorkReportMapConfig {
+  center: { latitude: number; longitude: number };
+  zoom: number;
+  geometry_types: WorkReportGeometryType[];
+  raster_layers: WorkReportMapRasterLayer[];
+  default_layer_id?: string;
+}
+
 export interface WorkReportPhotoInput {
   filename: string;
   mime: string;
@@ -435,6 +460,7 @@ export interface CreateWorkReportBody {
   web_url?: string;
   reward_kind?: RewardKind;
   photos?: WorkReportPhotoInput[];
+  field_location?: WorkReportGeoJsonGeometry;
 }
 
 export type CreateWorkReportErrorCode =
