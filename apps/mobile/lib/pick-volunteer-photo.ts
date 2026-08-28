@@ -1,10 +1,15 @@
 import { Platform } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { requireOptionalNativeModule } from "expo-modules-core";
 import type { WorkReportPhotoInput } from "@civic/shared";
 
+export type VolunteerPhotoDraft = WorkReportPhotoInput & {
+  uri: string;
+};
+
 export type PickVolunteerPhotoResult =
-  | { ok: true; photo: WorkReportPhotoInput }
+  | { ok: true; photo: VolunteerPhotoDraft }
   | {
       ok: false;
       reason: "unavailable" | "denied" | "cancelled" | "error";
@@ -56,7 +61,7 @@ export async function pickVolunteerPhoto(
 
     const asset = result.assets[0];
     const data = asset.base64;
-    if (!data) {
+    if (!data || !asset.uri) {
       return { ok: false, reason: "cancelled" };
     }
     return {
@@ -65,6 +70,7 @@ export async function pickVolunteerPhoto(
         filename: asset.fileName ?? `photo-${index + 1}.jpg`,
         mime: asset.mimeType ?? "image/jpeg",
         data,
+        uri: asset.uri,
       },
     };
   } catch (err) {
@@ -77,4 +83,24 @@ export async function pickVolunteerPhoto(
     }
     return { ok: false, reason: "error", message };
   }
+}
+
+export async function rotateVolunteerPhoto(
+  photo: VolunteerPhotoDraft,
+): Promise<VolunteerPhotoDraft> {
+  const format = photo.mime === "image/png" ? SaveFormat.PNG : SaveFormat.JPEG;
+  const result = await manipulateAsync(
+    photo.uri,
+    [{ rotate: 90 }],
+    { compress: 0.6, format, base64: true },
+  );
+  if (!result.base64) {
+    throw new Error("rotation_missing_base64");
+  }
+  return {
+    filename: photo.filename,
+    mime: format === SaveFormat.PNG ? "image/png" : "image/jpeg",
+    data: result.base64,
+    uri: result.uri,
+  };
 }

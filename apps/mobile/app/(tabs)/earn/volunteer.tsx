@@ -19,10 +19,10 @@ import type {
   NaceNode,
   RewardKind,
   VolunteerProjectRow,
-  WorkReportPhotoInput,
 } from "@civic/shared";
 import { CreateProjectSection } from "@/components/CreateProjectSection";
 import { NacePicker } from "@/components/NacePicker";
+import { VolunteerPhotoList } from "@/components/VolunteerPhotoList";
 import { colors } from "@/constants/theme";
 import {
   createWorkReport,
@@ -31,7 +31,12 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
-import { pickVolunteerPhoto, volunteerPhotoPickerAvailable } from "@/lib/pick-volunteer-photo";
+import {
+  pickVolunteerPhoto,
+  rotateVolunteerPhoto,
+  volunteerPhotoPickerAvailable,
+  type VolunteerPhotoDraft,
+} from "@/lib/pick-volunteer-photo";
 import { useProjectSearch } from "@/lib/use-project-search";
 
 const ROVAS_API_DOCS = "https://neofund.sk/rovas-api";
@@ -98,7 +103,10 @@ export default function VolunteerScreen() {
   const [naceTree, setNaceTree] = useState<NaceNode[]>([]);
   const [nace, setNace] = useState<NaceNode | null>(null);
   const [webUrl, setWebUrl] = useState("");
-  const [photos, setPhotos] = useState<WorkReportPhotoInput[]>([]);
+  const [photos, setPhotos] = useState<VolunteerPhotoDraft[]>([]);
+  const [rotatingPhotoIndex, setRotatingPhotoIndex] = useState<number | null>(
+    null,
+  );
   const [reward, setReward] = useState<RewardKind>("merits");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -166,6 +174,23 @@ export default function VolunteerScreen() {
     if (result.reason === "error") {
       setFormError(result.message ?? t("volunteer.error_photo"));
       return;
+    }
+  };
+
+  const onRotatePhoto = async (index: number) => {
+    const photo = photos[index];
+    if (!photo) return;
+    setFormError(null);
+    setRotatingPhotoIndex(index);
+    try {
+      const rotated = await rotateVolunteerPhoto(photo);
+      setPhotos((prev) =>
+        prev.map((item, idx) => (idx === index ? rotated : item)),
+      );
+    } catch {
+      setFormError(t("volunteer.error_photo"));
+    } finally {
+      setRotatingPhotoIndex(null);
     }
   };
 
@@ -273,120 +298,124 @@ export default function VolunteerScreen() {
           </View>
         ) : null}
 
-        <Text style={styles.label}>{t("volunteer.project")}</Text>
-        {signedIn ? (
-          <Text style={styles.hint}>{t("volunteer.project_recent_hint")}</Text>
-        ) : null}
-        {mineLoading ? <ActivityIndicator color={colors.brand} /> : null}
-        {signedIn && !mineLoading && mine.length === 0 && !selected ? (
-          <Text style={styles.hint}>{t("volunteer.project_empty")}</Text>
-        ) : null}
-        {mine.map((p) => (
-          <Pressable
-            key={p.project_nid}
-            style={[
-              styles.choice,
-              selected?.project_nid === p.project_nid && styles.choiceOn,
-            ]}
-            onPress={() => setSelected(p)}
-            disabled={!signedIn}
-          >
-            <Text style={styles.choiceText}>{p.title}</Text>
-          </Pressable>
-        ))}
-        {selected &&
-        !mine.some((p) => p.project_nid === selected.project_nid) ? (
-          <View
-            style={[
-              styles.choice,
-              styles.choiceOn,
-              !selected.can_report && styles.choiceWarn,
-            ]}
-          >
-            <Text style={styles.choiceText}>{selected.title}</Text>
-            {!selected.can_report ? (
-              <Text style={styles.warn}>{t("volunteer.private_project")}</Text>
-            ) : null}
-          </View>
-        ) : null}
-
-        <View style={styles.projectLinks}>
-          <Pressable
-            style={styles.projectLink}
-            onPress={() => setFindOpen((v) => !v)}
-            disabled={!signedIn}
-          >
-            <MaterialIcons
-              name="search"
-              size={18}
-              color={colors.brand}
-              style={styles.projectLinkIcon}
-            />
-            <Text style={styles.link}>{t("volunteer.find_another")}</Text>
-          </Pressable>
-          {findOpen && signedIn ? (
-            <View style={styles.searchBox}>
-              <TextInput
-                value={searchQ}
-                onChangeText={setSearchQ}
-                placeholder={t("volunteer.search_placeholder")}
-                placeholderTextColor={colors.muted}
-                autoCapitalize="none"
-                style={styles.input}
-              />
-              {searching ? <ActivityIndicator color={colors.brand} /> : null}
-              {searchError ? (
-                <Text style={styles.error}>{t("volunteer.search_error")}</Text>
-              ) : null}
-              {queryLongEnough && !searching && !searchError ? (
-                results.length === 0 ? (
-                  <Text style={styles.hint}>{t("volunteer.search_empty")}</Text>
-                ) : (
-                  results.map((p) => (
-                    <Pressable
-                      key={p.project_nid}
-                      style={styles.choice}
-                      onPress={() => {
-                        setSelected(p);
-                        setFindOpen(false);
-                        setSearchQ("");
-                      }}
-                    >
-                      <Text style={styles.choiceText}>{p.title}</Text>
-                      {!p.can_report ? (
-                        <Text style={styles.warnMuted}>
-                          {t("volunteer.private_project")}
-                        </Text>
-                      ) : null}
-                    </Pressable>
-                  ))
-                )
+        <Text style={styles.stepHeading}>{t("volunteer.step1_heading")}</Text>
+        <View style={styles.pillbox}>
+          {signedIn ? (
+            <Text style={styles.hint}>{t("volunteer.project_recent_hint")}</Text>
+          ) : null}
+          {mineLoading ? <ActivityIndicator color={colors.brand} /> : null}
+          {signedIn && !mineLoading && mine.length === 0 && !selected ? (
+            <Text style={styles.hint}>{t("volunteer.project_empty")}</Text>
+          ) : null}
+          {mine.map((p) => (
+            <Pressable
+              key={p.project_nid}
+              style={[
+                styles.choice,
+                selected?.project_nid === p.project_nid && styles.choiceOn,
+              ]}
+              onPress={() => setSelected(p)}
+              disabled={!signedIn}
+            >
+              <Text style={styles.choiceText}>{p.title}</Text>
+            </Pressable>
+          ))}
+          {selected &&
+          !mine.some((p) => p.project_nid === selected.project_nid) ? (
+            <View
+              style={[
+                styles.choice,
+                styles.choiceOn,
+                !selected.can_report && styles.choiceWarn,
+              ]}
+            >
+              <Text style={styles.choiceText}>{selected.title}</Text>
+              {!selected.can_report ? (
+                <Text style={styles.warn}>{t("volunteer.private_project")}</Text>
               ) : null}
             </View>
           ) : null}
 
-          <CreateProjectSection
-            open={createOpen}
-            onToggle={() => setCreateOpen((v) => !v)}
-            disabled={!signedIn}
-            onCreated={(p) => {
-              const row: VolunteerProjectRow = {
-                project_nid: p.project_nid,
-                title: p.title,
-                is_public: true,
-                can_report: true,
-              };
-              setMine((prev) => [
-                row,
-                ...prev.filter((x) => x.project_nid !== row.project_nid),
-              ]);
-              setSelected(row);
-              setCreateOpen(false);
-            }}
-          />
+          <View style={styles.projectLinks}>
+            <Pressable
+              style={styles.projectLink}
+              onPress={() => setFindOpen((v) => !v)}
+              disabled={!signedIn}
+            >
+              <MaterialIcons
+                name="search"
+                size={18}
+                color={colors.brand}
+                style={styles.projectLinkIcon}
+              />
+              <Text style={styles.link}>{t("volunteer.find_another")}</Text>
+            </Pressable>
+            {findOpen && signedIn ? (
+              <View style={styles.searchBox}>
+                <TextInput
+                  value={searchQ}
+                  onChangeText={setSearchQ}
+                  placeholder={t("volunteer.search_placeholder")}
+                  placeholderTextColor={colors.muted}
+                  autoCapitalize="none"
+                  style={styles.input}
+                />
+                {searching ? <ActivityIndicator color={colors.brand} /> : null}
+                {searchError ? (
+                  <Text style={styles.error}>{t("volunteer.search_error")}</Text>
+                ) : null}
+                {queryLongEnough && !searching && !searchError ? (
+                  results.length === 0 ? (
+                    <Text style={styles.hint}>{t("volunteer.search_empty")}</Text>
+                  ) : (
+                    results.map((p) => (
+                      <Pressable
+                        key={p.project_nid}
+                        style={styles.choice}
+                        onPress={() => {
+                          setSelected(p);
+                          setFindOpen(false);
+                          setSearchQ("");
+                        }}
+                      >
+                        <Text style={styles.choiceText}>{p.title}</Text>
+                        {!p.can_report ? (
+                          <Text style={styles.warnMuted}>
+                            {t("volunteer.private_project")}
+                          </Text>
+                        ) : null}
+                      </Pressable>
+                    ))
+                  )
+                ) : null}
+              </View>
+            ) : null}
+
+            <CreateProjectSection
+              open={createOpen}
+              onToggle={() => setCreateOpen((v) => !v)}
+              disabled={!signedIn}
+              onCreated={(p) => {
+                const row: VolunteerProjectRow = {
+                  project_nid: p.project_nid,
+                  title: p.title,
+                  is_public: true,
+                  can_report: true,
+                };
+                setMine((prev) => [
+                  row,
+                  ...prev.filter((x) => x.project_nid !== row.project_nid),
+                ]);
+                setSelected(row);
+                setCreateOpen(false);
+              }}
+            />
+          </View>
         </View>
 
-        <Text style={styles.label}>{t("volunteer.date")}</Text>
+        <Text style={styles.stepHeading}>{t("volunteer.step2_heading")}</Text>
+        <View style={styles.pillbox}>
+        <Text style={[styles.label, styles.labelFirst]}>{t("volunteer.date")}</Text>
         <TextInput
           value={date}
           onChangeText={setDate}
@@ -478,20 +507,17 @@ export default function VolunteerScreen() {
             {t("volunteer.error_photo_native")}
           </Text>
         ) : null}
-        {photos.map((p, i) => (
-          <View key={`${p.filename}-${i}`} style={styles.photoRow}>
-            <Text style={styles.choiceText} numberOfLines={1}>
-              {p.filename}
-            </Text>
-            <Pressable
-              onPress={() =>
-                setPhotos((prev) => prev.filter((_, idx) => idx !== i))
-              }
-            >
-              <Text style={styles.link}>{t("volunteer.remove_photo")}</Text>
-            </Pressable>
-          </View>
-        ))}
+        {photos.length > 0 ? (
+          <VolunteerPhotoList
+            photos={photos}
+            rotatingIndex={rotatingPhotoIndex}
+            disabled={!signedIn}
+            onRotate={(index) => void onRotatePhoto(index)}
+            onRemove={(index) =>
+              setPhotos((prev) => prev.filter((_, idx) => idx !== index))
+            }
+          />
+        ) : null}
         {photos.length < 5 ? (
           <Pressable
             style={styles.secondary}
@@ -515,7 +541,6 @@ export default function VolunteerScreen() {
             {t("volunteer.reward_chrons_instead")}
           </Text>
         </View>
-        <Text style={styles.hint}>{t("volunteer.chron_footer_3")}</Text>
 
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
@@ -543,6 +568,7 @@ export default function VolunteerScreen() {
             )}
           </Pressable>
         </View>
+        </View>
 
         <Text style={styles.footer}>
           {t("volunteer.api_hint_before")}
@@ -556,6 +582,7 @@ export default function VolunteerScreen() {
         </Text>
         <Text style={styles.footerMuted}>{t("volunteer.chron_footer_1")}</Text>
         <Text style={styles.footerMuted}>{t("volunteer.chron_footer_2")}</Text>
+        <Text style={styles.footerMuted}>{t("volunteer.chron_footer_3")}</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -571,6 +598,19 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 10,
   },
+  stepHeading: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.ink,
+    marginTop: 4,
+  },
+  pillbox: {
+    backgroundColor: "#E8EFEA",
+    borderRadius: 14,
+    padding: 16,
+    gap: 10,
+  },
+  labelFirst: { marginTop: 0 },
   hint: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   label: {
     fontWeight: "600",
@@ -614,16 +654,6 @@ const styles = StyleSheet.create({
   searchBox: { gap: 8, marginBottom: 4 },
   row2: { flexDirection: "row", gap: 12 },
   col: { flex: 1, gap: 6 },
-  photoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   secondary: {
     borderWidth: 1,
     borderColor: colors.brand,
