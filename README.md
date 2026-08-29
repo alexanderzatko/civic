@@ -253,6 +253,53 @@ servers found”, “error loading app”.
 
 OAuth details: [`docs/rovas-integration.md`](docs/rovas-integration.md).
 
+## Physical Android (APK install)
+
+Release APK with the JS bundle embedded (no Metro required on the phone). The
+Civic API is reached at `EXPO_PUBLIC_API_URL` from `apps/mobile/.env` (default
+`https://civic-api.rovas.app`).
+
+### System requirements (device)
+
+| Requirement | Detail |
+|---|---|
+| **OS** | Android **7.0+** (API 24+) |
+| **CPU** | `arm64-v8a`, `armeabi-v7a`, `x86`, or `x86_64` (universal APK) |
+| **Storage** | ~**100 MB** free for install |
+| **Network** | Internet (HTTPS to Civic API + Rovas OAuth) |
+| **Camera** | Required for eKasa QR receipt scan |
+| **Location** | Used when registering receipt Merits (coarse/fine) |
+| **Photos** | Optional — volunteer work proof images |
+
+### Build the APK (Mac)
+
+One-time: [Android SDK](https://developer.android.com/studio) (or Android Studio)
+with `ANDROID_HOME` pointing at the SDK, plus **JDK 17+** (JDK 21 works).
+
+```bash
+pnpm install
+# Ensure apps/mobile/.env has production API URLs before building
+pnpm --filter @civic/mobile android:apk
+```
+
+Output: `apps/mobile/dist/civic-0.1.0-android-release.apk` (~100 MB).
+
+Subsequent builds are much faster (~2–5 min) once Gradle caches exist.
+
+**Cloud alternative:** `eas.json` is configured — from `apps/mobile`, run
+`npx eas build -p android --profile preview` (Expo account required).
+
+### Install on a phone
+
+1. Copy the APK to the device (USB, AirDrop alternative, cloud drive, etc.).
+2. On the phone: **Settings → Security** → allow install from unknown sources
+   (wording varies by OEM).
+3. Open the APK file and confirm install.
+4. Grant **Camera** and **Location** when prompted (needed for receipt scan).
+
+Package id: `app.civic.mobile`. This build includes the Expo dev-client shell
+but ships a **release** JS bundle, so the app runs without a Mac/Metro session.
+
 ## Screen mockup (static)
 
 Optional UI mock hosted on the VPS (not the live API):

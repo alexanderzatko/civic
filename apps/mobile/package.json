@@ -15,6 +15,8 @@
     "ios:device": "EXPO_NO_METRO_WORKSPACE_ROOT=1 expo run:ios --device",
     "ios:pod-install": "cd ios && pod install",
     "ios:device:clean": "EXPO_NO_METRO_WORKSPACE_ROOT=1 expo prebuild --clean --platform ios && pnpm ios:pod-install && EXPO_NO_METRO_WORKSPACE_ROOT=1 expo run:ios --device",
+    "android:prebuild": "EXPO_NO_METRO_WORKSPACE_ROOT=1 expo prebuild --platform android",
+    "android:apk": "bash scripts/build-android-apk.sh",
     "web": "EXPO_NO_METRO_WORKSPACE_ROOT=1 expo start --web",
     "typecheck": "tsc --noEmit"
   },
