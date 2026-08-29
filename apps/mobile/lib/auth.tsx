@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -22,7 +23,7 @@ import {
   saveTokens,
   type StoredTokens,
 } from "@/lib/auth-storage";
-import { setAccessTokenGetter } from "@/lib/api";
+import { setAccessTokenGetter, setUnauthorizedHandler } from "@/lib/api";
 import {
   getOAuthClientId,
   getOAuthRedirectUri,
@@ -53,6 +54,9 @@ function toStored(token: TokenResponse): StoredTokens {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [tokens, setTokens] = useState<StoredTokens | null>(null);
+  const tokensRef = useRef<StoredTokens | null>(null);
+  tokensRef.current = tokens;
+  const refreshInFlightRef = useRef<Promise<string | null> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,32 +94,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const getAccessToken = useCallback(async (): Promise<string | null> => {
-    if (!tokens?.accessToken) return null;
-    const current = new TokenResponse(tokens);
-    if (!current.shouldRefresh()) {
-      return current.accessToken;
-    }
-    if (!tokens.refreshToken) {
-      await persist(null);
-      return null;
-    }
-    try {
-      const refreshed = await refreshAsync(
-        {
-          clientId: getOAuthClientId(),
-          refreshToken: tokens.refreshToken,
-        },
-        getRovasDiscovery(),
-      );
-      const stored = toStored(refreshed);
-      await persist(stored);
-      return refreshed.accessToken;
-    } catch {
-      await persist(null);
-      return null;
-    }
-  }, [persist, tokens]);
+  const refreshAccessToken = useCallback(
+    async (force = false): Promise<string | null> => {
+      const currentTokens = tokensRef.current;
+      if (!currentTokens?.accessToken) return null;
+
+      const current = new TokenResponse(currentTokens);
+      if (!force && !current.shouldRefresh()) {
+        return current.accessToken;
+      }
+      if (!currentTokens.refreshToken) {
+        await persist(null);
+        return null;
+      }
+
+      if (refreshInFlightRef.current) {
+        return refreshInFlightRef.current;
+      }
+
+      const refreshPromise = (async (): Promise<string | null> => {
+        try {
+          const refreshed = await refreshAsync(
+            {
+              clientId: getOAuthClientId(),
+              refreshToken: currentTokens.refreshToken!,
+            },
+            getRovasDiscovery(),
+          );
+          const stored = toStored(refreshed);
+          await persist(stored);
+          return refreshed.accessToken;
+        } catch {
+          await persist(null);
+          return null;
+        } finally {
+          refreshInFlightRef.current = null;
+        }
+      })();
+
+      refreshInFlightRef.current = refreshPromise;
+      return refreshPromise;
+    },
+    [persist],
+  );
+
+  const getAccessToken = useCallback(
+    () => refreshAccessToken(false),
+    [refreshAccessToken],
+  );
 
   const signIn = useCallback(async (): Promise<boolean> => {
     const discovery = getRovasDiscovery();
@@ -161,8 +187,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     const discovery = getRovasDiscovery();
-    const access = tokens?.accessToken;
-    const refresh = tokens?.refreshToken;
+    const access = tokensRef.current?.accessToken;
+    const refresh = tokensRef.current?.refreshToken;
     try {
       if (access) {
         await revokeAsync(
@@ -188,12 +214,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Revocation best-effort — still clear local session.
     }
     await persist(null);
-  }, [persist, tokens]);
+  }, [persist]);
 
   useEffect(() => {
     setAccessTokenGetter(getAccessToken);
-    return () => setAccessTokenGetter(null);
-  }, [getAccessToken]);
+    setUnauthorizedHandler(() => refreshAccessToken(true));
+    return () => {
+      setAccessTokenGetter(null);
+      setUnauthorizedHandler(null);
+    };
+  }, [getAccessToken, refreshAccessToken]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

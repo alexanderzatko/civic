@@ -59,17 +59,30 @@ export type MyContributionsSummary = ContributionsSummary & {
 };
 
 type TokenGetter = () => Promise<string | null>;
+type UnauthorizedHandler = () => Promise<string | null>;
+
+type ApiFetchInit = RequestInit & {
+  auth?: "required" | "optional" | false;
+  /** Internal: one 401 retry after forced token refresh. */
+  _authRetried?: boolean;
+};
 
 let getAccessToken: TokenGetter | null = null;
+let handleUnauthorized: UnauthorizedHandler | null = null;
 
 /** Register the auth-session token provider (called from AuthProvider). */
 export function setAccessTokenGetter(getter: TokenGetter | null): void {
   getAccessToken = getter;
 }
 
+/** Register 401 handler — force refresh and allow one retry (AuthProvider). */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  handleUnauthorized = handler;
+}
+
 async function apiFetch<T>(
   path: string,
-  init?: RequestInit & { auth?: "required" | "optional" | false },
+  init?: ApiFetchInit,
 ): Promise<T> {
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -90,13 +103,24 @@ async function apiFetch<T>(
     }
   }
 
-  const { auth: _auth, ...rest } = init ?? {};
+  const { auth: _auth, _authRetried, ...rest } = init ?? {};
   const res = await fetch(`${getApiBaseUrl()}${path}`, {
     ...rest,
     headers,
   });
   const body = (await res.json()) as T;
   if (!res.ok) {
+    if (
+      res.status === 401 &&
+      mode &&
+      !init?._authRetried &&
+      handleUnauthorized
+    ) {
+      const newToken = await handleUnauthorized();
+      if (newToken) {
+        return apiFetch<T>(path, { ...init, _authRetried: true });
+      }
+    }
     const err = new Error(`API ${res.status}`) as Error & {
       status: number;
       body: T;
