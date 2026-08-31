@@ -387,8 +387,5 @@
   "common.back": "Späť",
   "common.close": "Zavrieť",
   "common.me": "ME",
-  "common.eur": "€",
-  "expertise.rate_estimated": "Odhadovaná sadzba",
-  "expertise.rate_default": "Predvolená sadzba",
-  "expertise.per_hour": "€/hodina"
+  "common.eur": "€"
 }

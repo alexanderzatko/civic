@@ -387,8 +387,5 @@
   "common.back": "Back",
   "common.close": "Close",
   "common.me": "ME",
-  "common.eur": "€",
-  "expertise.rate_estimated": "Estimated rate",
-  "expertise.rate_default": "Default rate",
-  "expertise.per_hour": "€/hour"
+  "common.eur": "€"
 }

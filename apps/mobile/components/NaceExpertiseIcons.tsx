@@ -69,14 +69,6 @@ export function NaceExpertiseIcons({ sections, iconSize = 24 }: Props) {
 
   const rowHeight = iconSize + 12;
 
-  const rateLabel = (section: NaceExpertiseSection) => {
-    const prefix =
-      section.hourly_rate_eur === 10
-        ? t("expertise.rate_default")
-        : t("expertise.rate_estimated");
-    return `${prefix}: ${section.hourly_rate_eur} ${t("expertise.per_hour")}`;
-  };
-
   return (
     <>
       <ScrollView
@@ -110,7 +102,6 @@ export function NaceExpertiseIcons({ sections, iconSize = 24 }: Props) {
                   {formatMe(selected.me)} {t("common.me")} ({selected.share_percent}
                   %)
                 </Text>
-                <Text style={styles.cardRate}>{rateLabel(selected)}</Text>
                 <Pressable
                   style={styles.closeBtn}
                   onPress={() => setSelected(null)}
@@ -179,11 +170,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: colors.brand,
-  },
-  cardRate: {
-    fontSize: 14,
-    color: colors.muted,
-    lineHeight: 20,
   },
   closeBtn: {
     marginTop: 8,
