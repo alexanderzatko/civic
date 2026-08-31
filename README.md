@@ -124,6 +124,42 @@ To exercise a **local** API in a second terminal: `pnpm dev:api`.
 `pnpm dev:mobile` is **not** enough for a physical iPhone — use the development
 build + Metro tunnel/LAN section below.
 
+## Regenerate native projects (prebuild)
+
+`apps/mobile/ios/` and `apps/mobile/android/` are **generated** from
+`app.json` and asset files. They are gitignored. Rebuild them after changing:
+
+- App icons or splash images (`assets/images/`)
+- Native modules (adding/upgrading an Expo module)
+- Native config in `app.json` (permissions, plugins, bundle id, etc.)
+
+**Both platforms** (from repo root):
+
+```bash
+pnpm --filter @civic/mobile prebuild:clean
+```
+
+That runs `expo prebuild --clean` for Android and iOS, then `pod install` for
+iOS. Or step by step from `apps/mobile`:
+
+```bash
+npx expo prebuild --clean --platform android --no-install
+npx expo prebuild --clean --platform ios --no-install
+bash scripts/ios-pod-install.sh
+```
+
+Prebuild alone does **not** reinstall the app on a device. Rebuild after:
+
+| Platform | Command |
+|---|---|
+| iOS device | `pnpm --filter @civic/mobile ios:device` |
+| Android APK | `pnpm --filter @civic/mobile android:apk` |
+
+Platform-specific shortcuts that include prebuild + build:
+
+- iOS: `pnpm --filter @civic/mobile ios:device:clean`
+- Android: `pnpm --filter @civic/mobile android:apk:clean`
+
 ## Physical iPhone (camera + login)
 
 Expo Go cannot handle the `civic://oauth/callback` redirect. Use the **Civic**
@@ -284,19 +320,10 @@ Output: `apps/mobile/dist/civic-0.1.0-android-release.apk` (~100 MB).
 
 Subsequent builds are much faster (~2–5 min) once Gradle caches exist.
 
-**After changing app icon or splash assets** (`apps/mobile/assets/images/` or
-`identity/*.svg`), regenerate PNGs and rebuild the native shell — Metro reload
-is not enough:
-
-```bash
-pnpm --filter @civic/mobile generate:brand-images
-pnpm --filter @civic/mobile android:apk:clean
-```
-
-`android:apk` reuses an existing `android/` folder and skips prebuild, so icon
-changes are not picked up until `android:apk:clean` (or
-`expo prebuild --clean --platform android` before `android:apk`). Same idea as
-`ios:device:clean` on iOS. If the launcher still shows a cached icon, cold-boot
+**After changing app icon or splash assets**, update PNGs in
+`apps/mobile/assets/images/`, then run prebuild and rebuild — see
+[Regenerate native projects (prebuild)](#regenerate-native-projects-prebuild).
+Metro reload is not enough. If the launcher still shows a cached icon, cold-boot
 the emulator once.
 
 **Cloud alternative:** `eas.json` is configured — from `apps/mobile`, run
