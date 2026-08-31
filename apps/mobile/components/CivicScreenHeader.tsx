@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { VerificationNotificationBanner } from "@/components/VerificationNotificationBanner";
 import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
+import { verificationBannerContext } from "@/lib/verification-banner-context";
 
 function headerTitleText(options: {
   title?: string;
@@ -14,6 +15,7 @@ function headerTitleText(options: {
   return "";
 }
 
+/** Custom nav header — must stay hook-free (React Navigation tab headers). */
 export function CivicScreenHeader({
   navigation,
   options,
@@ -23,11 +25,10 @@ export function CivicScreenHeader({
   options: { title?: string; headerTitle?: unknown };
   back?: unknown;
 }): ReactNode {
-  const insets = useSafeAreaInsets();
   const title = headerTitleText(options);
 
   return (
-    <View style={{ backgroundColor: colors.brand, paddingTop: insets.top }}>
+    <SafeAreaView edges={["top"]} style={styles.safe}>
       <View style={styles.bar}>
         {back ? (
           <Pressable
@@ -47,12 +48,22 @@ export function CivicScreenHeader({
         </Text>
         <View style={styles.side} />
       </View>
-      <VerificationNotificationBanner />
-    </View>
+      <verificationBannerContext.Consumer>
+        {(slot) => (
+          <VerificationNotificationBanner
+            visible={slot.visible}
+            items={slot.items}
+          />
+        )}
+      </verificationBannerContext.Consumer>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    backgroundColor: colors.brand,
+  },
   bar: {
     minHeight: 44,
     flexDirection: "row",

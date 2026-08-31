@@ -1,13 +1,7 @@
-import { useSyncExternalStore } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Link } from "expo-router";
 import type { PendingVerificationItem } from "@civic/shared";
 import { colors } from "@/constants/theme";
-import { useAuth } from "@/lib/auth";
-import {
-  getPendingVerifications,
-  subscribePendingVerifications,
-} from "@/lib/pending-verifications";
 import { t } from "@/lib/i18n";
 
 function verifyHref(item: PendingVerificationItem): string {
@@ -17,16 +11,14 @@ function verifyHref(item: PendingVerificationItem): string {
   return `/(tabs)/earn/verify/${encodeURIComponent(item.slot_nid)}?${params}`;
 }
 
-/** Rovas `section#block-block-12` — pending verifications notice. */
-export function VerificationNotificationBanner() {
-  const { status } = useAuth();
-  const pending = useSyncExternalStore(
-    subscribePendingVerifications,
-    getPendingVerifications,
-    getPendingVerifications,
-  );
+type Props = {
+  visible: boolean;
+  items: PendingVerificationItem[];
+};
 
-  if (status !== "signedIn" || pending.total === 0 || pending.items.length === 0) {
+/** Rovas `section#block-block-12` — pending verifications notice (no hooks). */
+export function VerificationNotificationBanner({ visible, items }: Props) {
+  if (!visible || items.length === 0) {
     return null;
   }
 
@@ -34,7 +26,7 @@ export function VerificationNotificationBanner() {
     <View style={styles.banner} accessibilityRole="alert">
       <Text style={styles.title}>{t("verify.notifications_title")}</Text>
       <View style={styles.links}>
-        {pending.items.map((item) => (
+        {items.map((item) => (
           <Link key={item.slot_nid} href={verifyHref(item) as never} asChild>
             <Pressable accessibilityRole="link">
               <Text style={styles.link}>{item.title}</Text>
