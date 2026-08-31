@@ -284,6 +284,21 @@ Output: `apps/mobile/dist/civic-0.1.0-android-release.apk` (~100 MB).
 
 Subsequent builds are much faster (~2–5 min) once Gradle caches exist.
 
+**After changing app icon or splash assets** (`apps/mobile/assets/images/` or
+`identity/*.svg`), regenerate PNGs and rebuild the native shell — Metro reload
+is not enough:
+
+```bash
+pnpm --filter @civic/mobile generate:brand-images
+pnpm --filter @civic/mobile android:apk:clean
+```
+
+`android:apk` reuses an existing `android/` folder and skips prebuild, so icon
+changes are not picked up until `android:apk:clean` (or
+`expo prebuild --clean --platform android` before `android:apk`). Same idea as
+`ios:device:clean` on iOS. If the launcher still shows a cached icon, cold-boot
+the emulator once.
+
 **Cloud alternative:** `eas.json` is configured — from `apps/mobile`, run
 `npx eas build -p android --profile preview` (Expo account required).
 

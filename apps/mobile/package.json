@@ -17,6 +17,8 @@
     "ios:device:clean": "expo prebuild --clean --platform ios && bash scripts/ios-pod-install.sh && expo run:ios --device",
     "android:prebuild": "expo prebuild --platform android",
     "android:apk": "bash scripts/build-android-apk.sh",
+    "android:apk:clean": "expo prebuild --clean --platform android && bash scripts/build-android-apk.sh",
+    "generate:brand-images": "bash scripts/generate-brand-images.sh",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit"
   },
