@@ -238,6 +238,9 @@
   "verify.approve": "Schváliť",
   "verify.reject": "Zamietnuť",
   "verify.decline": "Odmietnuť pozvanie",
+  "duration.hours_abbr": "hod.",
+  "duration.minutes_abbr": "min.",
+
   "verify.project_label": "Projekt:",
   "verify.description_label": "Popis:",
   "verify.verified_hours": "Nahlásené hodiny",

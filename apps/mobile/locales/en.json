@@ -238,6 +238,9 @@
   "verify.approve": "Approve",
   "verify.reject": "Reject",
   "verify.decline": "Decline invitation",
+  "duration.hours_abbr": "hr.",
+  "duration.minutes_abbr": "min.",
+
   "verify.project_label": "Project:",
   "verify.description_label": "Description:",
   "verify.verified_hours": "Reported hours",

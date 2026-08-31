@@ -25,12 +25,8 @@ import { colors } from "@/constants/theme";
 import { fetchWorkReportDetail, submitVerification } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
+import { formatDurationHoursMinutes } from "@/lib/format-duration";
 import { refreshPendingVerifications } from "@/lib/pending-verifications";
-
-function formatHours(n: number | null): string {
-  if (n == null) return "—";
-  return n.toLocaleString("sk-SK", { maximumFractionDigits: 2 });
-}
 
 function formatIsoDate(iso: string | null): string | null {
   if (!iso) return null;
@@ -57,7 +53,6 @@ export default function VerifyWorkReportScreen() {
   const [report, setReport] = useState<WorkReportDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const [verifiedHours, setVerifiedHours] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -71,9 +66,6 @@ export default function VerifyWorkReportScreen() {
     try {
       const detail = await fetchWorkReportDetail(workReportNid);
       setReport(detail);
-      if (detail.hours != null) {
-        setVerifiedHours(String(detail.hours));
-      }
     } catch {
       setLoadError(t("verify.error_load"));
       setReport(null);
@@ -93,15 +85,13 @@ export default function VerifyWorkReportScreen() {
       setBusy(true);
       setActionError(null);
       try {
-        const hoursRaw = verifiedHours.trim().replace(",", ".");
-        const hoursNum = hoursRaw === "" ? undefined : Number(hoursRaw);
         const res: SubmitVerificationResponse = await submitVerification(
           slotNid,
           {
             verdict,
             ...(note.trim() ? { note: note.trim() } : {}),
-            ...(hoursNum != null && Number.isFinite(hoursNum) && hoursNum > 0
-              ? { verified_hours: hoursNum }
+            ...(report.hours != null && report.hours > 0
+              ? { verified_hours: report.hours }
               : {}),
           },
         );
@@ -192,11 +182,6 @@ export default function VerifyWorkReportScreen() {
           {report.author_username ? (
             <Text style={styles.meta}>@{report.author_username}</Text>
           ) : null}
-          {report.hours != null ? (
-            <Text style={styles.meta}>
-              {formatHours(report.hours)} {t("project.hours_unit")}
-            </Text>
-          ) : null}
         </View>
 
         {report.nace_label ? (
@@ -235,13 +220,9 @@ export default function VerifyWorkReportScreen() {
         {verification ? (
           <View style={styles.actions}>
             <Text style={styles.label}>{t("verify.verified_hours")}</Text>
-            <TextInput
-              style={styles.input}
-              value={verifiedHours}
-              onChangeText={setVerifiedHours}
-              keyboardType="decimal-pad"
-              editable={!busy}
-            />
+            <Text style={styles.duration}>
+              {formatDurationHoursMinutes(report.hours ?? null)}
+            </Text>
             <Text style={styles.label}>{t("verify.note_optional")}</Text>
             <TextInput
               style={[styles.input, styles.noteInput]}
@@ -307,6 +288,7 @@ const styles = StyleSheet.create({
   photo: { width: 120, height: 120, borderRadius: 8 },
   actions: { gap: 10, marginTop: 8 },
   label: { fontSize: 14, fontWeight: "600", color: colors.ink },
+  duration: { fontSize: 16, color: colors.ink },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
