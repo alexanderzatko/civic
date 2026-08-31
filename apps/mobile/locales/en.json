@@ -247,7 +247,7 @@
   "verify.note_optional": "Note (optional; required when rejecting)",
   "verify.confirm": "Confirm",
   "verify.confirm_approve_title": "Approve this report?",
-  "verify.confirm_approve_body": "The author will receive credit after enough verifiers approve.",
+  "verify.confirm_approve_body": "The author will receive Merits after enough verifiers approve.",
   "verify.confirm_reject_title": "Reject this report?",
   "verify.confirm_reject_body": "Explain your decision in the note field.",
   "verify.confirm_decline_title": "Decline to verify?",

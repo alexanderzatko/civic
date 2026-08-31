@@ -247,7 +247,7 @@
   "verify.note_optional": "Poznámka (voliteľná; pri zamietnutí povinná)",
   "verify.confirm": "Potvrdiť",
   "verify.confirm_approve_title": "Schváliť tento výkaz?",
-  "verify.confirm_approve_body": "Autor dostane zásluhu po dostatku schválení.",
+  "verify.confirm_approve_body": "Autor dostane Merity po dostatku schválení.",
   "verify.confirm_reject_title": "Zamietnuť tento výkaz?",
   "verify.confirm_reject_body": "Vysvetlite rozhodnutie v poli poznámky.",
   "verify.confirm_decline_title": "Odmietnuť overenie?",
