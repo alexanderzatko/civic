@@ -3,18 +3,14 @@ const path = require("path");
 const fs = require("fs");
 
 const projectRoot = __dirname;
-const monorepoRoot = path.resolve(projectRoot, "../..");
 
+// Expo SDK 52+ auto-detects the pnpm monorepo (watchFolders, nodeModulesPaths).
+// Only add resolver tweaks we still need beyond the defaults.
 const config = getDefaultConfig(projectRoot);
 
-config.watchFolders = [monorepoRoot];
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, "node_modules"),
-  path.resolve(monorepoRoot, "node_modules"),
-];
+config.resolver.unstable_enableSymlinks = true;
 
 // packages/shared uses NodeNext-style `./foo.js` imports that map to `./foo.ts`.
-const upstreamResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (
     moduleName.startsWith(".") &&
@@ -32,9 +28,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     }
   }
 
-  if (upstreamResolveRequest) {
-    return upstreamResolveRequest(context, moduleName, platform);
-  }
   return context.resolveRequest(context, moduleName, platform);
 };
 

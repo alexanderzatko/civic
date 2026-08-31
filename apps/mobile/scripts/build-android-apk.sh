@@ -13,7 +13,6 @@ if [[ -z "${ANDROID_HOME:-}" ]]; then
 fi
 
 export PATH="${ANDROID_HOME}/platform-tools:${PATH}"
-export EXPO_NO_METRO_WORKSPACE_ROOT=1
 
 VERSION="$(node -p "require('./package.json').version")"
 OUT_DIR="dist"
