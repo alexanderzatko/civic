@@ -230,7 +230,7 @@
   "volunteer.error_photo_native": "Photo picking is not in this app install. After adding expo-image-picker run: pnpm --filter @civic/mobile ios:device:clean (not Expo Go). Use a web URL meanwhile.",
 
   "verify.screen_title": "Verify work report",
-  "verify.notifications_title": "Reports to verify",
+  "verify.notifications_title": "Your reports to verify",
   "verify.notification_body": "Verify {title} filed by {author}.",
   "verify.notification_cta": "Open report →",
   "verify.unknown_author": "another volunteer",

@@ -22,7 +22,6 @@ import type {
 } from "@civic/shared";
 import type { WorkReportGeoJsonGeometry } from "@civic/shared";
 import { CreateProjectSection } from "@/components/CreateProjectSection";
-import { VerificationNotificationCards } from "@/components/VerificationNotificationCards";
 import { NacePicker, findNaceNode } from "@/components/NacePicker";
 import { VolunteerMapProofSection } from "@/components/VolunteerMapProofSection";
 import { VolunteerPhotoList } from "@/components/VolunteerPhotoList";
@@ -42,7 +41,6 @@ import {
   type VolunteerPhotoDraft,
 } from "@/lib/pick-volunteer-photo";
 import { useProjectSearch } from "@/lib/use-project-search";
-import { usePendingVerificationsRefresh } from "@/lib/usePendingVerificationsRefresh";
 
 const ROVAS_API_DOCS = "https://neofund.sk/rovas-api";
 
@@ -121,7 +119,6 @@ export default function VolunteerScreen() {
   const [reward, setReward] = useState<RewardKind>("merits");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [gatePending, setGatePending] = useState(false);
   const [success, setSuccess] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const scrollYRef = useRef(0);
@@ -148,8 +145,6 @@ export default function VolunteerScreen() {
       loadMine();
     }, [loadMine]),
   );
-
-  usePendingVerificationsRefresh(signedIn);
 
   const resetForm = useCallback(() => {
     setDate(todaySk());
@@ -304,11 +299,9 @@ export default function VolunteerScreen() {
         ...(mapLocation ? { field_location: mapLocation } : {}),
       });
       if (!res.ok) {
-        setGatePending(res.error === "pending_verifications");
         setFormError(errorCopy(res.error));
         return;
       }
-      setGatePending(false);
       setSuccess(true);
     } catch {
       setFormError(t("volunteer.error_generic"));
@@ -636,7 +629,6 @@ export default function VolunteerScreen() {
         </View>
 
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
-        {gatePending ? <VerificationNotificationCards compact /> : null}
 
         <View style={styles.actions}>
           <Pressable

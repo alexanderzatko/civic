@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-import { colors } from "@/constants/theme";
+import { civicStackScreenOptions } from "@/lib/civic-screen-options";
 import { useLocale } from "@/lib/locale";
 import { t } from "@/lib/i18n";
 
@@ -7,14 +7,7 @@ export default function EarnLayout() {
   useLocale();
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.brand },
-        headerTintColor: "#fff",
-        headerTitleStyle: { fontWeight: "600" },
-        contentStyle: { backgroundColor: colors.bg },
-      }}
-    >
+    <Stack screenOptions={civicStackScreenOptions}>
       <Stack.Screen name="index" options={{ title: t("earn.title") }} />
       <Stack.Screen name="receipts" options={{ title: t("receipts.title") }} />
       <Stack.Screen name="charity" options={{ title: t("charity.title") }} />

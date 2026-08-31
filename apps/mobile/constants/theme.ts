@@ -16,4 +16,8 @@ export const colors = {
   catTaxes: "#3B6EA5",
   catCharity: "#1B6B4A",
   catVolunteer: "#C47A2C",
+  /** Rovas `section#block-block-12` — pending verifications banner. */
+  verifyBanner: "#FFA108",
+  verifyBannerInk: "#12241C",
+  verifyBannerLink: "#1565C0",
 };

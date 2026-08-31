@@ -18,7 +18,6 @@ import {
 import { ContributionBreakdown } from "@/components/ContributionBreakdown";
 import { MeLogo } from "@/components/MeLogo";
 import { RankPanel } from "@/components/RankPanel";
-import { VerificationNotificationCards } from "@/components/VerificationNotificationCards";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import {
@@ -29,7 +28,6 @@ import {
   lookupUser,
 } from "@/lib/api";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
-import { usePendingVerificationsRefresh } from "@/lib/usePendingVerificationsRefresh";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
 
@@ -114,8 +112,6 @@ export default function HomeScreen() {
     }
   });
 
-  usePendingVerificationsRefresh(signedIn);
-
   // Focus refresh often runs while auth is still "loading" (signedIn=false).
   // Re-fetch once the session is known.
   useEffect(() => {
@@ -172,8 +168,6 @@ export default function HomeScreen() {
         {!loading && profile ? (
           <ContributionBreakdown profile={profile} emptyTone="self" />
         ) : null}
-
-        {!loading && signedIn ? <VerificationNotificationCards /> : null}
 
         <Link href="/(tabs)/earn" asChild>
           <Pressable style={styles.primaryBtnWide}>
