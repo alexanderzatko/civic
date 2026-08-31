@@ -34,10 +34,16 @@ export default function TabLayout() {
             title: t("earn.title"),
             tabBarLabel: t("earn"),
             headerShown: false,
+            popToTopOnBlur: true,
             tabBarIcon: ({ color }) => (
               <MaterialIcons name="add-circle" color={color} size={24} />
             ),
           }}
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              navigation.navigate("earn", { screen: "index" });
+            },
+          })}
         />
         <Tabs.Screen
           name="community"

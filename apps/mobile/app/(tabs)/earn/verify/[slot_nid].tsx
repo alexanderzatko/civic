@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { Linking } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import type {
   SubmitVerificationErrorCode,
   SubmitVerificationResponse,
@@ -27,8 +27,9 @@ import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
 import { formatDurationHoursMinutes } from "@/lib/format-duration";
 import {
+  isVerificationSlotCompleted,
+  markVerificationCompleted,
   refreshPendingVerifications,
-  removePendingVerification,
 } from "@/lib/pending-verifications";
 
 function formatIsoDate(iso: string | null): string | null {
@@ -48,6 +49,8 @@ export default function VerifyWorkReportScreen() {
   const { status } = useAuth();
   const signedIn = status === "signedIn";
   const params = useLocalSearchParams<{ slot_nid: string; work_report_nid?: string }>();
+  const slotNidParam =
+    typeof params.slot_nid === "string" ? params.slot_nid : "";
   const workReportNid =
     typeof params.work_report_nid === "string" ? params.work_report_nid : "";
 
@@ -80,6 +83,18 @@ export default function VerifyWorkReportScreen() {
     void load();
   }, [load]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (slotNidParam && isVerificationSlotCompleted(slotNidParam)) {
+        router.replace("/(tabs)/earn");
+      }
+    }, [slotNidParam]),
+  );
+
+  const finishVerification = useCallback(() => {
+    router.replace("/(tabs)/earn");
+  }, []);
+
   const runVerdict = (verdict: VerificationVerdict) => {
     if (!report?.verification) return;
 
@@ -104,10 +119,10 @@ export default function VerifyWorkReportScreen() {
           setActionError(verifyErrorCopy(res.error));
           return;
         }
-        removePendingVerification(slotNid);
+        markVerificationCompleted(slotNid);
         void refreshPendingVerifications();
         Alert.alert(t("verify.success_title"), t("verify.success_body"), [
-          { text: t("verify.done"), onPress: () => router.back() },
+          { text: t("verify.done"), onPress: finishVerification },
         ]);
       } catch {
         setActionError(t("verify.error_generic"));

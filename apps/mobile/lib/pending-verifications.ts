@@ -5,6 +5,19 @@ const empty: PendingVerificationsPage = { total: 0, items: [] };
 
 let cached = empty;
 const listeners = new Set<() => void>();
+/** Slots acted on locally; filtered from API refresh until server stops returning them. */
+const completedSlotNids = new Set<string>();
+
+function applyPendingPage(page: PendingVerificationsPage): PendingVerificationsPage {
+  const apiIds = new Set(page.items.map((item) => item.slot_nid));
+  for (const slotNid of completedSlotNids) {
+    if (!apiIds.has(slotNid)) {
+      completedSlotNids.delete(slotNid);
+    }
+  }
+  const items = page.items.filter((item) => !completedSlotNids.has(item.slot_nid));
+  return { total: items.length, items };
+}
 
 export function getPendingVerifications(): PendingVerificationsPage {
   return cached;
@@ -41,11 +54,27 @@ export function removePendingVerification(slotNid: string): void {
   });
 }
 
+/** Record a completed verification and drop it from the in-app pending list. */
+export function markVerificationCompleted(slotNid: string): void {
+  if (!slotNid) return;
+  completedSlotNids.add(slotNid);
+  removePendingVerification(slotNid);
+}
+
+export function isVerificationSlotCompleted(slotNid: string): boolean {
+  return completedSlotNids.has(slotNid);
+}
+
+export function clearPendingVerificationsState(): void {
+  completedSlotNids.clear();
+  setPendingVerifications(empty);
+}
+
 /** Fetch pending slots from the API and update the local store. */
 export async function refreshPendingVerifications(): Promise<void> {
   try {
     const page = await fetchPendingVerifications();
-    setPendingVerifications(page);
+    setPendingVerifications(applyPendingPage(page));
   } catch {
     // Keep last good values when offline or endpoints are unavailable.
   }

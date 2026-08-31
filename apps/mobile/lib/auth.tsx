@@ -34,7 +34,10 @@ import {
   registerCivicPushToken,
   unregisterCivicPushToken,
 } from "@/lib/push-notifications";
-import { refreshPendingVerifications } from "@/lib/pending-verifications";
+import {
+  clearPendingVerificationsState,
+  refreshPendingVerifications,
+} from "@/lib/pending-verifications";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -91,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearSession = useCallback(async () => {
     void unregisterCivicPushToken().catch(() => undefined);
+    clearPendingVerificationsState();
     await clearTokens();
     setTokens(null);
     setStatus("signedOut");

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import {
   PENDING_VERIFICATIONS_POLL_MS,
+  clearPendingVerificationsState,
   refreshPendingVerifications,
-  setPendingVerifications,
 } from "@/lib/pending-verifications";
 
 /**
@@ -17,7 +17,7 @@ export function usePendingVerificationsRefresh(enabled: boolean): void {
 
   const run = useCallback(async () => {
     if (!enabledRef.current) {
-      setPendingVerifications({ total: 0, items: [] });
+      clearPendingVerificationsState();
       return;
     }
     await refreshPendingVerifications();
