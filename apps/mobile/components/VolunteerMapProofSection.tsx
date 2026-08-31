@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -7,13 +7,6 @@ import {
   Text,
   View,
 } from "react-native";
-import MapView, {
-  Marker,
-  Polygon,
-  Polyline,
-  UrlTile,
-  type MapPressEvent,
-} from "react-native-maps";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Location from "expo-location";
 import type {
@@ -21,32 +14,22 @@ import type {
   WorkReportGeometryType,
   WorkReportMapConfig,
 } from "@civic/shared";
+import {
+  WorkReportLeafletMap,
+  type WorkReportLeafletMapRef,
+} from "@/components/WorkReportLeafletMap";
 import { colors } from "@/constants/theme";
 import { fetchWorkReportMapConfig } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import {
+  FALLBACK_WORK_REPORT_MAP_CONFIG,
+  pickActiveRasterLayer,
+} from "@/lib/work-report-map-config";
+import {
   commitDraftGeometry,
   geometrySummaryKey,
   isGeometryComplete,
-  latLngRing,
-  lonLatToLatLng,
-  zoomToLatitudeDelta,
 } from "@/lib/work-report-map";
-
-const FALLBACK_CONFIG: WorkReportMapConfig = {
-  center: { latitude: 48.7164, longitude: 19.6611 },
-  zoom: 8,
-  geometry_types: ["Point", "LineString", "Polygon"],
-  raster_layers: [
-    {
-      id: "osm",
-      name: "OpenStreetMap",
-      url_template: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-      max_zoom: 19,
-    },
-  ],
-  default_layer_id: "osm",
-};
 
 type Props = {
   open: boolean;
@@ -75,8 +58,10 @@ export function VolunteerMapProofSection({
   geometry,
   onChange,
 }: Props) {
-  const mapRef = useRef<MapView>(null);
-  const [config, setConfig] = useState<WorkReportMapConfig>(FALLBACK_CONFIG);
+  const mapRef = useRef<WorkReportLeafletMapRef>(null);
+  const [config, setConfig] = useState<WorkReportMapConfig>(
+    FALLBACK_WORK_REPORT_MAP_CONFIG,
+  );
   const [configLoading, setConfigLoading] = useState(false);
   const [configError, setConfigError] = useState(false);
   const [mode, setMode] = useState<WorkReportGeometryType>("Point");
@@ -93,7 +78,7 @@ export function VolunteerMapProofSection({
         if (first) setMode(first);
       })
       .catch(() => {
-        setConfig(FALLBACK_CONFIG);
+        setConfig(FALLBACK_WORK_REPORT_MAP_CONFIG);
         setConfigError(true);
       })
       .finally(() => setConfigLoading(false));
@@ -105,28 +90,11 @@ export function VolunteerMapProofSection({
     }
   }, [open]);
 
-  const activeLayer = useMemo(() => {
-    const preferred = config.default_layer_id
-      ? config.raster_layers.find((l) => l.id === config.default_layer_id)
-      : undefined;
-    return preferred ?? config.raster_layers[0];
-  }, [config]);
-
-  const region = useMemo(() => {
-    const delta = zoomToLatitudeDelta(config.zoom);
-    return {
-      latitude: config.center.latitude,
-      longitude: config.center.longitude,
-      latitudeDelta: delta,
-      longitudeDelta: delta,
-    };
-  }, [config]);
+  const activeLayer = pickActiveRasterLayer(config);
 
   const onMapPress = useCallback(
-    (event: MapPressEvent) => {
+    (coord: [number, number]) => {
       if (disabled) return;
-      const { latitude, longitude } = event.nativeEvent.coordinate;
-      const coord: [number, number] = [longitude, latitude];
       if (mode === "Point") {
         onChange({ type: "Point", coordinates: coord });
         setDraft([]);
@@ -157,19 +125,13 @@ export function VolunteerMapProofSection({
     const perm = await Location.requestForegroundPermissionsAsync();
     if (!perm.granted) return;
     const pos = await Location.getCurrentPositionAsync({});
-    mapRef.current?.animateToRegion({
-      latitude: pos.coords.latitude,
-      longitude: pos.coords.longitude,
-      latitudeDelta: 0.02,
-      longitudeDelta: 0.02,
-    });
+    mapRef.current?.flyTo(pos.coords.latitude, pos.coords.longitude);
   }, []);
 
-  const displayGeometry = geometry;
   const draftComplete = isGeometryComplete(mode, draft);
 
-  const summaryKey = displayGeometry
-    ? `volunteer.proof_map_summary_${geometrySummaryKey(displayGeometry).toLowerCase()}`
+  const summaryKey = geometry
+    ? `volunteer.proof_map_summary_${geometrySummaryKey(geometry).toLowerCase()}`
     : null;
 
   if (Platform.OS === "web") {
@@ -245,64 +207,17 @@ export function VolunteerMapProofSection({
           <Text style={styles.hint}>{t(MODE_HINT_KEYS[mode])}</Text>
 
           <View style={styles.mapShell}>
-            <MapView
+            <WorkReportLeafletMap
               ref={mapRef}
-              style={styles.map}
-              initialRegion={region}
+              config={config}
+              height={260}
+              interactive
+              disabled={disabled}
+              mode={mode}
+              geometry={geometry}
+              draft={draft}
               onPress={onMapPress}
-              mapType={activeLayer ? "none" : "standard"}
-            >
-              {activeLayer ? (
-                <UrlTile
-                  urlTemplate={activeLayer.url_template}
-                  maximumZ={activeLayer.max_zoom ?? 19}
-                  zIndex={-1}
-                />
-              ) : null}
-
-              {displayGeometry?.type === "Point" ? (
-                <Marker coordinate={lonLatToLatLng(displayGeometry.coordinates)} />
-              ) : null}
-
-              {displayGeometry?.type === "LineString" ? (
-                <Polyline
-                  coordinates={latLngRing(displayGeometry.coordinates)}
-                  strokeColor={colors.brand}
-                  strokeWidth={3}
-                />
-              ) : null}
-
-              {displayGeometry?.type === "Polygon" ? (
-                <Polygon
-                  coordinates={latLngRing(displayGeometry.coordinates[0] ?? [])}
-                  strokeColor={colors.brand}
-                  fillColor="rgba(11, 61, 46, 0.25)"
-                  strokeWidth={2}
-                />
-              ) : null}
-
-              {draft.length > 0 && mode === "Point" ? (
-                <Marker coordinate={lonLatToLatLng(draft[0])} />
-              ) : null}
-
-              {draft.length > 0 && mode === "LineString" ? (
-                <Polyline
-                  coordinates={latLngRing(draft)}
-                  strokeColor={colors.brandSoft}
-                  strokeWidth={3}
-                  lineDashPattern={[8, 6]}
-                />
-              ) : null}
-
-              {draft.length > 0 && mode === "Polygon" ? (
-                <Polygon
-                  coordinates={latLngRing(draft)}
-                  strokeColor={colors.brandSoft}
-                  fillColor="rgba(26, 92, 69, 0.2)"
-                  strokeWidth={2}
-                />
-              ) : null}
-            </MapView>
+            />
           </View>
 
           {activeLayer?.attribution ? (
@@ -334,7 +249,7 @@ export function VolunteerMapProofSection({
             ) : null}
           </View>
 
-          {summaryKey && displayGeometry ? (
+          {summaryKey && geometry ? (
             <Text style={styles.summary}>{t(summaryKey)}</Text>
           ) : null}
         </View>
@@ -383,7 +298,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  map: { width: "100%", height: 260 },
   attribution: { color: colors.muted, fontSize: 11 },
   toolRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   toolBtn: { paddingVertical: 4 },
