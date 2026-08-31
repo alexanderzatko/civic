@@ -30,6 +30,17 @@ export function notifyPendingVerificationsChanged(): void {
   }
 }
 
+export function removePendingVerification(slotNid: string): void {
+  const nextItems = cached.items.filter((item) => item.slot_nid !== slotNid);
+  if (nextItems.length === cached.items.length) {
+    return;
+  }
+  setPendingVerifications({
+    total: nextItems.length,
+    items: nextItems,
+  });
+}
+
 /** Fetch pending slots from the API and update the local store. */
 export async function refreshPendingVerifications(): Promise<void> {
   try {

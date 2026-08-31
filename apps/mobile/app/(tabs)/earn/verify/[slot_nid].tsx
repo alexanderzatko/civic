@@ -26,7 +26,10 @@ import { fetchWorkReportDetail, submitVerification } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
 import { formatDurationHoursMinutes } from "@/lib/format-duration";
-import { refreshPendingVerifications } from "@/lib/pending-verifications";
+import {
+  refreshPendingVerifications,
+  removePendingVerification,
+} from "@/lib/pending-verifications";
 
 function formatIsoDate(iso: string | null): string | null {
   if (!iso) return null;
@@ -45,7 +48,6 @@ export default function VerifyWorkReportScreen() {
   const { status } = useAuth();
   const signedIn = status === "signedIn";
   const params = useLocalSearchParams<{ slot_nid: string; work_report_nid?: string }>();
-  const slotNid = typeof params.slot_nid === "string" ? params.slot_nid : "";
   const workReportNid =
     typeof params.work_report_nid === "string" ? params.work_report_nid : "";
 
@@ -79,7 +81,10 @@ export default function VerifyWorkReportScreen() {
   }, [load]);
 
   const runVerdict = (verdict: VerificationVerdict) => {
-    if (!report?.verification || !slotNid) return;
+    if (!report?.verification) return;
+
+    const verification = report.verification;
+    const slotNid = verification.slot_nid;
 
     const submit = async () => {
       setBusy(true);
@@ -99,7 +104,8 @@ export default function VerifyWorkReportScreen() {
           setActionError(verifyErrorCopy(res.error));
           return;
         }
-        await refreshPendingVerifications();
+        removePendingVerification(slotNid);
+        void refreshPendingVerifications();
         Alert.alert(t("verify.success_title"), t("verify.success_body"), [
           { text: t("verify.done"), onPress: () => router.back() },
         ]);
@@ -122,13 +128,24 @@ export default function VerifyWorkReportScreen() {
           ? "verify.confirm_reject_title"
           : "verify.confirm_decline_title";
     const bodyKey =
-      verdict === "approve"
-        ? "verify.confirm_approve_body"
-        : verdict === "reject"
-          ? "verify.confirm_reject_body"
-          : "verify.confirm_decline_body";
+      verdict === "reject"
+        ? "verify.confirm_reject_body"
+        : verdict === "decline"
+          ? "verify.confirm_decline_body"
+          : null;
 
-    Alert.alert(t(titleKey), t(bodyKey), [
+    if (verdict === "approve") {
+      Alert.alert(t(titleKey), undefined, [
+        { text: t("volunteer.cancel"), style: "cancel" },
+        {
+          text: t("verify.confirm"),
+          onPress: () => void submit(),
+        },
+      ]);
+      return;
+    }
+
+    Alert.alert(t(titleKey), bodyKey ? t(bodyKey) : undefined, [
       { text: t("volunteer.cancel"), style: "cancel" },
       { text: t("verify.confirm"), style: verdict === "reject" ? "destructive" : "default", onPress: () => void submit() },
     ]);
