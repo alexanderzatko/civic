@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SvgUri } from "react-native-svg";
+import { SvgCssUri } from "react-native-svg/css";
 import { displayMerits, type NaceExpertiseSection } from "@civic/shared";
 import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
@@ -43,7 +43,7 @@ function ExpertiseIcon({
       accessibilityLabel={section.section_label}
     >
       {!svgFailed && section.icon_url ? (
-        <SvgUri
+        <SvgCssUri
           uri={section.icon_url}
           width={size}
           height={size}
