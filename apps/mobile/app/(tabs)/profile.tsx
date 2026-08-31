@@ -28,11 +28,16 @@ function formatMe(n: number): string {
   return displayMerits(n).toLocaleString("sk-SK");
 }
 
+function formatChr(n: number): string {
+  return Math.round(n).toLocaleString("sk-SK");
+}
+
 export default function ProfileScreen() {
   const { status, signOut } = useAuth();
   const { locale, setAppLocale } = useLocale();
   const [username, setUsername] = useState<string | null>(null);
   const [totalMe, setTotalMe] = useState<number | null>(null);
+  const [totalChr, setTotalChr] = useState<number | null>(null);
   const [items, setItems] = useState<MeritHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -60,6 +65,7 @@ export default function ProfileScreen() {
     if (status !== "signedIn") {
       setUsername(null);
       setTotalMe(null);
+      setTotalChr(null);
       setItems([]);
       setTotal(0);
       setHistoryError(false);
@@ -71,11 +77,13 @@ export default function ProfileScreen() {
         if (cancelled) return;
         setUsername(me.username ?? me.rovas_uid);
         setTotalMe(typeof me.total_me === "number" ? me.total_me : null);
+        setTotalChr(typeof me.total_chr === "number" ? me.total_chr : null);
       })
       .catch(() => {
         if (!cancelled) {
           setUsername(null);
           setTotalMe(null);
+          setTotalChr(null);
         }
       });
     return () => {
@@ -172,6 +180,11 @@ export default function ProfileScreen() {
             {formatMe(totalMe)} {t("common.me")}
           </Text>
         ) : null}
+        {totalChr != null ? (
+          <Text style={styles.balanceChr}>
+            {formatChr(totalChr)} CHR
+          </Text>
+        ) : null}
         {languageSwitcher}
         <Pressable
           style={styles.btn}
@@ -214,6 +227,7 @@ const styles = StyleSheet.create({
   body: { color: colors.muted, lineHeight: 22 },
   meta: { color: colors.ink, fontWeight: "600" },
   balance: { fontSize: 22, fontWeight: "700", color: colors.ink },
+  balanceChr: { fontSize: 18, fontWeight: "600", color: colors.muted },
   langBlock: { gap: 8 },
   langLabel: { color: colors.ink, fontWeight: "600" },
   langRow: { flexDirection: "row", gap: 8 },

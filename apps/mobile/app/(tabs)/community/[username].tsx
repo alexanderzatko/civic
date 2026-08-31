@@ -16,6 +16,7 @@ import {
 } from "@civic/shared";
 import { ContributionBreakdown } from "@/components/ContributionBreakdown";
 import { MeLogo } from "@/components/MeLogo";
+import { NaceExpertiseIcons } from "@/components/NaceExpertiseIcons";
 import { RankPanel } from "@/components/RankPanel";
 import { colors } from "@/constants/theme";
 import {
@@ -131,6 +132,9 @@ export default function CommunityProfileScreen() {
           {formatMe(profile.total_me)} {t("common.me")}
         </Text>
         <Text style={styles.eur}>{formatEurApprox(profile.total_me, meritRate)}</Text>
+        {profile.nace_expertise.length > 0 ? (
+          <NaceExpertiseIcons sections={profile.nace_expertise} />
+        ) : null}
       </View>
 
       {rank ? (

@@ -68,6 +68,8 @@ export type {
   MeritHistoryItem,
   MeritHistoryPage,
   MeritHistorySourceKind,
+  MeProfile,
+  NaceExpertiseSection,
   VolunteerProjectRow,
   NaceNode,
   AiNaceStatus,

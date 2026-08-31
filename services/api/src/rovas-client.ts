@@ -17,6 +17,7 @@ import type {
   UserLookup,
   UserLookupProjectRow,
   UserLookupTaxMonth,
+  NaceExpertiseSection,
   VolunteerProjectRow,
   NaceNode,
   ClassifyNaceResponse,
@@ -41,6 +42,8 @@ export type RovasMe = {
   username: string;
   display_name: string;
   total_me: number;
+  /** Chron wallet from `field_chrons_balance` when exposed on `/rovas/me`. */
+  total_chr?: number;
   /** ISO-8601 account registration time from Drupal `$user->created`. */
   created: string | null;
   /**
@@ -105,6 +108,10 @@ export class RovasClient {
           ? body.display_name
           : body.username,
       total_me: body.total_me,
+      total_chr:
+        typeof body.total_chr === "number" && Number.isFinite(body.total_chr)
+          ? body.total_chr
+          : undefined,
       created: typeof body.created === "string" && body.created ? body.created : null,
       language: typeof body.language === "string" && body.language ? body.language : null,
     };
@@ -286,6 +293,7 @@ export class RovasClient {
           : name,
       total_me: body.total_me,
       by_category: normalizeCategories(body.by_category),
+      nace_expertise: normalizeNaceExpertise(body.nace_expertise),
       taxes_last_3_months: normalizeTaxMonths(body.taxes_last_3_months),
       top_charities: normalizeProjectRows(body.top_charities),
       top_volunteer_projects: normalizeProjectRows(body.top_volunteer_projects),
@@ -941,6 +949,38 @@ function normalizeCategories(
     charity: Number(raw?.charity) || 0,
     volunteer: Number(raw?.volunteer) || 0,
   };
+}
+
+function normalizeNaceExpertise(raw: unknown): NaceExpertiseSection[] {
+  if (!Array.isArray(raw)) return [];
+  const out: NaceExpertiseSection[] = [];
+  for (const row of raw) {
+    const r = row as Partial<NaceExpertiseSection>;
+    const section_tid = Number(r.section_tid);
+    const section_label =
+      typeof r.section_label === "string" ? r.section_label.trim() : "";
+    const icon_url = typeof r.icon_url === "string" ? r.icon_url.trim() : "";
+    const me = Number(r.me);
+    if (!Number.isFinite(section_tid) || !section_label || !icon_url || !Number.isFinite(me)) {
+      continue;
+    }
+    const section_letter =
+      typeof r.section_letter === "string" && r.section_letter
+        ? r.section_letter.toLowerCase()
+        : section_label.charAt(0).toLowerCase();
+    const share_percent = Number(r.share_percent);
+    const hourly_rate_eur = Number(r.hourly_rate_eur);
+    out.push({
+      section_tid,
+      section_label,
+      section_letter,
+      icon_url,
+      me,
+      share_percent: Number.isFinite(share_percent) ? share_percent : 0,
+      hourly_rate_eur: Number.isFinite(hourly_rate_eur) ? hourly_rate_eur : 10,
+    });
+  }
+  return out;
 }
 
 function normalizeTaxMonths(raw: unknown): UserLookupTaxMonth[] {

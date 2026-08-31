@@ -103,6 +103,36 @@ export interface UserLookupTaxMonth {
 }
 
 /**
+ * Top-level NACE section expertise row from `users_lookup.nace_expertise`
+ * (Merit Index icons on Rovas web).
+ */
+export interface NaceExpertiseSection {
+  section_tid: number;
+  section_label: string;
+  section_letter: string;
+  icon_url: string;
+  me: number;
+  share_percent: number;
+  hourly_rate_eur: number;
+}
+
+/**
+ * Signed-in identity from `GET /me` (proxies Rovas `GET /rovas/me`).
+ */
+export interface MeProfile {
+  rovas_uid: string;
+  username?: string;
+  display_name?: string;
+  total_me?: number;
+  /** Chron wallet when Rovas exposes `total_chr` on `/rovas/me`. */
+  total_chr?: number;
+  language?: string | null;
+  client_id: string;
+  scope: string | null;
+  expires_at: number;
+}
+
+/**
  * Public contribution profile from `GET /users/lookup?username=`
  * (proxies Rovas `GET /rovas/users_lookup?username=`).
  * Percentile / rank ladder are computed on Civic from `/rank/distribution`.
@@ -113,6 +143,8 @@ export interface UserLookup {
   display_name: string;
   total_me: number;
   by_category: ContributionCategoryBreakdown;
+  /** NACE section expertise icons (Merit Index); empty when none. */
+  nace_expertise: NaceExpertiseSection[];
   /** Last ≤3 calendar months of VAT-claim Merits; empty if none. */
   taxes_last_3_months: UserLookupTaxMonth[];
   /** Top ≤3 charity orgs by ME; empty if unavailable. */

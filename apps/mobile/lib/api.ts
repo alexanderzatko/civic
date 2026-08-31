@@ -48,6 +48,8 @@ export type MeIdentity = {
   username?: string;
   display_name?: string;
   total_me?: number;
+  /** Chron wallet when Rovas exposes `total_chr` on `/rovas/me`. */
+  total_chr?: number;
   /** Rovas preferred language when exposed on `/rovas/me` (e.g. `sk`, `en`). */
   language?: string | null;
   client_id: string;
