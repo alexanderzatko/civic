@@ -521,6 +521,16 @@ export default function VolunteerScreen() {
           editable={signedIn}
         />
 
+        <Text style={styles.label}>{t("volunteer.title_field")}</Text>
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder={t("volunteer.title_placeholder")}
+          placeholderTextColor={colors.muted}
+          style={styles.input}
+          editable={signedIn}
+        />
+
         <Pressable
           style={[
             styles.secondary,
@@ -537,16 +547,6 @@ export default function VolunteerScreen() {
             </Text>
           )}
         </Pressable>
-
-        <Text style={styles.label}>{t("volunteer.title_field")}</Text>
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          placeholder={t("volunteer.title_placeholder")}
-          placeholderTextColor={colors.muted}
-          style={styles.input}
-          editable={signedIn}
-        />
 
         <Text style={styles.label}>{t("volunteer.nace")}</Text>
         {signedIn && naceTree.length === 0 && !mineLoading ? (
