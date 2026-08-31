@@ -30,6 +30,10 @@ import {
   getRovasDiscovery,
   OAUTH_SCOPES,
 } from "@/lib/oauth";
+import {
+  registerCivicPushToken,
+  unregisterCivicPushToken,
+} from "@/lib/push-notifications";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -66,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (stored?.accessToken) {
         setTokens(stored);
         setStatus("signedIn");
+        void registerCivicPushToken();
       } else {
         setStatus("signedOut");
       }
@@ -87,7 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await saveTokens(next);
       setTokens(next);
       setStatus("signedIn");
+      void registerCivicPushToken();
     } else {
+      await unregisterCivicPushToken();
       await clearTokens();
       setTokens(null);
       setStatus("signedOut");

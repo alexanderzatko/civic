@@ -67,7 +67,12 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `GET /nace` | NACE drill-down tree — proxies Rovas `GET /rovas/civic_nace_tree?lang=`. |
 | `POST /nace/classify` | AI NACE from work description — proxies Rovas `POST /rovas/civic_ai_nace` (see Rovas **AI NACE + title**). Returns `status`: `ok` \| `need_more_info` \| `unavailable` \| `error`. Manual NACE tree remains fallback. |
 | `GET /work-reports/map-config` | Map proof widget — proxies Rovas `GET /rovas/civic_work_report_map_config` (basemap tiles, centre, allowed geometry types). Civic serves an OSM fallback until Rovas ships the endpoint. |
+| `GET /work-reports/:nid` | Verify screen — proxies Rovas `GET /rovas/civic_work_report/{nid}?lang=` (extended WR + verification context). See Rovas **Next work: Civic WR verification (in-app)**. |
 | `POST /work-reports` | Submit volunteer report — proxies Rovas `POST /rovas/civic_create_work_report` (hours, date, description, NACE, proof URL and/or photos and/or `field_location` GeoJSON, `reward_kind`). |
+| `GET /verifications/pending` | In-app verification notifications — proxies Rovas `GET /rovas/civic_pending_verifications?lang=`. |
+| `POST /verifications/:slot_nid` | Submit verdict — proxies Rovas `POST /rovas/civic_submit_verification` (`verdict`, optional `verified_hours`, `note`). |
+| `POST /push-tokens` | Register Expo push token for OS notifications (Phase 4). Body: `expo_push_token`, `platform` (`ios` \| `android`). |
+| `DELETE /push-tokens` | Remove push token(s) on logout. Optional body `expo_push_token`; omit to clear all for user. |
 
 `POST /receipts/verify` sends optional Bearer; when present, Civic checks
 `GET /rovas/civic_claims?receipt_uid=` and returns `already_claimed` so the
@@ -116,6 +121,21 @@ after a successful receipt claim (`notifyMeritsChanged`).
 Client: `services/api/src/rovas-client.ts`. Enable resources on rovdev via
 **Enable Civic home API resources** (or `drush74 updb`) if a proxy returns 404.
 
+## Work report verification (in-app)
+
+Civic shows **in-app notification cards** (Home + volunteer submit gate) with
+links to a per-report verify screen — no dedicated inbox list. Polls
+`GET /verifications/pending`; verify screen loads `GET /work-reports/:nid` and
+submits via `POST /verifications/:slot_nid`.
+
+**Blocked on Rovas:** implement and deploy
+[Next work: Civic WR verification (in-app)](../../rovas/docs/integration/civic.md#next-work-civic-wr-verification-in-app)
+before verifier UX works end-to-end on rovdev.
+
+**OS push (Phase 4):** mobile registers Expo tokens via `POST /push-tokens` after
+sign-in. Server-side send + Rovas assignment webhook are documented in the Rovas
+integration doc follow-up section.
+
 ## Claim registry SoT
 
 **Rovas** `{civic_claims}` / `{civic_claim_shares}` is the **only** claim
@@ -162,3 +182,6 @@ Volunteer report (screen 4): → **Next work: volunteer report (Civic deferred f
 **Next work:**
 [pending verifications gate (assigned slots only)](~/Documents/homeProjects/rovas/docs/integration/civic.md#next-work-pending-verifications-gate-assigned-slots-only)
 — empty obligation slots must not block new reports.
+**Next work:**
+[Civic WR verification (in-app)](~/Documents/homeProjects/rovas/docs/integration/civic.md#next-work-civic-wr-verification-in-app)
+— pending list, WR detail, submit verdict (Civic client ready; blocked until rovdev).

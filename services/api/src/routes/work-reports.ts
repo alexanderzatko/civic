@@ -181,6 +181,37 @@ export const workReportsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async 
   );
 
   /**
+   * Single work report for verify screen.
+   * Proxies Rovas `GET /rovas/civic_work_report/{nid}?lang=`.
+   */
+  app.get(
+    "/work-reports/:nid",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const nid = String((req.params as { nid: string }).nid).trim();
+      const langRaw = (req.query as { lang?: unknown }).lang;
+      const lang =
+        typeof langRaw === "string" ? resolveCivicContentLang(langRaw) : undefined;
+
+      if (!/^\d+$/.test(nid) || nid === "0") {
+        return reply.code(400).send({
+          error: "invalid_request",
+          message: "Work report nid is required.",
+        });
+      }
+
+      try {
+        return await ctx.rovas.fetchWorkReportByNid(user.accessToken, nid, {
+          lang,
+        });
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
+
+  /**
    * Submit a volunteer work report.
    * Proxies Rovas `POST /rovas/civic_create_work_report`.
    */

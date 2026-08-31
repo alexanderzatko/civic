@@ -508,3 +508,74 @@ export interface CreateWorkReportError {
 export type CreateWorkReportResponse =
   | CreateWorkReportSuccess
   | CreateWorkReportError;
+
+/** Verification slot row for Civic in-app notifications. */
+export interface PendingVerificationItem {
+  slot_nid: string;
+  work_report_nid: string;
+  title: string;
+  author_username: string | null;
+  author_display_name: string | null;
+  project_nid: string | null;
+  assigned_at: string | null;
+}
+
+export interface PendingVerificationsPage {
+  total: number;
+  items: PendingVerificationItem[];
+}
+
+export interface WorkReportVerificationContext {
+  slot_nid: string;
+  can_decline: boolean;
+  verification_count: number;
+  verification_needed: number;
+}
+
+/** Full work report for verify screen (extends project ledger row). */
+export interface WorkReportDetail extends ProjectWorkReportItem {
+  project_nid?: string | null;
+  project_name?: string | null;
+  web_urls?: string[];
+  field_location?: WorkReportGeoJsonGeometry | null;
+  nace_tid?: string | null;
+  nace_label?: string | null;
+  reward_kind?: RewardKind;
+  date_started?: number | null;
+  verification?: WorkReportVerificationContext;
+}
+
+export type VerificationVerdict = "approve" | "reject" | "decline";
+
+export interface SubmitVerificationBody {
+  verdict: VerificationVerdict;
+  verified_hours?: number;
+  note?: string;
+}
+
+export type SubmitVerificationErrorCode =
+  | "not_assigned"
+  | "already_verified"
+  | "not_verifiable"
+  | "cannot_decline"
+  | "invalid_input"
+  | "not_found"
+  | "unauthorized"
+  | "rovas_error";
+
+export interface SubmitVerificationSuccess {
+  ok: true;
+  verification_nid?: string;
+  work_report_nid: string;
+  verdict: VerificationVerdict;
+}
+
+export interface SubmitVerificationError {
+  ok: false;
+  error: SubmitVerificationErrorCode;
+  message: string;
+}
+
+export type SubmitVerificationResponse =
+  | SubmitVerificationSuccess
+  | SubmitVerificationError;

@@ -25,6 +25,10 @@ import type {
   CreateProjectResponse,
   CreateWorkReportBody,
   CreateWorkReportResponse,
+  PendingVerificationsPage,
+  SubmitVerificationBody,
+  SubmitVerificationResponse,
+  WorkReportDetail,
   WorkReportMapConfig,
 } from "@civic/shared";
 import { getLocale } from "@/lib/i18n";
@@ -347,4 +351,61 @@ export function createWorkReport(
       throw err;
     },
   );
+}
+
+export function fetchPendingVerifications(): Promise<PendingVerificationsPage> {
+  const params = new URLSearchParams({ lang: getLocale() });
+  return apiFetch(`/verifications/pending?${params}`, { auth: "required" });
+}
+
+export function fetchWorkReportDetail(
+  workReportNid: string,
+): Promise<WorkReportDetail> {
+  const params = new URLSearchParams({ lang: getLocale() });
+  return apiFetch(
+    `/work-reports/${encodeURIComponent(workReportNid)}?${params}`,
+    { auth: "required" },
+  );
+}
+
+export function submitVerification(
+  slotNid: string,
+  body: SubmitVerificationBody,
+): Promise<SubmitVerificationResponse> {
+  return apiFetch<SubmitVerificationResponse>(
+    `/verifications/${encodeURIComponent(slotNid)}`,
+    {
+      method: "POST",
+      auth: "required",
+      body: JSON.stringify(body),
+    },
+  ).catch(
+    (err: Error & { body?: SubmitVerificationResponse; status?: number }) => {
+      if (err.body && typeof err.body === "object" && "ok" in err.body) {
+        return err.body;
+      }
+      throw err;
+    },
+  );
+}
+
+export function registerPushToken(body: {
+  expo_push_token: string;
+  platform: "ios" | "android";
+}): Promise<{ ok: true }> {
+  return apiFetch("/push-tokens", {
+    method: "POST",
+    auth: "required",
+    body: JSON.stringify(body),
+  });
+}
+
+export function unregisterPushToken(body?: {
+  expo_push_token?: string;
+}): Promise<{ ok: true }> {
+  return apiFetch("/push-tokens", {
+    method: "DELETE",
+    auth: "required",
+    body: JSON.stringify(body ?? {}),
+  });
 }

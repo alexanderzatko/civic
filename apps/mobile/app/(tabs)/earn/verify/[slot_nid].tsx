@@ -1,0 +1,353 @@
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { Linking } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import type {
+  SubmitVerificationErrorCode,
+  SubmitVerificationResponse,
+  VerificationVerdict,
+  WorkReportDetail,
+} from "@civic/shared";
+import { WorkReportProofView } from "@/components/WorkReportProofView";
+import { colors } from "@/constants/theme";
+import { fetchWorkReportDetail, submitVerification, fetchPendingVerifications } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { t } from "@/lib/i18n";
+import {
+  notifyPendingVerificationsChanged,
+  setPendingVerifications,
+} from "@/lib/pending-verifications";
+
+function formatHours(n: number | null): string {
+  if (n == null) return "—";
+  return n.toLocaleString("sk-SK", { maximumFractionDigits: 2 });
+}
+
+function formatIsoDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("sk-SK");
+}
+
+function verifyErrorCopy(code: SubmitVerificationErrorCode | string): string {
+  const key = `verify.error_${code}`;
+  const mapped = t(key);
+  return mapped === key ? t("verify.error_generic") : mapped;
+}
+
+export default function VerifyWorkReportScreen() {
+  const { status } = useAuth();
+  const signedIn = status === "signedIn";
+  const params = useLocalSearchParams<{ slot_nid: string; work_report_nid?: string }>();
+  const slotNid = typeof params.slot_nid === "string" ? params.slot_nid : "";
+  const workReportNid =
+    typeof params.work_report_nid === "string" ? params.work_report_nid : "";
+
+  const [loading, setLoading] = useState(true);
+  const [report, setReport] = useState<WorkReportDetail | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [verifiedHours, setVerifiedHours] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!signedIn || !workReportNid) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const detail = await fetchWorkReportDetail(workReportNid);
+      setReport(detail);
+      if (detail.hours != null) {
+        setVerifiedHours(String(detail.hours));
+      }
+    } catch {
+      setLoadError(t("verify.error_load"));
+      setReport(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [signedIn, workReportNid]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const runVerdict = (verdict: VerificationVerdict) => {
+    if (!report?.verification || !slotNid) return;
+
+    const submit = async () => {
+      setBusy(true);
+      setActionError(null);
+      try {
+        const hoursRaw = verifiedHours.trim().replace(",", ".");
+        const hoursNum = hoursRaw === "" ? undefined : Number(hoursRaw);
+        const res: SubmitVerificationResponse = await submitVerification(
+          slotNid,
+          {
+            verdict,
+            ...(note.trim() ? { note: note.trim() } : {}),
+            ...(hoursNum != null && Number.isFinite(hoursNum) && hoursNum > 0
+              ? { verified_hours: hoursNum }
+              : {}),
+          },
+        );
+        if (!res.ok) {
+          setActionError(verifyErrorCopy(res.error));
+          return;
+        }
+        try {
+          setPendingVerifications(await fetchPendingVerifications());
+        } catch {
+          notifyPendingVerificationsChanged();
+        }
+        Alert.alert(t("verify.success_title"), t("verify.success_body"), [
+          { text: t("verify.done"), onPress: () => router.back() },
+        ]);
+      } catch {
+        setActionError(t("verify.error_generic"));
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    if (verdict === "reject" && !note.trim()) {
+      Alert.alert(t("verify.reject_note_title"), t("verify.reject_note_body"));
+      return;
+    }
+
+    const titleKey =
+      verdict === "approve"
+        ? "verify.confirm_approve_title"
+        : verdict === "reject"
+          ? "verify.confirm_reject_title"
+          : "verify.confirm_decline_title";
+    const bodyKey =
+      verdict === "approve"
+        ? "verify.confirm_approve_body"
+        : verdict === "reject"
+          ? "verify.confirm_reject_body"
+          : "verify.confirm_decline_body";
+
+    Alert.alert(t(titleKey), t(bodyKey), [
+      { text: t("volunteer.cancel"), style: "cancel" },
+      { text: t("verify.confirm"), style: verdict === "reject" ? "destructive" : "default", onPress: () => void submit() },
+    ]);
+  };
+
+  if (!signedIn) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.hint}>{t("volunteer.sign_in_hint")}</Text>
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.brand} />
+      </View>
+    );
+  }
+
+  if (loadError || !report) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.error}>{loadError ?? t("verify.error_load")}</Text>
+        <Pressable onPress={() => router.back()} style={styles.ghost}>
+          <Text style={styles.ghostText}>{t("verify.back")}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const verification = report.verification;
+  const date = formatIsoDate(report.created_at);
+  const photos = report.photo_urls ?? [];
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>{report.title}</Text>
+        {report.project_name ? (
+          <Text style={styles.meta}>{report.project_name}</Text>
+        ) : null}
+        <View style={styles.metaRow}>
+          {date ? <Text style={styles.meta}>{date}</Text> : null}
+          {report.author_username ? (
+            <Text style={styles.meta}>@{report.author_username}</Text>
+          ) : null}
+          {report.hours != null ? (
+            <Text style={styles.meta}>
+              {formatHours(report.hours)} {t("project.hours_unit")}
+            </Text>
+          ) : null}
+        </View>
+
+        {verification ? (
+          <Text style={styles.progress}>
+            {t("verify.progress")
+              .replace("{count}", String(verification.verification_count))
+              .replace("{needed}", String(verification.verification_needed))}
+          </Text>
+        ) : null}
+
+        {report.nace_label ? (
+          <Text style={styles.nace}>
+            {t("volunteer.nace")}: {report.nace_label}
+          </Text>
+        ) : null}
+
+        {report.summary ? (
+          <Text style={styles.summary}>{report.summary}</Text>
+        ) : (
+          <Text style={styles.hint}>{t("project.no_ledger_summary")}</Text>
+        )}
+
+        {photos.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photoRow}
+          >
+            {photos.map((uri) => (
+              <Pressable
+                key={uri}
+                onPress={() => void Linking.openURL(uri)}
+                accessibilityRole="imagebutton"
+              >
+                <Image source={{ uri }} style={styles.photo} />
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
+
+        <WorkReportProofView report={report} />
+
+        {verification ? (
+          <View style={styles.actions}>
+            <Text style={styles.label}>{t("verify.verified_hours")}</Text>
+            <TextInput
+              style={styles.input}
+              value={verifiedHours}
+              onChangeText={setVerifiedHours}
+              keyboardType="decimal-pad"
+              editable={!busy}
+            />
+            <Text style={styles.label}>{t("verify.note_optional")}</Text>
+            <TextInput
+              style={[styles.input, styles.noteInput]}
+              value={note}
+              onChangeText={setNote}
+              multiline
+              editable={!busy}
+            />
+            {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
+            <Pressable
+              style={[styles.primaryBtn, busy && styles.disabled]}
+              disabled={busy}
+              onPress={() => runVerdict("approve")}
+            >
+              {busy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryText}>{t("verify.approve")}</Text>
+              )}
+            </Pressable>
+            <Pressable
+              style={[styles.secondaryBtn, busy && styles.disabled]}
+              disabled={busy}
+              onPress={() => runVerdict("reject")}
+            >
+              <Text style={styles.secondaryText}>{t("verify.reject")}</Text>
+            </Pressable>
+            {verification.can_decline ? (
+              <Pressable
+                style={[styles.ghost, busy && styles.disabled]}
+                disabled={busy}
+                onPress={() => runVerdict("decline")}
+              >
+                <Text style={styles.ghostText}>{t("verify.decline")}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
+          <Text style={styles.hint}>{t("verify.not_assigned_hint")}</Text>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { padding: 20, gap: 12, paddingBottom: 40 },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    gap: 12,
+  },
+  title: { fontSize: 20, fontWeight: "700", color: colors.ink },
+  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  meta: { fontSize: 14, color: colors.muted },
+  progress: { fontSize: 14, color: colors.brand, fontWeight: "600" },
+  nace: { fontSize: 14, color: colors.ink },
+  summary: { fontSize: 15, lineHeight: 22, color: colors.ink },
+  hint: { fontSize: 14, color: colors.muted, lineHeight: 20 },
+  error: { fontSize: 14, color: "#b42318", lineHeight: 20 },
+  photoRow: { gap: 8 },
+  photo: { width: 120, height: 120, borderRadius: 8 },
+  actions: { gap: 10, marginTop: 8 },
+  label: { fontSize: 14, fontWeight: "600", color: colors.ink },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    backgroundColor: colors.surface,
+    color: colors.ink,
+  },
+  noteInput: { minHeight: 80, textAlignVertical: "top" },
+  primaryBtn: {
+    backgroundColor: colors.brand,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  primaryText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  secondaryBtn: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: colors.surface,
+  },
+  secondaryText: { color: colors.ink, fontWeight: "600", fontSize: 16 },
+  ghost: { paddingVertical: 10, alignItems: "center" },
+  ghostText: { color: colors.brand, fontSize: 15 },
+  disabled: { opacity: 0.6 },
+});

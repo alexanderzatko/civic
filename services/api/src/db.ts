@@ -54,5 +54,13 @@ function migrate(db: Database.Database): void {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_attempts_store
       ON claim_attempts(submitted_by_rovas_uid, store_key, outcome, created_at);
+
+    CREATE TABLE IF NOT EXISTS push_tokens (
+      rovas_uid TEXT NOT NULL,
+      expo_push_token TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (rovas_uid, expo_push_token)
+    );
   `);
 }

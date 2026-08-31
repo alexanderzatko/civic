@@ -10,6 +10,8 @@ import { summaryRoutes } from "./routes/summary.js";
 import { usersRoutes } from "./routes/users.js";
 import { projectsRoutes } from "./routes/projects.js";
 import { workReportsRoutes } from "./routes/work-reports.js";
+import { verificationsRoutes } from "./routes/verifications.js";
+import { pushTokensRoutes } from "./routes/push-tokens.js";
 
 async function main() {
   const config = loadConfig();
@@ -46,7 +48,12 @@ async function main() {
       "GET /nace",
       "POST /nace/classify",
       "POST /work-reports",
+      "GET /work-reports/:nid",
       "GET /work-reports/map-config",
+      "GET /verifications/pending",
+      "POST /verifications/:slot_nid",
+      "POST /push-tokens",
+      "DELETE /push-tokens",
     ],
   }));
 
@@ -72,6 +79,8 @@ async function main() {
   await app.register(usersRoutes, { ctx });
   await app.register(projectsRoutes, { ctx });
   await app.register(workReportsRoutes, { ctx });
+  await app.register(verificationsRoutes, { ctx });
+  await app.register(pushTokensRoutes, { ctx });
 
   await app.listen({ port: config.port, host: config.host });
 }

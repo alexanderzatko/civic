@@ -23,6 +23,10 @@ export default function EarnLayout() {
         options={{ title: t("volunteer.title") }}
       />
       <Stack.Screen name="invest" options={{ title: t("invest.title") }} />
+      <Stack.Screen
+        name="verify/[slot_nid]"
+        options={{ title: t("verify.screen_title") }}
+      />
     </Stack>
   );
 }

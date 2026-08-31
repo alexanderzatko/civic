@@ -6,7 +6,6 @@ import type {
   ProjectDetail,
   ProjectShareholderItem,
   ProjectShareholderPage,
-  ProjectWorkReportItem,
   ProjectWorkReportPage,
   RankDistribution,
   ReceiptClaimsSummary,
@@ -32,6 +31,10 @@ import {
   appendLangParam,
   type CivicContentLang,
 } from "./content-lang.js";
+import {
+  normalizeWorkReportDetail,
+  normalizeWorkReportPage,
+} from "./work-report-normalize.js";
 
 export type RovasMe = {
   uid: number;
@@ -525,6 +528,140 @@ export class RovasClient {
   }
 
   /**
+   * Pending verification slots for in-app notifications.
+   * `GET /rovas/civic_pending_verifications?lang=`
+   */
+  async fetchPendingVerifications(
+    accessToken: string,
+    opts?: { lang?: CivicContentLang },
+  ): Promise<{ total: number; items: import("@civic/shared").PendingVerificationItem[] }> {
+    const params = new URLSearchParams();
+    appendLangParam(params, opts?.lang);
+    const qs = params.toString();
+    const body = await this.getJson<{
+      total?: unknown;
+      items?: unknown;
+    }>(
+      `/rovas/civic_pending_verifications${qs ? `?${qs}` : ""}`,
+      accessToken,
+    );
+    const items = Array.isArray(body.items)
+      ? body.items
+          .map((raw) => {
+            if (!raw || typeof raw !== "object") return null;
+            const r = raw as Record<string, unknown>;
+            const slotNid = r.slot_nid != null ? String(r.slot_nid).trim() : "";
+            const wrNid =
+              r.work_report_nid != null ? String(r.work_report_nid).trim() : "";
+            const title = typeof r.title === "string" ? r.title.trim() : "";
+            if (!/^\d+$/.test(slotNid) || !/^\d+$/.test(wrNid) || !title) {
+              return null;
+            }
+            return {
+              slot_nid: slotNid,
+              work_report_nid: wrNid,
+              title,
+              author_username:
+                typeof r.author_username === "string" && r.author_username
+                  ? r.author_username
+                  : null,
+              author_display_name:
+                typeof r.author_display_name === "string" &&
+                r.author_display_name
+                  ? r.author_display_name
+                  : null,
+              project_nid:
+                r.project_nid != null && String(r.project_nid).trim()
+                  ? String(r.project_nid).trim()
+                  : null,
+              assigned_at:
+                typeof r.assigned_at === "string" && r.assigned_at
+                  ? r.assigned_at
+                  : null,
+            };
+          })
+          .filter(
+            (x): x is import("@civic/shared").PendingVerificationItem =>
+              x != null,
+          )
+      : [];
+    return {
+      total: typeof body.total === "number" ? body.total : items.length,
+      items,
+    };
+  }
+
+  /**
+   * Single work report for verify screen.
+   * `GET /rovas/civic_work_report/{nid}?lang=`
+   */
+  async fetchWorkReportByNid(
+    accessToken: string,
+    workReportNid: string,
+    opts?: { lang?: CivicContentLang },
+  ): Promise<import("@civic/shared").WorkReportDetail> {
+    const params = new URLSearchParams();
+    appendLangParam(params, opts?.lang);
+    const qs = params.toString();
+    const body = await this.getJson<unknown>(
+      `/rovas/civic_work_report/${encodeURIComponent(workReportNid)}${qs ? `?${qs}` : ""}`,
+      accessToken,
+    );
+    const detail = normalizeWorkReportDetail(body);
+    if (!detail) {
+      throw new RovasClientError("Invalid work report response", 502, body);
+    }
+    return detail;
+  }
+
+  /**
+   * Submit approve / reject / decline for an assigned verification slot.
+   * `POST /rovas/civic_submit_verification`
+   */
+  async submitVerification(
+    accessToken: string,
+    slotNid: string,
+    payload: import("@civic/shared").SubmitVerificationBody,
+  ): Promise<{
+    verification_nid?: string;
+    work_report_nid: string;
+    verdict: import("@civic/shared").VerificationVerdict;
+  }> {
+    const body = await this.postJson<
+      Partial<{
+        ok: boolean;
+        verification_nid: string;
+        work_report_nid: string;
+        verdict: string;
+      }>
+    >("/rovas/civic_submit_verification", accessToken, {
+      slot_nid: slotNid,
+      ...payload,
+    });
+    const wrNid =
+      body.work_report_nid != null ? String(body.work_report_nid).trim() : "";
+    const verdict = body.verdict;
+    if (
+      !body.ok ||
+      !/^\d+$/.test(wrNid) ||
+      (verdict !== "approve" && verdict !== "reject" && verdict !== "decline")
+    ) {
+      throw new RovasClientError("Rovas submit_verification failed", 502, body);
+    }
+    const verificationNid =
+      body.verification_nid != null
+        ? String(body.verification_nid).trim()
+        : undefined;
+    return {
+      ...(verificationNid && /^\d+$/.test(verificationNid)
+        ? { verification_nid: verificationNid }
+        : {}),
+      work_report_nid: wrNid,
+      verdict,
+    };
+  }
+
+  /**
    * Global receipt UID claim check for verify preview.
    * `GET /rovas/civic_claims?receipt_uid=`
    */
@@ -836,67 +973,6 @@ function normalizeProjectRows(raw: unknown): UserLookupProjectRow[] {
   return out;
 }
 
-function normalizeWorkReportItem(raw: unknown): ProjectWorkReportItem | null {
-  if (!raw || typeof raw !== "object") return null;
-  const r = raw as Partial<ProjectWorkReportItem> & { photo_urls?: unknown };
-  const workReportNid =
-    r.work_report_nid != null ? String(r.work_report_nid).trim() : "";
-  const title = typeof r.title === "string" ? r.title.trim() : "";
-  if (!workReportNid || !title) return null;
-  const hoursRaw = r.hours;
-  const hours =
-    hoursRaw == null || hoursRaw === ("" as unknown)
-      ? null
-      : Number.isFinite(Number(hoursRaw))
-        ? Number(hoursRaw)
-        : null;
-  const photoUrls = Array.isArray(r.photo_urls)
-    ? r.photo_urls
-        .filter((u): u is string => typeof u === "string" && Boolean(u.trim()))
-        .map((u) => u.trim())
-    : [];
-  return {
-    work_report_nid: workReportNid,
-    title,
-    summary: typeof r.summary === "string" && r.summary ? r.summary : null,
-    hours,
-    author_username:
-      typeof r.author_username === "string" && r.author_username
-        ? r.author_username
-        : null,
-    author_display_name:
-      typeof r.author_display_name === "string" && r.author_display_name
-        ? r.author_display_name
-        : null,
-    created_at:
-      typeof r.created_at === "string" && r.created_at ? r.created_at : null,
-    photo_urls: photoUrls,
-  };
-}
-
-function normalizeWorkReportPage(
-  raw: Partial<ProjectWorkReportPage> | undefined,
-  fallbackNid: string,
-  fallbackLimit: number,
-  fallbackOffset: number,
-): ProjectWorkReportPage {
-  const items = Array.isArray(raw?.items)
-    ? raw.items
-        .map(normalizeWorkReportItem)
-        .filter((x): x is ProjectWorkReportItem => x != null)
-    : [];
-  return {
-    project_nid:
-      raw?.project_nid != null && String(raw.project_nid).trim()
-        ? String(raw.project_nid).trim()
-        : fallbackNid,
-    total: typeof raw?.total === "number" ? raw.total : items.length,
-    limit: typeof raw?.limit === "number" ? raw.limit : fallbackLimit,
-    offset: typeof raw?.offset === "number" ? raw.offset : fallbackOffset,
-    items,
-  };
-}
-
 function normalizeShareholderItem(raw: unknown): ProjectShareholderItem | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Partial<ProjectShareholderItem>;
@@ -1114,6 +1190,30 @@ export function volunteerErrorCodeFromRovas(
   if (err.status === 401) return "unauthorized";
   if (err.status === 400) return "invalid_input";
   if (err.status === 403) return "not_shareholder";
+  return "rovas_error";
+}
+
+/** Map Rovas verification submit errors to Civic codes. */
+export function verificationErrorCodeFromRovas(
+  err: RovasClientError,
+): import("@civic/shared").SubmitVerificationErrorCode {
+  const blob = [
+    err.message,
+    typeof err.body === "string" ? err.body : "",
+    err.body && typeof err.body === "object"
+      ? JSON.stringify(err.body)
+      : "",
+  ]
+    .join(" ")
+    .toLowerCase();
+  if (blob.includes("already_verified")) return "already_verified";
+  if (blob.includes("not_verifiable")) return "not_verifiable";
+  if (blob.includes("cannot_decline")) return "cannot_decline";
+  if (blob.includes("not_assigned")) return "not_assigned";
+  if (err.status === 404 || blob.includes("not_found")) return "not_found";
+  if (err.status === 401) return "unauthorized";
+  if (err.status === 400) return "invalid_input";
+  if (err.status === 403) return "not_assigned";
   return "rovas_error";
 }
 
