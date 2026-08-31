@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { VerificationNotificationBanner } from "@/components/VerificationNotificationBanner";
+import { VerificationNotificationBannerConnected } from "@/components/VerificationNotificationBanner";
 import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
-import { verificationBannerContext } from "@/lib/verification-banner-context";
 
 function headerTitleText(options: {
   title?: string;
@@ -24,7 +23,7 @@ export function CivicScreenHeader({
   navigation: { goBack: () => void };
   options: { title?: string; headerTitle?: unknown };
   back?: unknown;
-}): ReactNode {
+}) {
   const title = headerTitleText(options);
 
   return (
@@ -48,14 +47,7 @@ export function CivicScreenHeader({
         </Text>
         <View style={styles.side} />
       </View>
-      <verificationBannerContext.Consumer>
-        {(slot) => (
-          <VerificationNotificationBanner
-            visible={slot.visible}
-            items={slot.items}
-          />
-        )}
-      </verificationBannerContext.Consumer>
+      <VerificationNotificationBannerConnected />
     </SafeAreaView>
   );
 }

@@ -34,6 +34,7 @@ import {
   registerCivicPushToken,
   unregisterCivicPushToken,
 } from "@/lib/push-notifications";
+import { refreshPendingVerifications } from "@/lib/pending-verifications";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -71,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTokens(stored);
         setStatus("signedIn");
         void registerCivicPushToken();
+        void refreshPendingVerifications();
       } else {
         setStatus("signedOut");
       }
@@ -87,26 +89,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const clearSession = useCallback(async () => {
+    void unregisterCivicPushToken().catch(() => undefined);
+    await clearTokens();
+    setTokens(null);
+    setStatus("signedOut");
+  }, []);
+
   const persist = useCallback(async (next: StoredTokens | null) => {
     if (next?.accessToken) {
       await saveTokens(next);
       setTokens(next);
       setStatus("signedIn");
       void registerCivicPushToken();
+      void refreshPendingVerifications();
     } else {
-      try {
-        await Promise.race([
-          unregisterCivicPushToken(),
-          new Promise<void>((resolve) => setTimeout(resolve, 5_000)),
-        ]);
-      } catch {
-        // Best-effort — still clear local session.
-      }
-      await clearTokens();
-      setTokens(null);
-      setStatus("signedOut");
+      await clearSession();
     }
-  }, []);
+  }, [clearSession]);
 
   const refreshAccessToken = useCallback(
     async (force = false): Promise<string | null> => {
@@ -203,32 +203,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const discovery = getRovasDiscovery();
     const access = tokensRef.current?.accessToken;
     const refresh = tokensRef.current?.refreshToken;
-    try {
-      if (access) {
-        await revokeAsync(
-          {
-            clientId: getOAuthClientId(),
-            token: access,
-            tokenTypeHint: TokenTypeHint.AccessToken,
-          },
-          discovery,
-        );
+    await clearSession();
+    void (async () => {
+      try {
+        if (access) {
+          await revokeAsync(
+            {
+              clientId: getOAuthClientId(),
+              token: access,
+              tokenTypeHint: TokenTypeHint.AccessToken,
+            },
+            discovery,
+          );
+        }
+        if (refresh) {
+          await revokeAsync(
+            {
+              clientId: getOAuthClientId(),
+              token: refresh,
+              tokenTypeHint: TokenTypeHint.RefreshToken,
+            },
+            discovery,
+          );
+        }
+      } catch {
+        // Revocation best-effort — local session already cleared.
       }
-      if (refresh) {
-        await revokeAsync(
-          {
-            clientId: getOAuthClientId(),
-            token: refresh,
-            tokenTypeHint: TokenTypeHint.RefreshToken,
-          },
-          discovery,
-        );
-      }
-    } catch {
-      // Revocation best-effort — still clear local session.
-    }
-    await persist(null);
-  }, [persist]);
+    })();
+  }, [clearSession]);
 
   useEffect(() => {
     setAccessTokenGetter(getAccessToken);

@@ -1,52 +1,42 @@
 import { useCallback, useEffect, useRef } from "react";
-import { AppState, type AppStateStatus } from "react-native";
-import { useFocusEffect } from "expo-router";
-import { fetchPendingVerifications } from "@/lib/api";
+import { AppState } from "react-native";
 import {
   PENDING_VERIFICATIONS_POLL_MS,
+  refreshPendingVerifications,
   setPendingVerifications,
 } from "@/lib/pending-verifications";
 
 /**
- * Poll pending verification slots while focused / app active.
+ * Keep pending verification slots fresh while signed in.
+ * Mounted once under tabs — do not use useFocusEffect here (layouts are not
+ * focused screens, so tab switches would never trigger a refresh).
  */
 export function usePendingVerificationsRefresh(enabled: boolean): void {
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
-  const focusedRef = useRef(false);
 
   const run = useCallback(async () => {
     if (!enabledRef.current) {
       setPendingVerifications({ total: 0, items: [] });
       return;
     }
-    try {
-      const page = await fetchPendingVerifications();
-      setPendingVerifications(page);
-    } catch {
-      // Keep last good values when offline or Rovas endpoints not live yet.
-    }
+    await refreshPendingVerifications();
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      focusedRef.current = true;
-      void run();
-      const interval = setInterval(() => void run(), PENDING_VERIFICATIONS_POLL_MS);
-      return () => {
-        focusedRef.current = false;
-        clearInterval(interval);
-      };
-    }, [run]),
-  );
+  useEffect(() => {
+    void run();
+  }, [enabled, run]);
 
   useEffect(() => {
-    const onAppState = (next: AppStateStatus) => {
-      if (next === "active" && focusedRef.current) {
-        void run();
-      }
-    };
-    const sub = AppState.addEventListener("change", onAppState);
+    if (!enabled) return;
+    const interval = setInterval(() => void run(), PENDING_VERIFICATIONS_POLL_MS);
+    return () => clearInterval(interval);
+  }, [enabled, run]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") void run();
+    });
     return () => sub.remove();
   }, [run]);
 }

@@ -1,3 +1,4 @@
+import { fetchPendingVerifications } from "@/lib/api";
 import type { PendingVerificationsPage } from "@civic/shared";
 
 const empty: PendingVerificationsPage = { total: 0, items: [] };
@@ -29,4 +30,15 @@ export function notifyPendingVerificationsChanged(): void {
   }
 }
 
-export const PENDING_VERIFICATIONS_POLL_MS = 5 * 60 * 1000;
+/** Fetch pending slots from the API and update the local store. */
+export async function refreshPendingVerifications(): Promise<void> {
+  try {
+    const page = await fetchPendingVerifications();
+    setPendingVerifications(page);
+  } catch {
+    // Keep last good values when offline or endpoints are unavailable.
+  }
+}
+
+/** Poll while the app is open (navigation + foreground also trigger refresh). */
+export const PENDING_VERIFICATIONS_POLL_MS = 60 * 1000;

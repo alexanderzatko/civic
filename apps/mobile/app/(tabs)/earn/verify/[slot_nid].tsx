@@ -22,13 +22,10 @@ import type {
 } from "@civic/shared";
 import { WorkReportProofView } from "@/components/WorkReportProofView";
 import { colors } from "@/constants/theme";
-import { fetchWorkReportDetail, submitVerification, fetchPendingVerifications } from "@/lib/api";
+import { fetchWorkReportDetail, submitVerification } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
-import {
-  notifyPendingVerificationsChanged,
-  setPendingVerifications,
-} from "@/lib/pending-verifications";
+import { refreshPendingVerifications } from "@/lib/pending-verifications";
 
 function formatHours(n: number | null): string {
   if (n == null) return "—";
@@ -112,11 +109,7 @@ export default function VerifyWorkReportScreen() {
           setActionError(verifyErrorCopy(res.error));
           return;
         }
-        try {
-          setPendingVerifications(await fetchPendingVerifications());
-        } catch {
-          notifyPendingVerificationsChanged();
-        }
+        await refreshPendingVerifications();
         Alert.alert(t("verify.success_title"), t("verify.success_body"), [
           { text: t("verify.done"), onPress: () => router.back() },
         ]);

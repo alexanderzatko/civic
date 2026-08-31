@@ -1,7 +1,13 @@
+import { useSyncExternalStore } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Link } from "expo-router";
 import type { PendingVerificationItem } from "@civic/shared";
 import { colors } from "@/constants/theme";
+import { useAuth } from "@/lib/auth";
+import {
+  getPendingVerifications,
+  subscribePendingVerifications,
+} from "@/lib/pending-verifications";
 import { t } from "@/lib/i18n";
 
 function verifyHref(item: PendingVerificationItem): string {
@@ -35,6 +41,24 @@ export function VerificationNotificationBanner({ visible, items }: Props) {
         ))}
       </View>
     </View>
+  );
+}
+
+/** Reads the shared pending-verifications store (safe inside nav headers). */
+export function VerificationNotificationBannerConnected() {
+  const { status } = useAuth();
+  const pending = useSyncExternalStore(
+    subscribePendingVerifications,
+    getPendingVerifications,
+    getPendingVerifications,
+  );
+  const signedIn = status === "signedIn";
+
+  return (
+    <VerificationNotificationBanner
+      visible={signedIn && pending.total > 0 && pending.items.length > 0}
+      items={pending.items}
+    />
   );
 }
 
