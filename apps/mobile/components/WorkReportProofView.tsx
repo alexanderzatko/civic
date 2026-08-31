@@ -169,6 +169,7 @@ const styles = StyleSheet.create({
     color: colors.brand,
     fontSize: 14,
     lineHeight: 20,
+    fontWeight: "700",
   },
   map: {
     height: 220,

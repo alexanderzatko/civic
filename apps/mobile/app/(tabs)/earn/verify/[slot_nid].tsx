@@ -183,7 +183,9 @@ export default function VerifyWorkReportScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>{report.title}</Text>
         {report.project_name ? (
-          <Text style={styles.meta}>{report.project_name}</Text>
+          <Text style={styles.meta}>
+            {t("verify.project_label")} {report.project_name}
+          </Text>
         ) : null}
         <View style={styles.metaRow}>
           {date ? <Text style={styles.meta}>{date}</Text> : null}
@@ -197,20 +199,13 @@ export default function VerifyWorkReportScreen() {
           ) : null}
         </View>
 
-        {verification ? (
-          <Text style={styles.progress}>
-            {t("verify.progress")
-              .replace("{count}", String(verification.verification_count))
-              .replace("{needed}", String(verification.verification_needed))}
-          </Text>
-        ) : null}
-
         {report.nace_label ? (
           <Text style={styles.nace}>
             {t("volunteer.nace")}: {report.nace_label}
           </Text>
         ) : null}
 
+        <Text style={styles.label}>{t("verify.description_label")}</Text>
         {report.summary ? (
           <Text style={styles.summary}>{report.summary}</Text>
         ) : (
@@ -257,14 +252,14 @@ export default function VerifyWorkReportScreen() {
             />
             {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
             <Pressable
-              style={[styles.primaryBtn, busy && styles.disabled]}
+              style={[styles.secondaryBtn, busy && styles.disabled]}
               disabled={busy}
               onPress={() => runVerdict("approve")}
             >
               {busy ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.ink} />
               ) : (
-                <Text style={styles.primaryText}>{t("verify.approve")}</Text>
+                <Text style={styles.secondaryText}>{t("verify.approve")}</Text>
               )}
             </Pressable>
             <Pressable
@@ -304,7 +299,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "700", color: colors.ink },
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   meta: { fontSize: 14, color: colors.muted },
-  progress: { fontSize: 14, color: colors.brand, fontWeight: "600" },
   nace: { fontSize: 14, color: colors.ink },
   summary: { fontSize: 15, lineHeight: 22, color: colors.ink },
   hint: { fontSize: 14, color: colors.muted, lineHeight: 20 },
@@ -324,13 +318,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   noteInput: { minHeight: 80, textAlignVertical: "top" },
-  primaryBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  primaryText: { color: "#fff", fontWeight: "600", fontSize: 16 },
   secondaryBtn: {
     borderWidth: 1,
     borderColor: colors.border,
