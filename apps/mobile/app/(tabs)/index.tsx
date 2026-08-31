@@ -109,7 +109,9 @@ export default function HomeScreen() {
   }, [signedIn, status, locale]);
 
   useMeritsAutoRefresh(() => {
-    void refresh();
+    if (status !== "loading") {
+      void refresh();
+    }
   });
 
   usePendingVerificationsRefresh(signedIn);

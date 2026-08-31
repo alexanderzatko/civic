@@ -6,6 +6,26 @@ type NotificationsModule = typeof import("expo-notifications");
 
 let configured = false;
 
+const PUSH_TOKEN_TIMEOUT_MS = 8_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("push token request timed out")),
+      ms,
+    );
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((err: unknown) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 async function getNotifications(): Promise<NotificationsModule | null> {
   try {
     return await import("expo-notifications");
@@ -50,10 +70,18 @@ export async function registerCivicPushToken(): Promise<void> {
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ??
     Constants.easConfig?.projectId;
-  const tokenResult = await Notifications.getExpoPushTokenAsync(
-    projectId ? { projectId } : undefined,
-  );
-  const token = tokenResult.data?.trim();
+  let token: string | undefined;
+  try {
+    const tokenResult = await withTimeout(
+      Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined,
+      ),
+      PUSH_TOKEN_TIMEOUT_MS,
+    );
+    token = tokenResult.data?.trim();
+  } catch {
+    return;
+  }
   if (!token) return;
 
   await registerPushToken({
@@ -64,25 +92,8 @@ export async function registerCivicPushToken(): Promise<void> {
 
 export async function unregisterCivicPushToken(): Promise<void> {
   if (Platform.OS !== "ios" && Platform.OS !== "android") return;
-  const Notifications = await getNotifications();
-  if (!Notifications) {
-    await unregisterPushToken().catch(() => undefined);
-    return;
-  }
-  try {
-    const projectId =
-      Constants.expoConfig?.extra?.eas?.projectId ??
-      Constants.easConfig?.projectId;
-    const tokenResult = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined,
-    );
-    const token = tokenResult.data?.trim();
-    if (token) {
-      await unregisterPushToken({ expo_push_token: token });
-    } else {
-      await unregisterPushToken();
-    }
-  } catch {
-    await unregisterPushToken().catch(() => undefined);
-  }
+  // Civic API clears all tokens for the user when expo_push_token is omitted.
+  // Do not call getExpoPushTokenAsync here — it can hang on emulators and
+  // blocked sign-out / token refresh while the session was still clearing.
+  await unregisterPushToken().catch(() => undefined);
 }

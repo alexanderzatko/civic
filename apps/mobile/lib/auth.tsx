@@ -94,7 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus("signedIn");
       void registerCivicPushToken();
     } else {
-      await unregisterCivicPushToken();
+      try {
+        await Promise.race([
+          unregisterCivicPushToken(),
+          new Promise<void>((resolve) => setTimeout(resolve, 5_000)),
+        ]);
+      } catch {
+        // Best-effort — still clear local session.
+      }
       await clearTokens();
       setTokens(null);
       setStatus("signedOut");
