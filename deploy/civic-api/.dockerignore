@@ -11,8 +11,6 @@ apps/mobile/assets
 apps/mobile/ios
 apps/mobile/android
 apps/mobile/.expo
-deploy/civic-mock
-mocs
 docs
 identity
 **/.DS_Store

@@ -6,7 +6,7 @@ todos:
     content: Review and approve this plan (hourly wage source, FS lookup approach, fraud defaults)
     status: completed
   - id: mockup-review
-    content: "Review 6-screen Slovak mockup at mocs/civic-mockup.canvas.tsx; sign off IA + copy before scaffolding"
+    content: "Review 6-screen Slovak mockup; sign off IA + copy before scaffolding (mockup removed from repo — superseded by Expo app)"
     status: completed
   - id: spike-ekasa-api
     content: "Spike: confirm FS receipt/find contract on real UIDs; document error notifications in ekasa-receipt-api.md"
@@ -36,7 +36,7 @@ todos:
     content: "Phase 2: ship split-claims end-to-end — /users/search + claim shares array + Rovas {civic_claim_shares} + multi-beneficiary rules_proxy_claim_vat_receipt + mobile split UI on screen 2"
     status: in_progress
   - id: mockup-split-claims
-    content: "Extend mocs/civic-mockup.canvas.tsx with the split-claims sub-screens (recipient picker, search, memory list, share editor) before Phase 2 starts"
+    content: "Extend mockup with split-claims sub-screens before Phase 2 (done; mockup later removed — Expo app is source of truth)"
     status: completed
   - id: phase3-polish-deploy
     content: "Phase 3: history dashboard, SK i18n, API deployment, EAS store prep"
@@ -155,7 +155,6 @@ flowchart TB
 │   ├── ekasa-receipt-api.md    ← FS lookup contract (spike findings)
 │   └── rovas-integration.md
 ├── identity/             Brand assets (ME_logo.svg, etc.)
-├── mocs/                 Mockups (civic-mock.ai, civic-mockup.canvas.tsx)
 ├── .env.example
 ├── pnpm-workspace.yaml
 └── README.md
@@ -570,7 +569,7 @@ Civic's home, earn-hub, and community screens consume read-only signals from Rov
 
 - **Screen 0 (rank histogram)** — calls the existing Merit Distribution endpoint via Civic API on day one. This is the only stub-related Rovas endpoint that already exists; no Phase-2 swap needed.
 - Screens 3 and 5 render a **statically curated** list (in Civic API config) of 4–6 hand-picked Rovas project URLs and just hyperlink out.
-- Screen 3 also ships an **invite-organisation** e-mail form (mockup: collapsible card below the list). The preset body and intro copy link to **`https://rovas.app/charity-projects`** — that Rovas landing page must be created (see §8c table row).
+- Screen 3 also ships an **invite-organisation** e-mail form (collapsible card below the list). The preset body and intro copy link to **`https://rovas.app/charity-projects`** — that Rovas landing page must be created (see §8c table row).
 - Screen 0 logged-out shows a placeholder community total (or hides the aggregate block) until the aggregate endpoint lands.
 - Screen 4 disables submit and shows a "coming soon" notice with a link to the existing Rovas form.
 - **Screen 6 (Komunita)** — username search → public contribution profile via `/users/lookup`; device-local recent profiles; friend invite via client `mailto:` (no mailer / no Rovas invite API; “contacts after registration” out of scope).
@@ -593,7 +592,7 @@ Promotion path: when each Rovas endpoint ships, swap the corresponding Civic API
 
 ### Screens (v1)
 
-Slovak labels are the user-facing source of truth (see §3 Language strategy). Routes use English identifiers. The interactive mockup of every screen lives at [`mocs/civic-mockup.canvas.tsx`](../mocs/civic-mockup.canvas.tsx); the Cursor IDE picks it up via a symlink in `~/.cursor/projects/.../canvases/`, so edits in either path stay in sync.
+Slovak labels are the user-facing source of truth (see §3 Language strategy). Routes use English identifiers. Screen layout and copy live in the Expo app under `apps/mobile` (locales in `apps/mobile/locales/`).
 
 | # | Route | Slovak label (UI) | English (dev) | v1 status |
 |---|-------|-------------------|---------------|-----------|
@@ -608,7 +607,7 @@ Slovak labels are the user-facing source of truth (see §3 Language strategy). R
 | — | `/(auth)/register` | Registrácia | Registration | **Fully built** — same OAuth providers, framed for first-time users; HybridAuth auto-creates the Rovas account |
 | — | `/(tabs)/profile` | Profil | Profile | **Fully built** — Rovas user info, sign out, language. **Phase 2:** Merit acquisition history on this screen — parity with Rovas `/user/<uid>/merits` (Views `merit_history` / `page_1`), proxied via `GET /users/me/merit-history`. |
 
-The earn-hub child routes (`/earn/receipts`, `/earn/charity`, `/earn/volunteer`, `/earn/invest`) are reached from screen 1's primary CTAs and from the inter-screen links shown in the canvas mockup. Screen 0 surfaces a single primary CTA — "Získať merity" — that routes to screen 1, and inline links such as "komunite" inside the **Vaša pozícia v komunite** callout deep-link to screen 6.
+The earn-hub child routes (`/earn/receipts`, `/earn/charity`, `/earn/volunteer`, `/earn/invest`) are reached from screen 1's primary CTAs and from inter-screen links on the home and earn screens. Screen 0 surfaces a single primary CTA — "Získať merity" — that routes to screen 1, and inline links such as "komunite" inside the **Vaša pozícia v komunite** callout deep-link to screen 6.
 
 **Navigation TODO:** v1 reaches every screen via inline CTAs and Rovas hyperlinks. As the IA grows past ~6 screens we expect to introduce a **proper navigation menu** — most likely a bottom-tab bar (Domov / Získať / Bločky / Komunita / Profil) with the earn-hub children promoted to a stack inside the "Získať" tab. Track this when the screen count or session-length data justifies it; not part of v1 scope.
 
@@ -743,10 +742,10 @@ Strikes always attach to the **scanner** (`submitted_by_rovas_uid`), never to pa
 - FS `receipt/find` contract documented (`docs/ekasa-receipt-api.md`)
 - Rovas OAuth + PKCE on dev; register **civic** client
 - Hourly wage source chosen
-- 6-screen mockup reviewed against the user-supplied Slovak outline (`mocs/civic-mockup.canvas.tsx`)
-- Split-claim sub-screens added to the mockup (recipient picker, search dialog, memory list, share editor with auto-rebalance) and signed off (§7)
+- 6-screen IA reviewed against the user-supplied Slovak outline (initial canvas mockup; later removed — Expo app is source of truth)
+- Split-claim sub-screens signed off (§7)
 
-**Exit gate:** Receipt UID verifies via `receipt/find`; OAuth returns usable Bearer token; mockup signed off including split-claim flow.
+**Exit gate:** Receipt UID verifies via `receipt/find`; OAuth returns usable Bearer token; IA + split-claim flow signed off.
 
 ### Phase 1 — Navigational shell + verify-preview
 
@@ -874,7 +873,7 @@ Implications for Civic:
 5. Fraud defaults: 1-day claim window + same-store daily cap (env-toggled; on in production), 3-strike / 7-day block, purchase ≥ Rovas registration, min VAT €0.01; **no** location GPS rules in v1
 6. Three-path framing approved — receipts only fully built in v1; charity / volunteer / invest ship as Rovas-hyperlink stubs (§8c, §9)
 7. Slovak primary / English secondary i18n strategy approved (§3 Language strategy)
-8. 6-screen mockup at `mocs/civic-mockup.canvas.tsx` reviewed and signed off
+8. 6-screen IA reviewed and signed off (initial mockup; superseded by Expo app)
 9. Split-claims approved (§7): scanner is always included; default equal share with override; client-side recipient memory with optional "vždy zdieľať"; atomic multi-beneficiary claim; per-recipient + per-(scanner → recipient) monthly Merit caps
 
 ---

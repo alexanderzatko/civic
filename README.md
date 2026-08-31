@@ -31,12 +31,10 @@ The **Civic API** for device testing is hosted on the Rovas VPS at
 | [`services/api`](services/api) | Fastify API — eKasa verify, claim (Phase 2), stubs |
 | [`packages/shared`](packages/shared) | Types, Merit math, QR/UID parsing, settings defaults |
 | [`deploy/civic-api`](deploy/civic-api) | Docker + nginx deploy of the API to `sano-vps` |
-| [`deploy/civic-mock`](deploy/civic-mock) | Static screen mockup → `/var/www/civic-mock` |
 | [`docs/plan.md`](docs/plan.md) | Full product / architecture plan |
 | [`docs/ekasa-receipt-api.md`](docs/ekasa-receipt-api.md) | FS receipt/find contract |
 | [`docs/rovas-integration.md`](docs/rovas-integration.md) | Civic ↔ Rovas OAuth + API Bearer |
 | [`identity/`](identity/) | Logos and brand notes |
-| [`mocs/`](mocs/) | Screen mockups |
 
 ## Deploy the Civic API (VPS)
 
@@ -299,14 +297,6 @@ Subsequent builds are much faster (~2–5 min) once Gradle caches exist.
 
 Package id: `app.civic.mobile`. This build includes the Expo dev-client shell
 but ships a **release** JS bundle, so the app runs without a Mac/Metro session.
-
-## Screen mockup (static)
-
-Optional UI mock hosted on the VPS (not the live API):
-
-```bash
-(cd deploy/civic-mock && npm run deploy)
-```
 
 ## Merit settings
 

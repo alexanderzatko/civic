@@ -45,5 +45,5 @@ services/api/data/
 *.sqlite-wal
 
 # Adobe Illustrator working files
-# (kept tracked in identity/ and mocs/ for now; uncomment to exclude)
+# (kept tracked in identity/ for now; uncomment to exclude)
 # *.ai
