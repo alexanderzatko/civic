@@ -15,4 +15,4 @@ fi
 
 export EXPO_PACKAGER_PROXY_URL="${EXPO_PACKAGER_PROXY_URL:-https://${NGROK_STATIC_DOMAIN}}"
 
-exec expo start --dev-client --lan
+exec expo start --dev-client --lan "$@"
