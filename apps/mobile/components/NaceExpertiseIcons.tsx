@@ -60,10 +60,24 @@ function ExpertiseIcon({
   );
 }
 
-export function NaceExpertiseIcons({ sections, iconSize = 24 }: Props) {
+const MIN_SHARE_PERCENT = 1;
+const MAX_ICONS = 5;
+
+function visibleExpertiseSections(
+  sections: NaceExpertiseSection[],
+): NaceExpertiseSection[] {
+  return [...sections]
+    .filter((s) => s.share_percent >= MIN_SHARE_PERCENT)
+    .sort((a, b) => b.share_percent - a.share_percent)
+    .slice(0, MAX_ICONS);
+}
+
+export function NaceExpertiseIcons({ sections, iconSize = 48 }: Props) {
   const [selected, setSelected] = useState<NaceExpertiseSection | null>(null);
 
-  if (!sections.length) {
+  const visible = visibleExpertiseSections(sections);
+
+  if (!visible.length) {
     return null;
   }
 
@@ -77,7 +91,7 @@ export function NaceExpertiseIcons({ sections, iconSize = 24 }: Props) {
         contentContainerStyle={styles.row}
         style={[styles.scroll, { height: rowHeight }]}
       >
-        {sections.map((section) => (
+        {visible.map((section) => (
           <ExpertiseIcon
             key={section.section_tid}
             section={section}
