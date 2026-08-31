@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -8,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { SvgUri } from "react-native-svg";
 import { displayMerits, type NaceExpertiseSection } from "@civic/shared";
 import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
@@ -21,12 +21,53 @@ function formatMe(n: number): string {
   return displayMerits(n).toLocaleString("sk-SK");
 }
 
+function ExpertiseIcon({
+  section,
+  size,
+  onPress,
+}: {
+  section: NaceExpertiseSection;
+  size: number;
+  onPress: () => void;
+}) {
+  const [svgFailed, setSvgFailed] = useState(false);
+  const letter = (section.section_letter || section.section_label.charAt(0))
+    .toUpperCase()
+    .slice(0, 1);
+
+  return (
+    <Pressable
+      style={[styles.iconBtn, { width: size + 12, height: size + 12 }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={section.section_label}
+    >
+      {!svgFailed && section.icon_url ? (
+        <SvgUri
+          uri={section.icon_url}
+          width={size}
+          height={size}
+          onError={() => setSvgFailed(true)}
+        />
+      ) : (
+        <View style={[styles.letterBadge, { width: size, height: size }]}>
+          <Text style={[styles.letterText, { fontSize: size * 0.55 }]}>
+            {letter}
+          </Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
 export function NaceExpertiseIcons({ sections, iconSize = 24 }: Props) {
   const [selected, setSelected] = useState<NaceExpertiseSection | null>(null);
 
   if (!sections.length) {
     return null;
   }
+
+  const rowHeight = iconSize + 12;
 
   const rateLabel = (section: NaceExpertiseSection) => {
     const prefix =
@@ -42,22 +83,15 @@ export function NaceExpertiseIcons({ sections, iconSize = 24 }: Props) {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
-        style={styles.scroll}
+        style={[styles.scroll, { height: rowHeight }]}
       >
         {sections.map((section) => (
-          <Pressable
+          <ExpertiseIcon
             key={section.section_tid}
-            style={styles.iconBtn}
+            section={section}
+            size={iconSize}
             onPress={() => setSelected(section)}
-            accessibilityRole="button"
-            accessibilityLabel={section.section_label}
-          >
-            <Image
-              source={{ uri: section.icon_url }}
-              style={{ width: iconSize, height: iconSize }}
-              resizeMode="contain"
-            />
-          </Pressable>
+          />
         ))}
       </ScrollView>
 
@@ -96,18 +130,30 @@ export function NaceExpertiseIcons({ sections, iconSize = 24 }: Props) {
 const styles = StyleSheet.create({
   scroll: {
     flexGrow: 0,
+    alignSelf: "stretch",
     maxWidth: "100%",
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "center",
+    gap: 4,
     paddingHorizontal: 4,
+    minWidth: "100%",
   },
   iconBtn: {
-    padding: 4,
     alignItems: "center",
     justifyContent: "center",
+  },
+  letterBadge: {
+    borderRadius: 6,
+    backgroundColor: colors.brand,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  letterText: {
+    color: "#fff",
+    fontWeight: "700",
   },
   backdrop: {
     flex: 1,

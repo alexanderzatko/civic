@@ -158,16 +158,16 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {!loading && profile?.nace_expertise?.length ? (
-          <NaceExpertiseIcons sections={profile.nace_expertise} />
-        ) : null}
-
         {!loading && rank ? (
           <RankPanel
             distribution={rank}
             userMe={personalMe}
             onScrollLockChange={setScrollLocked}
           />
+        ) : null}
+
+        {!loading && (profile?.nace_expertise?.length ?? 0) > 0 ? (
+          <NaceExpertiseIcons sections={profile!.nace_expertise} />
         ) : null}
 
         {!loading && profile ? (
@@ -271,6 +271,7 @@ const styles = StyleSheet.create({
   personalBlock: {
     alignItems: "center",
     gap: 8,
+    alignSelf: "stretch",
   },
   personalMe: {
     fontSize: 40,

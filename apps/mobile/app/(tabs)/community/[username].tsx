@@ -132,9 +132,6 @@ export default function CommunityProfileScreen() {
           {formatMe(profile.total_me)} {t("common.me")}
         </Text>
         <Text style={styles.eur}>{formatEurApprox(profile.total_me, meritRate)}</Text>
-        {profile.nace_expertise.length > 0 ? (
-          <NaceExpertiseIcons sections={profile.nace_expertise} />
-        ) : null}
       </View>
 
       {rank ? (
@@ -145,6 +142,10 @@ export default function CommunityProfileScreen() {
           linkCommunity={false}
           onScrollLockChange={setScrollLocked}
         />
+      ) : null}
+
+      {profile.nace_expertise?.length ? (
+        <NaceExpertiseIcons sections={profile.nace_expertise} />
       ) : null}
 
       <ContributionBreakdown profile={profile} emptyTone="other" />
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
     alignItems: "stretch",
   },
-  hero: { alignItems: "center", gap: 6 },
+  hero: { alignItems: "center", gap: 6, alignSelf: "stretch" },
   handle: { fontSize: 13, color: colors.muted },
   meTotal: {
     fontSize: 36,
