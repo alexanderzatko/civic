@@ -24,7 +24,12 @@ if [[ ! -d android ]]; then
 fi
 
 echo "Building release APK (first run can take 30–40 minutes)…"
-npx expo run:android --variant release --no-install --no-bundler
+# Use Gradle directly — expo run:android always installs on a connected device/emulator
+# after the build; --no-install only skips npm dependency installation.
+(
+  cd android
+  ./gradlew assembleRelease
+)
 
 mkdir -p "${OUT_DIR}"
 cp android/app/build/outputs/apk/release/app-release.apk "${OUT_APK}"

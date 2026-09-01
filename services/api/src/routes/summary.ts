@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import type { ContributionsSummary, MeritIndexFilters, RankDistribution } from "@civic/shared";
 import { optionalAuth, requireAuth } from "../auth.js";
+import { resolveCivicContentLang } from "../content-lang.js";
 import { CURATED_PROJECTS } from "../projects.js";
 import type { AppContext } from "../context.js";
 import { RovasClientError } from "../rovas-client.js";
@@ -128,9 +129,11 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       const user = req.authUser!;
       const q = req.query as { lang?: string };
       try {
+        const lang =
+          typeof q.lang === "string" ? resolveCivicContentLang(q.lang) : undefined;
         const countries = await ctx.rovas.fetchMeritIndexCountries(
           user.accessToken,
-          { lang: q.lang as MeritIndexFilters["lang"] },
+          { lang },
         );
         return { countries };
       } catch (err) {
