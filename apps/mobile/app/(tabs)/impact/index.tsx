@@ -215,7 +215,11 @@ export default function ImpactScreen() {
                   <Text style={styles.tdLink} numberOfLines={1}>
                     @{row.username}
                   </Text>
-                  <Text style={styles.sinceHint}>{row.member_since_year}</Text>
+                  <Text style={styles.sinceHint}>
+                    {interpolate(t("impact.member_since"), {
+                      year: String(row.member_since_year),
+                    })}
+                  </Text>
                 </View>
                 <Text style={[styles.td, styles.colMe]}>
                   {formatMe(row.total_me)}
@@ -338,7 +342,12 @@ const styles = StyleSheet.create({
   sinceHint: { fontSize: 11, color: colors.muted, marginTop: 2 },
   colPos: { width: 40, textAlign: "center" },
   colWorker: { width: 128 },
-  colMe: { width: 72, textAlign: "right" },
+  colMe: {
+    width: 72,
+    textAlign: "right",
+    paddingRight: 10,
+    fontWeight: "700",
+  },
   colCountry: { width: 56 },
   colNace: { width: 108, overflow: "hidden", alignItems: "flex-start" },
   colSources: { width: 88, justifyContent: "center" },
