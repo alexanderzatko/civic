@@ -20,6 +20,7 @@ import { colors } from "@/constants/theme";
 import { fetchMeritIndexCountries, fetchNaceTree } from "@/lib/api";
 import { naceLetterSections } from "@/lib/nace-sections";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 
 export type ImpactFilters = {
   sort: MeritIndexSort;
@@ -115,6 +116,7 @@ function FilterPicker({
 }
 
 export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
+  const { locale } = useLocale();
   const [countries, setCountries] = useState<MeritIndexCountry[]>([]);
   const [countriesLoading, setCountriesLoading] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
@@ -144,7 +146,7 @@ export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [signedIn]);
+  }, [signedIn, locale]);
 
   useEffect(() => {
     if (!signedIn) return;
@@ -163,21 +165,24 @@ export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [signedIn]);
+  }, [signedIn, locale]);
 
   function patch(partial: Partial<ImpactFilters>) {
     onChange({ ...filters, ...partial });
   }
 
-  const countryLabel =
-    filters.country_label ??
-    (filters.country_iso2
-      ? countries.find((c) => c.iso2 === filters.country_iso2)?.label ??
-        filters.country_iso2
-      : t("impact.country_all"));
+  const countryLabel = filters.country_iso2
+    ? countries.find((c) => c.iso2 === filters.country_iso2)?.label ??
+      filters.country_label ??
+      filters.country_iso2
+    : t("impact.country_all");
 
-  const naceLabel =
-    filters.nace_section_label ?? t("impact.filter_nace_any");
+  const naceLabel = filters.nace_section_tid
+    ? naceSections.find((n) => Number(n.tid) === filters.nace_section_tid)
+        ?.label ??
+      filters.nace_section_label ??
+      t("impact.filter_nace_any")
+    : t("impact.filter_nace_any");
 
   return (
     <View style={styles.wrap}>

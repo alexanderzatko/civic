@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -22,7 +22,8 @@ import { NaceExpertiseIcons } from "@/components/NaceExpertiseIcons";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { fetchMeritIndex } from "@/lib/api";
-import { getLocale, t } from "@/lib/i18n";
+import { getLocale, t, type Locale } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 
 const PAGE_SIZE = 50;
 
@@ -31,8 +32,9 @@ const DEFAULT_FILTERS: ImpactFilters = {
   order: "desc",
 };
 
-function formatMe(n: number): string {
-  return displayMerits(n).toLocaleString("sk-SK");
+function formatMe(n: number, locale: Locale): string {
+  const numLocale = locale === "sk" ? "sk-SK" : "en-US";
+  return displayMerits(n).toLocaleString(numLocale);
 }
 
 function filtersToQuery(f: ImpactFilters, offset: number): MeritIndexFilters {
@@ -55,40 +57,9 @@ function interpolate(
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
 }
 
-function buildIntro(f: ImpactFilters): string {
-  const parts: string[] = [t("impact.intro_base")];
-  const clauses: string[] = [];
-  if (f.country_iso2) {
-    clauses.push(
-      interpolate(t("impact.intro_country"), {
-        country: f.country_label ?? f.country_iso2,
-      }),
-    );
-  }
-  if (f.nace_section_label) {
-    clauses.push(
-      interpolate(t("impact.intro_nace"), { section: f.nace_section_label }),
-    );
-  }
-  if (f.source_category) {
-    const key =
-      f.source_category === "taxes"
-        ? "community.cat_taxes"
-        : f.source_category === "charity"
-          ? "community.cat_charity"
-          : "community.cat_volunteer";
-    clauses.push(
-      interpolate(t("impact.intro_source"), { source: t(key) }),
-    );
-  }
-  if (clauses.length > 0) {
-    parts.push(clauses.join(t("impact.intro_join")));
-  }
-  return parts.join("");
-}
-
 export default function ImpactScreen() {
   const { status } = useAuth();
+  const { locale } = useLocale();
   const signedIn = status === "signedIn";
   const [filters, setFilters] = useState<ImpactFilters>(DEFAULT_FILTERS);
   const [rows, setRows] = useState<MeritIndexRow[]>([]);
@@ -98,8 +69,6 @@ export default function ImpactScreen() {
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const offsetRef = useRef(0);
-
-  const intro = useMemo(() => buildIntro(filters), [filters]);
 
   const loadPage = useCallback(
     async (offset: number, append: boolean) => {
@@ -114,19 +83,6 @@ export default function ImpactScreen() {
         setRows((prev) =>
           append ? [...prev, ...page.items] : page.items,
         );
-        if (!append && page.items.length > 0) {
-          const countryMatch = filters.country_iso2
-            ? page.items.find(
-                (r) => r.country_iso2 === filters.country_iso2?.toUpperCase(),
-              )
-            : null;
-          if (countryMatch?.country_label && !filters.country_label) {
-            setFilters((f) => ({
-              ...f,
-              country_label: countryMatch.country_label ?? undefined,
-            }));
-          }
-        }
       } catch {
         setError(t("impact.load_error"));
         if (!append) setRows([]);
@@ -135,7 +91,7 @@ export default function ImpactScreen() {
         setLoadingMore(false);
       }
     },
-    [signedIn, filters],
+    [signedIn, filters, locale],
   );
 
   useEffect(() => {
@@ -160,7 +116,7 @@ export default function ImpactScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.intro}>{intro}</Text>
+      <Text style={styles.intro}>{t("impact.intro_base")}</Text>
 
       {!signedIn ? (
         <View style={styles.authBox}>
@@ -197,7 +153,7 @@ export default function ImpactScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator>
           <View style={styles.table}>
             <View style={styles.tableHeader}>
-              <HeaderCell label="#" width={40} />
+              <HeaderCell label={t("impact.col_position")} width={40} />
               <HeaderCell label={t("impact.col_worker")} width={128} />
               <HeaderCell label={t("impact.col_me")} width={72} />
               <HeaderCell label={t("impact.col_nace")} width={108} />
@@ -222,7 +178,7 @@ export default function ImpactScreen() {
                   </Text>
                 </View>
                 <Text style={[styles.td, styles.colMe]}>
-                  {formatMe(row.total_me)}
+                  {formatMe(row.total_me, locale)}
                 </Text>
                 <View style={styles.colNace}>
                   <NaceExpertiseIcons
