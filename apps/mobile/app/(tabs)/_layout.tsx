@@ -1,5 +1,4 @@
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { PendingVerificationsHost } from "@/components/PendingVerificationsHost";
 import { colors } from "@/constants/theme";
@@ -34,10 +33,8 @@ export default function TabLayout() {
           options={{
             title: t("impact.title"),
             tabBarLabel: t("impact"),
-            tabBarIcon: ({ focused }) => (
-              <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.55 }}>
-                🏆
-              </Text>
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="emoji-events" color={color} size={24} />
             ),
           }}
         />
