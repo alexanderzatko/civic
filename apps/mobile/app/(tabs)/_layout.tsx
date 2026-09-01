@@ -66,6 +66,16 @@ export default function TabLayout() {
           })}
         />
         <Tabs.Screen
+          name="impact"
+          options={{
+            title: t("impact.title"),
+            tabBarLabel: t("impact"),
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="leaderboard" color={color} size={24} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="profile"
           options={{
             title: t("profile.title"),

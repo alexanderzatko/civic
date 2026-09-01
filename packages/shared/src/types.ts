@@ -273,6 +273,62 @@ export interface RankDistribution {
   bin_edges_log10?: number[];
 }
 
+export type MeritIndexSort =
+  | "position"
+  | "total_me"
+  | "value_eur"
+  | "member_since"
+  | "country"
+  | "taxes_me"
+  | "charity_me"
+  | "volunteer_me";
+
+export type MeritIndexOrder = "asc" | "desc";
+
+export type MeritSourceCategory = "taxes" | "charity" | "volunteer";
+
+/** Query params for `GET /rank/index` → Rovas `civic_merit_index`. */
+export interface MeritIndexFilters {
+  limit?: number;
+  offset?: number;
+  sort?: MeritIndexSort;
+  order?: MeritIndexOrder;
+  country_iso2?: string;
+  since_from?: string;
+  min_me?: number;
+  max_me?: number;
+  min_value_eur?: number;
+  max_value_eur?: number;
+  nace_section_tid?: number;
+  source_category?: MeritSourceCategory;
+  lang?: string;
+}
+
+/** One row of the Merit Index / Prínos leaderboard. */
+export interface MeritIndexRow {
+  position: number;
+  rovas_uid: string;
+  username: string;
+  display_name: string;
+  member_since_year: number;
+  total_me: number;
+  value_eur: number;
+  country_iso2: string | null;
+  country_label: string | null;
+  by_category: ContributionCategoryBreakdown;
+  nace_expertise: NaceExpertiseSection[];
+}
+
+/** Paginated Merit Index from `GET /rank/index`. */
+export interface MeritIndexPage {
+  total: number;
+  limit: number;
+  offset: number;
+  sort: MeritIndexSort;
+  order: MeritIndexOrder;
+  items: MeritIndexRow[];
+}
+
 /** Civic `GET /merit-rate` — Rovas national wage with local fallback. */
 export interface MeritRate {
   country_code: string;

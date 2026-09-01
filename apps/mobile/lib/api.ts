@@ -18,6 +18,8 @@ import type {
   UserLookup,
   VerifyReceiptResponse,
   MeritHistoryPage,
+  MeritIndexFilters,
+  MeritIndexPage,
   VolunteerProjectRow,
   NaceNode,
   ClassifyNaceBody,
@@ -225,6 +227,35 @@ export function fetchMeritHistory(opts?: {
   if (opts?.limit != null) params.set("limit", String(opts.limit));
   if (opts?.offset != null) params.set("offset", String(opts.offset));
   return apiFetch<MeritHistoryPage>(`/users/me/merit-history?${params}`, {
+    auth: "required",
+  });
+}
+
+export function fetchMeritIndex(
+  filters: MeritIndexFilters = {},
+): Promise<MeritIndexPage> {
+  const params = new URLSearchParams({ lang: getLocale() });
+  if (filters.limit != null) params.set("limit", String(filters.limit));
+  if (filters.offset != null) params.set("offset", String(filters.offset));
+  if (filters.sort) params.set("sort", filters.sort);
+  if (filters.order) params.set("order", filters.order);
+  if (filters.country_iso2) params.set("country_iso2", filters.country_iso2);
+  if (filters.since_from) params.set("since_from", filters.since_from);
+  if (filters.min_me != null) params.set("min_me", String(filters.min_me));
+  if (filters.max_me != null) params.set("max_me", String(filters.max_me));
+  if (filters.min_value_eur != null) {
+    params.set("min_value_eur", String(filters.min_value_eur));
+  }
+  if (filters.max_value_eur != null) {
+    params.set("max_value_eur", String(filters.max_value_eur));
+  }
+  if (filters.nace_section_tid != null) {
+    params.set("nace_section_tid", String(filters.nace_section_tid));
+  }
+  if (filters.source_category) {
+    params.set("source_category", filters.source_category);
+  }
+  return apiFetch<MeritIndexPage>(`/rank/index?${params}`, {
     auth: "required",
   });
 }

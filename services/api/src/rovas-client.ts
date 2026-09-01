@@ -3,6 +3,12 @@ import type {
   MeritHistoryItem,
   MeritHistoryPage,
   MeritHistorySourceKind,
+  MeritIndexFilters,
+  MeritIndexPage,
+  MeritIndexRow,
+  MeritIndexSort,
+  MeritIndexOrder,
+  MeritSourceCategory,
   ProjectDetail,
   ProjectShareholderItem,
   ProjectShareholderPage,
@@ -320,6 +326,54 @@ export class RovasClient {
       accessToken,
     );
     return normalizeMeritHistoryPage(body, limit, offset);
+  }
+
+  /**
+   * Merit Index leaderboard for Civic Prínos tab.
+   * `GET /rovas/civic_merit_index?…`
+   */
+  async fetchMeritIndex(
+    accessToken: string,
+    filters: MeritIndexFilters = {},
+  ): Promise<MeritIndexPage> {
+    const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
+    const offset = Math.max(filters.offset ?? 0, 0);
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    });
+    if (filters.sort) params.set("sort", filters.sort);
+    if (filters.order) params.set("order", filters.order);
+    if (filters.country_iso2?.trim()) {
+      params.set("country_iso2", filters.country_iso2.trim().toUpperCase());
+    }
+    if (filters.since_from?.trim()) {
+      params.set("since_from", filters.since_from.trim());
+    }
+    if (filters.min_me != null && Number.isFinite(filters.min_me)) {
+      params.set("min_me", String(filters.min_me));
+    }
+    if (filters.max_me != null && Number.isFinite(filters.max_me)) {
+      params.set("max_me", String(filters.max_me));
+    }
+    if (filters.min_value_eur != null && Number.isFinite(filters.min_value_eur)) {
+      params.set("min_value_eur", String(filters.min_value_eur));
+    }
+    if (filters.max_value_eur != null && Number.isFinite(filters.max_value_eur)) {
+      params.set("max_value_eur", String(filters.max_value_eur));
+    }
+    if (filters.nace_section_tid != null && filters.nace_section_tid > 0) {
+      params.set("nace_section_tid", String(filters.nace_section_tid));
+    }
+    if (filters.source_category) {
+      params.set("source_category", filters.source_category);
+    }
+    appendLangParam(params, filters.lang as CivicContentLang | undefined);
+    const body = await this.getJson<Partial<MeritIndexPage>>(
+      `/rovas/civic_merit_index?${params}`,
+      accessToken,
+    );
+    return normalizeMeritIndexPage(body, limit, offset);
   }
 
   /**
@@ -1188,6 +1242,84 @@ function normalizeMeritHistoryPage(
     total: raw.total,
     limit: typeof raw.limit === "number" ? raw.limit : fallbackLimit,
     offset: typeof raw.offset === "number" ? raw.offset : fallbackOffset,
+    items,
+  };
+}
+
+const MERIT_INDEX_SORTS: MeritIndexSort[] = [
+  "position",
+  "total_me",
+  "value_eur",
+  "member_since",
+  "country",
+  "taxes_me",
+  "charity_me",
+  "volunteer_me",
+];
+
+function normalizeMeritIndexRow(raw: unknown): MeritIndexRow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<MeritIndexRow>;
+  const uid = r.rovas_uid != null ? String(r.rovas_uid) : "";
+  const username = typeof r.username === "string" ? r.username : "";
+  const totalMe = Number(r.total_me);
+  const valueEur = Number(r.value_eur);
+  const position = Number(r.position);
+  const sinceYear = Number(r.member_since_year);
+  if (!uid || !username || !Number.isFinite(totalMe) || !Number.isFinite(position)) {
+    return null;
+  }
+  return {
+    position,
+    rovas_uid: uid,
+    username,
+    display_name:
+      typeof r.display_name === "string" && r.display_name
+        ? r.display_name
+        : username,
+    member_since_year: Number.isFinite(sinceYear) ? sinceYear : 0,
+    total_me: totalMe,
+    value_eur: Number.isFinite(valueEur) ? valueEur : 0,
+    country_iso2:
+      typeof r.country_iso2 === "string" && r.country_iso2
+        ? r.country_iso2.toUpperCase()
+        : null,
+    country_label:
+      typeof r.country_label === "string" && r.country_label
+        ? r.country_label
+        : null,
+    by_category: normalizeCategories(r.by_category),
+    nace_expertise: normalizeNaceExpertise(r.nace_expertise),
+  };
+}
+
+function normalizeMeritIndexPage(
+  raw: Partial<MeritIndexPage> | undefined,
+  fallbackLimit: number,
+  fallbackOffset: number,
+): MeritIndexPage {
+  if (!Array.isArray(raw?.items) || typeof raw?.total !== "number") {
+    throw new RovasClientError(
+      "Rovas civic_merit_index missing items/total",
+      502,
+      raw,
+    );
+  }
+  const sort =
+    typeof raw.sort === "string" &&
+    MERIT_INDEX_SORTS.includes(raw.sort as MeritIndexSort)
+      ? (raw.sort as MeritIndexSort)
+      : "total_me";
+  const order: MeritIndexOrder = raw.order === "asc" ? "asc" : "desc";
+  const items = raw.items
+    .map(normalizeMeritIndexRow)
+    .filter((x): x is MeritIndexRow => x != null);
+  return {
+    total: raw.total,
+    limit: typeof raw.limit === "number" ? raw.limit : fallbackLimit,
+    offset: typeof raw.offset === "number" ? raw.offset : fallbackOffset,
+    sort,
+    order,
     items,
   };
 }
