@@ -43,6 +43,7 @@ function filtersToQuery(f: ImpactFilters, offset: number): MeritIndexFilters {
     offset,
     sort: f.sort,
     order: f.order,
+    min_me: 1,
     country_iso2: f.country_iso2?.trim() || undefined,
     nace_section_tid: f.nace_section_tid,
     source_category: f.source_category,
