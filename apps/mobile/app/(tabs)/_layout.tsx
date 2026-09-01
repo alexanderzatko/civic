@@ -33,6 +33,7 @@ export default function TabLayout() {
           options={{
             title: t("impact.title"),
             tabBarLabel: t("impact"),
+            headerShown: false,
             tabBarIcon: ({ color }) => (
               <MaterialIcons name="emoji-events" color={color} size={24} />
             ),

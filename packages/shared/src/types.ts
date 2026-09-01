@@ -287,6 +287,13 @@ export type MeritIndexOrder = "asc" | "desc";
 
 export type MeritSourceCategory = "taxes" | "charity" | "volunteer";
 
+/** Country with Merit Index users (`GET /rank/index/countries`). */
+export interface MeritIndexCountry {
+  iso2: string;
+  label: string;
+  user_count: number;
+}
+
 /** Query params for `GET /rank/index` → Rovas `civic_merit_index`. */
 export interface MeritIndexFilters {
   limit?: number;

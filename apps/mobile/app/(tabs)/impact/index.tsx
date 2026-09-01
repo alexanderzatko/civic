@@ -29,8 +29,6 @@ const PAGE_SIZE = 50;
 const DEFAULT_FILTERS: ImpactFilters = {
   sort: "total_me",
   order: "desc",
-  country_iso2: "SK",
-  country_label: undefined,
 };
 
 function formatMe(n: number): string {
@@ -92,10 +90,7 @@ function buildIntro(f: ImpactFilters): string {
 export default function ImpactScreen() {
   const { status } = useAuth();
   const signedIn = status === "signedIn";
-  const [filters, setFilters] = useState<ImpactFilters>(() => ({
-    ...DEFAULT_FILTERS,
-    country_label: t("impact.country_sk"),
-  }));
+  const [filters, setFilters] = useState<ImpactFilters>(DEFAULT_FILTERS);
   const [rows, setRows] = useState<MeritIndexRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -205,9 +200,9 @@ export default function ImpactScreen() {
               <HeaderCell label="#" width={40} />
               <HeaderCell label={t("impact.col_worker")} width={128} />
               <HeaderCell label={t("impact.col_me")} width={72} />
-              <HeaderCell label={t("impact.col_country")} width={88} />
               <HeaderCell label={t("impact.col_nace")} width={108} />
               <HeaderCell label={t("impact.col_sources")} width={88} />
+              <HeaderCell label={t("impact.col_country")} width={56} />
             </View>
             {rows.map((row) => (
               <Pressable
@@ -225,19 +220,22 @@ export default function ImpactScreen() {
                 <Text style={[styles.td, styles.colMe]}>
                   {formatMe(row.total_me)}
                 </Text>
-                <Text style={[styles.td, styles.colCountry]} numberOfLines={1}>
-                  {row.country_iso2 ?? "—"}
-                </Text>
                 <View style={styles.colNace}>
                   <NaceExpertiseIcons
                     sections={row.nace_expertise}
                     iconSize={28}
                     maxIcons={3}
+                    align="start"
+                    gap={3}
+                    compact
                   />
                 </View>
                 <View style={styles.colSources}>
                   <MeritSourceBar by={row.by_category} />
                 </View>
+                <Text style={[styles.td, styles.colCountry]} numberOfLines={1}>
+                  {row.country_iso2 ?? "—"}
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -341,8 +339,8 @@ const styles = StyleSheet.create({
   colPos: { width: 40, textAlign: "center" },
   colWorker: { width: 128 },
   colMe: { width: 72, textAlign: "right" },
-  colCountry: { width: 88 },
-  colNace: { width: 108, overflow: "hidden" },
+  colCountry: { width: 56 },
+  colNace: { width: 108, overflow: "hidden", alignItems: "flex-start" },
   colSources: { width: 88, justifyContent: "center" },
   loadMoreBtn: {
     alignSelf: "center",

@@ -3,6 +3,7 @@ import type {
   MeritHistoryItem,
   MeritHistoryPage,
   MeritHistorySourceKind,
+  MeritIndexCountry,
   MeritIndexFilters,
   MeritIndexPage,
   MeritIndexRow,
@@ -373,6 +374,24 @@ export class RovasClient {
       accessToken,
     );
     return normalizeMeritIndexPage(body, limit, offset);
+  }
+
+  /**
+   * Distinct countries on the Merit Index (users with total_me > 0).
+   * `GET /rovas/civic_merit_index_countries?lang=`
+   */
+  async fetchMeritIndexCountries(
+    accessToken: string,
+    opts?: { lang?: CivicContentLang },
+  ): Promise<MeritIndexCountry[]> {
+    const params = new URLSearchParams();
+    appendLangParam(params, opts?.lang);
+    const qs = params.toString();
+    const body = await this.getJson<{ countries?: unknown }>(
+      `/rovas/civic_merit_index_countries${qs ? `?${qs}` : ""}`,
+      accessToken,
+    );
+    return normalizeMeritIndexCountries(body?.countries);
   }
 
   /**
@@ -1290,6 +1309,28 @@ function normalizeMeritIndexRow(raw: unknown): MeritIndexRow | null {
     by_category: normalizeCategories(r.by_category),
     nace_expertise: normalizeNaceExpertise(r.nace_expertise),
   };
+}
+
+function normalizeMeritIndexCountries(raw: unknown): MeritIndexCountry[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MeritIndexCountry[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Partial<MeritIndexCountry>;
+    const iso2 =
+      typeof r.iso2 === "string" && r.iso2.trim()
+        ? r.iso2.trim().toUpperCase()
+        : "";
+    const label = typeof r.label === "string" ? r.label.trim() : "";
+    if (!iso2 || !label) continue;
+    const userCount = Number(r.user_count);
+    out.push({
+      iso2,
+      label,
+      user_count: Number.isFinite(userCount) ? userCount : 0,
+    });
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label));
 }
 
 function normalizeMeritIndexPage(

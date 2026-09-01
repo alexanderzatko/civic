@@ -17,6 +17,9 @@ type Props = {
   iconSize?: number;
   title?: string;
   maxIcons?: number;
+  align?: "start" | "center";
+  gap?: number;
+  compact?: boolean;
 };
 
 function formatMe(n: number): string {
@@ -27,10 +30,12 @@ function ExpertiseIcon({
   section,
   size,
   onPress,
+  compact = false,
 }: {
   section: NaceExpertiseSection;
   size: number;
   onPress: () => void;
+  compact?: boolean;
 }) {
   const [svgFailed, setSvgFailed] = useState(false);
   const letter = (section.section_letter || section.section_label.charAt(0))
@@ -39,7 +44,13 @@ function ExpertiseIcon({
 
   return (
     <Pressable
-      style={[styles.iconBtn, { width: size + 12, height: size + 12 }]}
+      style={[
+        styles.iconBtn,
+        {
+          width: size + (compact ? 0 : 12),
+          height: size + (compact ? 0 : 12),
+        },
+      ]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={section.section_label}
@@ -80,6 +91,9 @@ export function NaceExpertiseIcons({
   iconSize = 36,
   title,
   maxIcons = MAX_ICONS,
+  align = "center",
+  gap = 4,
+  compact = false,
 }: Props) {
   const [selected, setSelected] = useState<NaceExpertiseSection | null>(null);
 
@@ -89,7 +103,7 @@ export function NaceExpertiseIcons({
     return null;
   }
 
-  const rowHeight = iconSize + 12;
+  const rowHeight = iconSize + (compact ? 0 : 12);
 
   return (
     <>
@@ -98,7 +112,11 @@ export function NaceExpertiseIcons({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.row}
+          contentContainerStyle={[
+            styles.row,
+            { gap, justifyContent: align === "start" ? "flex-start" : "center" },
+            align === "start" ? styles.rowStart : null,
+          ]}
           style={[styles.scroll, { height: rowHeight }]}
         >
           {visible.map((section) => (
@@ -106,6 +124,7 @@ export function NaceExpertiseIcons({
               key={section.section_tid}
               section={section}
               size={iconSize}
+              compact={compact}
               onPress={() => setSelected(section)}
             />
           ))}
@@ -164,10 +183,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 4,
-    minWidth: "100%",
+    paddingHorizontal: 0,
+  },
+  rowStart: {
+    minWidth: undefined,
   },
   iconBtn: {
     alignItems: "center",

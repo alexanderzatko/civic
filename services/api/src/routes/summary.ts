@@ -122,6 +122,24 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   );
 
   app.get(
+    "/rank/index/countries",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const q = req.query as { lang?: string };
+      try {
+        const countries = await ctx.rovas.fetchMeritIndexCountries(
+          user.accessToken,
+          { lang: q.lang as MeritIndexFilters["lang"] },
+        );
+        return { countries };
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
+
+  app.get(
     "/rank/index",
     { preHandler: [requireAuth(ctx)] },
     async (req, reply) => {

@@ -18,6 +18,7 @@ import type {
   UserLookup,
   VerifyReceiptResponse,
   MeritHistoryPage,
+  MeritIndexCountry,
   MeritIndexFilters,
   MeritIndexPage,
   VolunteerProjectRow,
@@ -258,6 +259,13 @@ export function fetchMeritIndex(
   return apiFetch<MeritIndexPage>(`/rank/index?${params}`, {
     auth: "required",
   });
+}
+
+export function fetchMeritIndexCountries(): Promise<{
+  countries: MeritIndexCountry[];
+}> {
+  const params = new URLSearchParams({ lang: getLocale() });
+  return apiFetch(`/rank/index/countries?${params}`, { auth: "required" });
 }
 
 export function fetchProject(projectNid: string): Promise<ProjectDetail> {

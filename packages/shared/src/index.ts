@@ -69,6 +69,7 @@ export type {
   MeritHistoryPage,
   MeritHistorySourceKind,
   MeProfile,
+  MeritIndexCountry,
   MeritIndexFilters,
   MeritIndexOrder,
   MeritIndexPage,

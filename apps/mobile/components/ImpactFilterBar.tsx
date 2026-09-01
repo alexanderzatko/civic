@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -10,13 +10,15 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import type {
+  MeritIndexCountry,
   MeritIndexOrder,
   MeritIndexSort,
   MeritSourceCategory,
   NaceNode,
 } from "@civic/shared";
 import { colors } from "@/constants/theme";
-import { fetchNaceTree } from "@/lib/api";
+import { fetchMeritIndexCountries, fetchNaceTree } from "@/lib/api";
+import { naceLetterSections } from "@/lib/nace-sections";
 import { t } from "@/lib/i18n";
 
 export type ImpactFilters = {
@@ -48,14 +50,6 @@ const SOURCE_OPTIONS: Array<{
     labelKey: "community.cat_volunteer",
     color: colors.catVolunteer,
   },
-];
-
-const COUNTRY_OPTIONS: Array<{
-  iso2: string | null;
-  labelKey: string;
-}> = [
-  { iso2: null, labelKey: "impact.country_all" },
-  { iso2: "SK", labelKey: "impact.country_sk" },
 ];
 
 function Chip({
@@ -94,10 +88,63 @@ function Chip({
   );
 }
 
+function FilterPicker({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+}) {
+  return (
+    <View style={styles.pickerBlock}>
+      <Text style={styles.sectionLabel}>{label}</Text>
+      <Pressable
+        style={styles.picker}
+        onPress={onPress}
+        accessibilityRole="button"
+      >
+        <Text style={styles.pickerText} numberOfLines={1}>
+          {value}
+        </Text>
+        <MaterialIcons name="expand-more" size={22} color={colors.muted} />
+      </Pressable>
+    </View>
+  );
+}
+
 export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
+  const [countries, setCountries] = useState<MeritIndexCountry[]>([]);
+  const [countriesLoading, setCountriesLoading] = useState(false);
+  const [countryOpen, setCountryOpen] = useState(false);
   const [naceTree, setNaceTree] = useState<NaceNode[]>([]);
   const [naceLoading, setNaceLoading] = useState(false);
   const [naceOpen, setNaceOpen] = useState(false);
+
+  const naceSections = useMemo(
+    () => naceLetterSections(naceTree),
+    [naceTree],
+  );
+
+  useEffect(() => {
+    if (!signedIn) return;
+    let cancelled = false;
+    setCountriesLoading(true);
+    void fetchMeritIndexCountries()
+      .then((res) => {
+        if (!cancelled) setCountries(res.countries);
+      })
+      .catch(() => {
+        if (!cancelled) setCountries([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCountriesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn]);
 
   useEffect(() => {
     if (!signedIn) return;
@@ -122,31 +169,23 @@ export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
     onChange({ ...filters, ...partial });
   }
 
+  const countryLabel =
+    filters.country_label ??
+    (filters.country_iso2
+      ? countries.find((c) => c.iso2 === filters.country_iso2)?.label ??
+        filters.country_iso2
+      : t("impact.country_all"));
+
   const naceLabel =
     filters.nace_section_label ?? t("impact.filter_nace_any");
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.sectionLabel}>{t("impact.filter_country")}</Text>
-      <View style={styles.chipRow}>
-        {COUNTRY_OPTIONS.map((opt) => {
-          const active =
-            (opt.iso2 ?? undefined) === (filters.country_iso2 ?? undefined);
-          return (
-            <Chip
-              key={opt.labelKey}
-              label={t(opt.labelKey)}
-              active={active}
-              onPress={() =>
-                patch({
-                  country_iso2: opt.iso2 ?? undefined,
-                  country_label: opt.iso2 ? t(opt.labelKey) : undefined,
-                })
-              }
-            />
-          );
-        })}
-      </View>
+      <FilterPicker
+        label={t("impact.filter_country")}
+        value={countryLabel}
+        onPress={() => setCountryOpen(true)}
+      />
 
       <Text style={styles.sectionLabel}>{t("impact.filter_source")}</Text>
       <View style={styles.chipRow}>
@@ -172,17 +211,84 @@ export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
         })}
       </View>
 
-      <Text style={styles.sectionLabel}>{t("impact.filter_nace")}</Text>
-      <Pressable
-        style={styles.nacePicker}
+      <FilterPicker
+        label={t("impact.filter_nace")}
+        value={naceLabel}
         onPress={() => setNaceOpen(true)}
-        accessibilityRole="button"
+      />
+
+      <Modal
+        visible={countryOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCountryOpen(false)}
       >
-        <Text style={styles.nacePickerText} numberOfLines={1}>
-          {naceLabel}
-        </Text>
-        <MaterialIcons name="expand-more" size={22} color={colors.muted} />
-      </Pressable>
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => setCountryOpen(false)}
+        />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>{t("impact.filter_country")}</Text>
+            <Pressable onPress={() => setCountryOpen(false)} hitSlop={12}>
+              <MaterialIcons name="close" size={24} color={colors.muted} />
+            </Pressable>
+          </View>
+          {countriesLoading ? (
+            <ActivityIndicator color={colors.brand} style={styles.sheetLoader} />
+          ) : (
+            <ScrollView contentContainerStyle={styles.sheetBody}>
+              <Pressable
+                style={[
+                  styles.optionRow,
+                  !filters.country_iso2 && styles.optionRowActive,
+                ]}
+                onPress={() => {
+                  patch({
+                    country_iso2: undefined,
+                    country_label: undefined,
+                  });
+                  setCountryOpen(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    !filters.country_iso2 && styles.optionTextActive,
+                  ]}
+                >
+                  {t("impact.country_all")}
+                </Text>
+              </Pressable>
+              {countries.map((country) => {
+                const active = filters.country_iso2 === country.iso2;
+                return (
+                  <Pressable
+                    key={country.iso2}
+                    style={[styles.optionRow, active && styles.optionRowActive]}
+                    onPress={() => {
+                      patch({
+                        country_iso2: active ? undefined : country.iso2,
+                        country_label: active ? undefined : country.label,
+                      });
+                      setCountryOpen(false);
+                    }}
+                  >
+                    <Text
+                      style={[styles.optionText, active && styles.optionTextActive]}
+                    >
+                      {country.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              {!countriesLoading && countries.length === 0 ? (
+                <Text style={styles.hint}>{t("impact.countries_empty")}</Text>
+              ) : null}
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
 
       <Modal
         visible={naceOpen}
@@ -224,9 +330,12 @@ export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
                   {t("impact.filter_nace_any")}
                 </Text>
               </Pressable>
-              {naceTree.map((node) => {
+              {naceSections.map((node) => {
                 const tid = Number(node.tid);
                 const active = filters.nace_section_tid === tid;
+                const optionLabel = node.code
+                  ? `${node.code} — ${node.label}`
+                  : node.label;
                 return (
                   <Pressable
                     key={node.tid}
@@ -242,7 +351,7 @@ export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
                     <Text
                       style={[styles.optionText, active && styles.optionTextActive]}
                     >
-                      {node.label}
+                      {optionLabel}
                     </Text>
                   </Pressable>
                 );
@@ -257,18 +366,18 @@ export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: 8,
+    gap: 10,
     padding: 14,
     borderRadius: 12,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
+  pickerBlock: { gap: 6 },
   sectionLabel: {
     fontSize: 12,
     fontWeight: "600",
     color: colors.muted,
-    marginTop: 2,
   },
   chipRow: {
     flexDirection: "row",
@@ -289,7 +398,7 @@ const styles = StyleSheet.create({
   },
   chipText: { fontSize: 13, fontWeight: "600", color: colors.ink },
   chipTextActive: { color: colors.brandSoft },
-  nacePicker: {
+  picker: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -300,7 +409,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: colors.bg,
   },
-  nacePickerText: {
+  pickerText: {
     flex: 1,
     fontSize: 14,
     color: colors.ink,
@@ -329,6 +438,7 @@ const styles = StyleSheet.create({
   sheetTitle: { fontSize: 16, fontWeight: "700", color: colors.ink, flex: 1 },
   sheetLoader: { marginVertical: 24 },
   sheetBody: { padding: 16, gap: 8 },
+  hint: { fontSize: 14, color: colors.muted, lineHeight: 20 },
   optionRow: {
     paddingVertical: 12,
     paddingHorizontal: 14,
