@@ -333,7 +333,7 @@ export class RovasClient {
    * `GET /rovas/civic_merit_index?…`
    */
   async fetchMeritIndex(
-    accessToken: string,
+    accessToken?: string | null,
     filters: MeritIndexFilters = {},
   ): Promise<MeritIndexPage> {
     const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
@@ -371,7 +371,7 @@ export class RovasClient {
     appendLangParam(params, filters.lang as CivicContentLang | undefined);
     const body = await this.getJson<Partial<MeritIndexPage>>(
       `/rovas/civic_merit_index?${params}`,
-      accessToken,
+      accessToken ?? undefined,
     );
     return normalizeMeritIndexPage(body, limit, offset);
   }
@@ -381,7 +381,7 @@ export class RovasClient {
    * `GET /rovas/civic_merit_index_countries?lang=`
    */
   async fetchMeritIndexCountries(
-    accessToken: string,
+    accessToken?: string | null,
     opts?: { lang?: CivicContentLang },
   ): Promise<MeritIndexCountry[]> {
     const params = new URLSearchParams();
@@ -389,7 +389,7 @@ export class RovasClient {
     const qs = params.toString();
     const body = await this.getJson<{ countries?: unknown }>(
       `/rovas/civic_merit_index_countries${qs ? `?${qs}` : ""}`,
-      accessToken,
+      accessToken ?? undefined,
     );
     return normalizeMeritIndexCountries(body?.countries);
   }
@@ -501,7 +501,7 @@ export class RovasClient {
    * Nested NACE tree. `GET /rovas/civic_nace_tree?lang=`
    */
   async fetchNaceTree(
-    accessToken: string,
+    accessToken?: string | null,
     opts?: { lang?: CivicContentLang },
   ): Promise<NaceNode[]> {
     const params = new URLSearchParams();
@@ -509,7 +509,7 @@ export class RovasClient {
     const qs = params.toString();
     const body = await this.getJson<unknown>(
       `/rovas/civic_nace_tree${qs ? `?${qs}` : ""}`,
-      accessToken,
+      accessToken ?? undefined,
     );
     return normalizeNaceTree(body);
   }

@@ -257,7 +257,7 @@ export function fetchMeritIndex(
     params.set("source_category", filters.source_category);
   }
   return apiFetch<MeritIndexPage>(`/rank/index?${params}`, {
-    auth: "required",
+    auth: "optional",
   });
 }
 
@@ -265,7 +265,7 @@ export function fetchMeritIndexCountries(): Promise<{
   countries: MeritIndexCountry[];
 }> {
   const params = new URLSearchParams({ lang: getLocale() });
-  return apiFetch(`/rank/index/countries?${params}`, { auth: "required" });
+  return apiFetch(`/rank/index/countries?${params}`, { auth: "optional" });
 }
 
 export function fetchProject(projectNid: string): Promise<ProjectDetail> {
@@ -360,7 +360,7 @@ export function createProject(body: {
 
 export function fetchNaceTree(): Promise<{ tree: NaceNode[] }> {
   const params = new URLSearchParams({ lang: getLocale() });
-  return apiFetch(`/nace?${params}`, { auth: "required" });
+  return apiFetch(`/nace?${params}`, { auth: "optional" });
 }
 
 export function classifyNaceFromDescription(

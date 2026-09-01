@@ -35,7 +35,6 @@ export type ImpactFilters = {
 type Props = {
   filters: ImpactFilters;
   onChange: (next: ImpactFilters) => void;
-  signedIn: boolean;
 };
 
 const SOURCE_OPTIONS: Array<{
@@ -115,7 +114,7 @@ function FilterPicker({
   );
 }
 
-export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
+export function ImpactFilterBar({ filters, onChange }: Props) {
   const { locale } = useLocale();
   const [countries, setCountries] = useState<MeritIndexCountry[]>([]);
   const [countriesLoading, setCountriesLoading] = useState(false);
@@ -130,7 +129,6 @@ export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
   );
 
   useEffect(() => {
-    if (!signedIn) return;
     let cancelled = false;
     setCountriesLoading(true);
     void fetchMeritIndexCountries()
@@ -146,10 +144,9 @@ export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [signedIn, locale]);
+  }, [locale]);
 
   useEffect(() => {
-    if (!signedIn) return;
     let cancelled = false;
     setNaceLoading(true);
     void fetchNaceTree()
@@ -165,7 +162,7 @@ export function ImpactFilterBar({ filters, onChange, signedIn }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [signedIn, locale]);
+  }, [locale]);
 
   function patch(partial: Partial<ImpactFilters>) {
     onChange({ ...filters, ...partial });

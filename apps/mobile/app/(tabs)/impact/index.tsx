@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { Link, router } from "expo-router";
+import { router } from "expo-router";
 import {
   displayMerits,
   type MeritIndexFilters,
@@ -73,7 +73,6 @@ export default function ImpactScreen() {
 
   const loadPage = useCallback(
     async (offset: number, append: boolean) => {
-      if (!signedIn) return;
       if (append) setLoadingMore(true);
       else setLoading(true);
       setError(null);
@@ -92,11 +91,10 @@ export default function ImpactScreen() {
         setLoadingMore(false);
       }
     },
-    [signedIn, filters, locale],
+    [filters, locale],
   );
 
   useEffect(() => {
-    if (!signedIn) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       void loadPage(0, false);
@@ -104,9 +102,10 @@ export default function ImpactScreen() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [filters, signedIn, loadPage]);
+  }, [filters, loadPage]);
 
   function openProfile(username: string) {
+    if (!signedIn) return;
     router.push(`/(tabs)/community/${encodeURIComponent(username)}`);
   }
 
@@ -119,38 +118,19 @@ export default function ImpactScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.intro}>{t("impact.intro_base")}</Text>
 
-      {!signedIn ? (
-        <View style={styles.authBox}>
-          <Text style={styles.hint}>{t("impact.sign_in_hint")}</Text>
-          <Link href="/(auth)/login" asChild>
-            <Pressable style={styles.primaryBtn}>
-              <Text style={styles.primaryText}>{t("home.sign_in")}</Text>
-            </Pressable>
-          </Link>
-        </View>
-      ) : null}
+      <ImpactFilterBar filters={filters} onChange={setFilters} />
 
-      {signedIn ? (
-        <ImpactFilterBar
-          filters={filters}
-          onChange={setFilters}
-          signedIn={signedIn}
-        />
-      ) : null}
-
-      {signedIn && loading && rows.length === 0 ? (
+      {loading && rows.length === 0 ? (
         <ActivityIndicator color={colors.brand} style={{ marginVertical: 24 }} />
       ) : null}
 
-      {signedIn && error ? (
-        <Text style={styles.error}>{error}</Text>
-      ) : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {signedIn && !loading && rows.length === 0 && !error ? (
+      {!loading && rows.length === 0 && !error ? (
         <Text style={styles.hint}>{t("impact.empty")}</Text>
       ) : null}
 
-      {signedIn && rows.length > 0 ? (
+      {rows.length > 0 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator>
           <View style={styles.table}>
             <View style={styles.tableHeader}>
@@ -161,49 +141,68 @@ export default function ImpactScreen() {
               <HeaderCell label={t("impact.col_sources")} width={88} />
               <HeaderCell label={t("impact.col_country")} width={56} />
             </View>
-            {rows.map((row) => (
-              <Pressable
-                key={row.rovas_uid}
-                style={styles.tableRow}
-                onPress={() => openProfile(row.username)}
-              >
-                <Text style={[styles.td, styles.colPos]}>{row.position}</Text>
-                <View style={styles.colWorker}>
-                  <Text style={styles.tdLink} numberOfLines={1}>
-                    @{row.username}
+            {rows.map((row) => {
+              const rowContent = (
+                <>
+                  <Text style={[styles.td, styles.colPos]}>{row.position}</Text>
+                  <View style={styles.colWorker}>
+                    <Text
+                      style={signedIn ? styles.tdLink : styles.tdUsername}
+                      numberOfLines={1}
+                    >
+                      @{row.username}
+                    </Text>
+                    <Text style={styles.sinceHint}>
+                      {interpolate(t("impact.member_since"), {
+                        year: String(row.member_since_year),
+                      })}
+                    </Text>
+                  </View>
+                  <Text style={[styles.td, styles.colMe]}>
+                    {formatMe(row.total_me, locale)}
                   </Text>
-                  <Text style={styles.sinceHint}>
-                    {interpolate(t("impact.member_since"), {
-                      year: String(row.member_since_year),
-                    })}
+                  <View style={styles.colNace}>
+                    <NaceExpertiseIcons
+                      sections={row.nace_expertise}
+                      iconSize={28}
+                      maxIcons={3}
+                      align="start"
+                      gap={3}
+                      compact
+                    />
+                  </View>
+                  <View style={styles.colSources}>
+                    <MeritSourceBar by={row.by_category} />
+                  </View>
+                  <Text style={[styles.td, styles.colCountry]} numberOfLines={1}>
+                    {row.country_iso2 ?? "—"}
                   </Text>
+                </>
+              );
+
+              if (signedIn) {
+                return (
+                  <Pressable
+                    key={row.rovas_uid}
+                    style={styles.tableRow}
+                    onPress={() => openProfile(row.username)}
+                  >
+                    {rowContent}
+                  </Pressable>
+                );
+              }
+
+              return (
+                <View key={row.rovas_uid} style={styles.tableRow}>
+                  {rowContent}
                 </View>
-                <Text style={[styles.td, styles.colMe]}>
-                  {formatMe(row.total_me, locale)}
-                </Text>
-                <View style={styles.colNace}>
-                  <NaceExpertiseIcons
-                    sections={row.nace_expertise}
-                    iconSize={28}
-                    maxIcons={3}
-                    align="start"
-                    gap={3}
-                    compact
-                  />
-                </View>
-                <View style={styles.colSources}>
-                  <MeritSourceBar by={row.by_category} />
-                </View>
-                <Text style={[styles.td, styles.colCountry]} numberOfLines={1}>
-                  {row.country_iso2 ?? "—"}
-                </Text>
-              </Pressable>
-            ))}
+              );
+            })}
           </View>
         </ScrollView>
       ) : null}
 
-      {signedIn && rows.length > 0 && rows.length < total ? (
+      {rows.length > 0 && rows.length < total ? (
         <Pressable
           style={styles.loadMoreBtn}
           onPress={loadMore}
@@ -241,24 +240,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.muted,
   },
-  authBox: {
-    gap: 10,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   hint: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   error: { color: colors.danger, fontSize: 14 },
-  primaryBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: "center",
-  },
-  primaryText: { color: "#fff", fontWeight: "600", fontSize: 15 },
   table: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -295,6 +278,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: colors.brandSoft,
+  },
+  tdUsername: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.ink,
   },
   sinceHint: { fontSize: 11, color: colors.muted, marginTop: 2 },
   colPos: { width: 40, textAlign: "center" },

@@ -63,15 +63,15 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `GET /users/search` | Split-claim typeahead — proxies Rovas `GET /rovas/users_search?query=` (Civic accepts `?q=`; maps to Rovas `query` because Drupal reserves `$_GET['q']` for the path) |
 | `GET /users/lookup` | Community public profile — proxies Rovas `GET /rovas/users_lookup?username=&lang=` (Bearer; exact username). Optional `lang=sk|en` for translated project `name`s — see Rovas **Next work: localized project and work-report text**. Returns `UserLookup` (`total_me`, `by_category`, `nace_expertise[]`, tax months, top charity/volunteer). NACE expertise icons (Merit Index) — see Rovas **Next work: NACE expertise on users_lookup**. Percentile is computed on Civic from `/rank/distribution`. Friend invite on Komunita is client `mailto:` only (no Rovas invite API). |
 | `GET /users/me/merit-history` | Signed-in Merit ledger for Profil — proxies Rovas `GET /rovas/civic_merit_history?limit=&offset=&lang=` (Bearer). Same rows as Views `merit_history` / `page_1` (`/user/%/merits`). Rovas **live** — see **merit history (profile ledger)**. |
-| `GET /rank/index` | Merit Index leaderboard for Prínos tab — proxies Rovas `GET /rovas/civic_merit_index` (Bearer). Sort/filter/pagination params forwarded. Rovas **live** — filter fixes in **Next work: merit index Prínos filter fixes**. |
-| `GET /rank/index/countries` | Merit Index country dropdown — proxies Rovas `GET /rovas/civic_merit_index_countries` (Bearer). **Pending Rovas** — same Next work section. |
+| `GET /rank/index` | Merit Index leaderboard for Prínos tab — proxies Rovas `GET /rovas/civic_merit_index`. Optional Bearer; public read on Rovas. Sort/filter/pagination params forwarded. |
+| `GET /rank/index/countries` | Merit Index country dropdown — proxies Rovas `GET /rovas/civic_merit_index_countries`. Optional Bearer; public read on Rovas. |
 | `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}?lang=` (Bearer). Optional `lang=sk|en` for translated `title`/`summary` (+ embedded WR text). See Rovas **project detail + work reports** and **localized project and work-report text**. |
 | `GET /projects/:nid/work-reports` | Paginated work ledgers — proxies Rovas `GET /rovas/civic_project_work_reports?project_nid=&lang=` (Bearer). Same `lang` rules as project detail. |
 | `GET /projects/:nid/shareholders` | Paginated shareholders — proxies Rovas `GET /rovas/civic_project_shareholders?project_nid=` (Bearer). See Rovas **Next work: project shareholders + WR photos**. |
 | `GET /projects/mine` | Volunteer form — proxies Rovas `GET /rovas/civic_my_projects?lang=` (Bearer). Up to **3** projects where the user filed work reports most recently; empty if none. Search/create for others. See Rovas **volunteer report (Civic deferred form)**. |
 | `GET /projects/search` | Volunteer typeahead — proxies Rovas `GET /rovas/civic_projects_search?query=` (Civic `?q=`; maps to Rovas `query`). |
 | `POST /projects` | Create project — proxies Rovas `POST /rovas/civic_create_project` (`name`, `description`, optional `url`). Defaults on Rovas: status for sale, Public. |
-| `GET /nace` | NACE drill-down tree — proxies Rovas `GET /rovas/civic_nace_tree?lang=`. |
+| `GET /nace` | NACE drill-down tree — proxies Rovas `GET /rovas/civic_nace_tree?lang=`. Optional Bearer; public read on Rovas (volunteer form still sends Bearer when signed in). |
 | `POST /nace/classify` | AI NACE from work description — proxies Rovas `POST /rovas/civic_ai_nace` (see Rovas **AI NACE + title**). Returns `status`: `ok` \| `need_more_info` \| `unavailable` \| `error`. Manual NACE tree remains fallback. |
 | `GET /work-reports/map-config` | Map proof widget — proxies Rovas `GET /rovas/civic_work_report_map_config` (basemap tiles, centre, allowed geometry types). Civic serves an OSM fallback until Rovas ships the endpoint. |
 | `GET /work-reports/:nid` | Verify screen — proxies Rovas `GET /rovas/civic_work_report/{nid}?lang=` (extended WR + verification context). See Rovas **Next work: Civic WR verification (in-app)**. |
@@ -90,6 +90,9 @@ Optional Bearer:
 | Route | Notes |
 |-------|--------|
 | `GET /rank/distribution` | Proxies Rovas `/rovas/merit_distribution`; with auth includes `user_bucket_index`, `username`, `user_merits` |
+| `GET /rank/index` | Merit Index leaderboard — proxies Rovas `GET /rovas/civic_merit_index` (no Bearer required) |
+| `GET /rank/index/countries` | Merit Index country filter — proxies Rovas `GET /rovas/civic_merit_index_countries` (no Bearer required) |
+| `GET /nace` | NACE tree for Prínos filters — proxies Rovas `GET /rovas/civic_nace_tree` (no Bearer required) |
 
 Public:
 

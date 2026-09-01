@@ -124,15 +124,14 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
 
   app.get(
     "/rank/index/countries",
-    { preHandler: [requireAuth(ctx)] },
+    { preHandler: [optionalAuth(ctx)] },
     async (req, reply) => {
-      const user = req.authUser!;
       const q = req.query as { lang?: string };
       try {
         const lang =
           typeof q.lang === "string" ? resolveCivicContentLang(q.lang) : undefined;
         const countries = await ctx.rovas.fetchMeritIndexCountries(
-          user.accessToken,
+          req.authUser?.accessToken,
           { lang },
         );
         return { countries };
@@ -144,9 +143,8 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
 
   app.get(
     "/rank/index",
-    { preHandler: [requireAuth(ctx)] },
+    { preHandler: [optionalAuth(ctx)] },
     async (req, reply) => {
-      const user = req.authUser!;
       const q = req.query as Record<string, string | undefined>;
       const filters: MeritIndexFilters = {
         limit: q.limit != null ? Number(q.limit) : undefined,
@@ -167,7 +165,10 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         lang: q.lang,
       };
       try {
-        return await ctx.rovas.fetchMeritIndex(user.accessToken, filters);
+        return await ctx.rovas.fetchMeritIndex(
+          req.authUser?.accessToken,
+          filters,
+        );
       } catch (err) {
         return sendRovasError(reply, err);
       }

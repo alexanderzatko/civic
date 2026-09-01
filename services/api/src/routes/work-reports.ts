@@ -8,7 +8,7 @@ import type {
   WorkReportGeoJsonGeometry,
   WorkReportPhotoInput,
 } from "@civic/shared";
-import { requireAuth } from "../auth.js";
+import { optionalAuth, requireAuth } from "../auth.js";
 import { resolveCivicContentLang } from "../content-lang.js";
 import type { AppContext } from "../context.js";
 import {
@@ -97,15 +97,15 @@ export const workReportsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async 
    * Nested NACE tree for the volunteer form.
    * Proxies Rovas `GET /rovas/civic_nace_tree?lang=`.
    */
-  app.get("/nace", { preHandler: [requireAuth(ctx)] }, async (req, reply) => {
-    const user = req.authUser!;
+  app.get("/nace", { preHandler: [optionalAuth(ctx)] }, async (req, reply) => {
     const langRaw = (req.query as { lang?: unknown }).lang;
     const lang =
       typeof langRaw === "string" ? resolveCivicContentLang(langRaw) : undefined;
     try {
-      const tree: NaceNode[] = await ctx.rovas.fetchNaceTree(user.accessToken, {
-        lang,
-      });
+      const tree: NaceNode[] = await ctx.rovas.fetchNaceTree(
+        req.authUser?.accessToken,
+        { lang },
+      );
       return { tree };
     } catch (err) {
       return sendRovasError(reply, err);
