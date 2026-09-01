@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { Text } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { PendingVerificationsHost } from "@/components/PendingVerificationsHost";
 import { colors } from "@/constants/theme";
@@ -25,6 +26,18 @@ export default function TabLayout() {
             tabBarLabel: t("Domov"),
             tabBarIcon: ({ color }) => (
               <MaterialIcons name="home" color={color} size={24} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="impact"
+          options={{
+            title: t("impact.title"),
+            tabBarLabel: t("impact"),
+            tabBarIcon: ({ focused }) => (
+              <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.55 }}>
+                🏆
+              </Text>
             ),
           }}
         />
@@ -64,16 +77,6 @@ export default function TabLayout() {
               navigation.navigate("community", { screen: "index" });
             },
           })}
-        />
-        <Tabs.Screen
-          name="impact"
-          options={{
-            title: t("impact.title"),
-            tabBarLabel: t("impact"),
-            tabBarIcon: ({ color }) => (
-              <MaterialIcons name="leaderboard" color={color} size={24} />
-            ),
-          }}
         />
         <Tabs.Screen
           name="profile"

@@ -16,6 +16,7 @@ type Props = {
   sections: NaceExpertiseSection[];
   iconSize?: number;
   title?: string;
+  maxIcons?: number;
 };
 
 function formatMe(n: number): string {
@@ -66,21 +67,23 @@ const MAX_ICONS = 5;
 
 function visibleExpertiseSections(
   sections: NaceExpertiseSection[],
+  maxIcons: number,
 ): NaceExpertiseSection[] {
   return [...sections]
     .filter((s) => s.share_percent >= MIN_SHARE_PERCENT)
     .sort((a, b) => b.share_percent - a.share_percent)
-    .slice(0, MAX_ICONS);
+    .slice(0, maxIcons);
 }
 
 export function NaceExpertiseIcons({
   sections,
   iconSize = 36,
   title,
+  maxIcons = MAX_ICONS,
 }: Props) {
   const [selected, setSelected] = useState<NaceExpertiseSection | null>(null);
 
-  const visible = visibleExpertiseSections(sections);
+  const visible = visibleExpertiseSections(sections, maxIcons);
 
   if (!visible.length) {
     return null;
