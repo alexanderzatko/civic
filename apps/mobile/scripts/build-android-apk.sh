@@ -2,17 +2,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-
-if [[ -z "${ANDROID_HOME:-}" ]]; then
-  if [[ -d "${HOME}/Library/Android/sdk" ]]; then
-    export ANDROID_HOME="${HOME}/Library/Android/sdk"
-  else
-    echo "ANDROID_HOME is not set and ~/Library/Android/sdk was not found." >&2
-    exit 1
-  fi
-fi
-
-export PATH="${ANDROID_HOME}/platform-tools:${PATH}"
+source "$(dirname "$0")/android-env.sh"
 
 VERSION="$(node -p "require('./package.json').version")"
 OUT_DIR="dist"
