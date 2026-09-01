@@ -371,6 +371,7 @@
   "auth.create_account": "Vytvoriť účet",
   "auth.opening_browser": "Otváram Rováš…",
   "auth.error_generic": "Prihlásenie zlyhalo. Skúste znova.",
+  "auth.error_code_expired": "Prihlasovací odkaz expiroval. Klepnite na Prihlásiť sa a skúste znova.",
   "auth.pkce_hint": "Po kliknutí sa otvorí systémový prehliadač a presmeruje vás do Rováša.",
   "auth.rovas_callout_title": "Civic a Rováš",
   "auth.rovas_callout_body_before": "Civic je mobilný spoločník webovej aplikácie ",

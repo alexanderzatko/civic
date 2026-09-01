@@ -27,9 +27,14 @@ Config via `EXPO_PUBLIC_ROVAS_BASE_URL` / `EXPO_PUBLIC_ROVAS_OAUTH_CLIENT_ID`
 (see `apps/mobile/.env` and root `.env.example`).
 
 Tokens live in `expo-secure-store`. `AuthProvider` runs Authorization Code +
-PKCE via `expo-auth-session`. Login/register provider buttons all open the
+PKCE via `expo-auth-session`. Access tokens expire after **1 hour**; the app
+silently refreshes using the refresh token (14-day lifetime) and re-checks when
+the app returns to the foreground. Login/register provider buttons all open the
 same Rovas authorize URL; Google / Facebook / Drupal login is chosen on the
 Rovas HybridAuth page.
+
+Rovas **Next work: OAuth session persistence (refresh token rotation)** must be
+deployed on `dev.rovas.app` so refresh returns a replacement token.
 
 **Dev requirement:** custom scheme `civic://` needs a development build
 (`pnpm --filter @civic/mobile ios:device`), not Expo Go. Day-to-day

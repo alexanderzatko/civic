@@ -11,7 +11,7 @@ import {
 import { router } from "expo-router";
 import { MeLogo } from "@/components/MeLogo";
 import { colors } from "@/constants/theme";
-import { useAuth } from "@/lib/auth";
+import { AuthCodeExpiredError, useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
 
 type Mode = "login" | "register";
@@ -30,7 +30,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
         router.replace("/(tabs)");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("auth.error_generic"));
+      if (e instanceof AuthCodeExpiredError) {
+        setError(t("auth.error_code_expired"));
+      } else {
+        setError(e instanceof Error ? e.message : t("auth.error_generic"));
+      }
     } finally {
       setBusy(false);
     }

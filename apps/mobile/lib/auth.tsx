@@ -8,12 +8,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { AppState } from "react-native";
 import {
   AuthRequest,
   TokenResponse,
   TokenTypeHint,
   exchangeCodeAsync,
-  refreshAsync,
   revokeAsync,
 } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
@@ -55,8 +55,40 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Thrown when the OAuth authorization code is stale or already used. */
+export class AuthCodeExpiredError extends Error {
+  constructor() {
+    super("AUTH_CODE_EXPIRED");
+    this.name = "AuthCodeExpiredError";
+  }
+}
+
 function toStored(token: TokenResponse): StoredTokens {
   return token.getRequestConfig();
+}
+
+function mergeRefreshedTokens(
+  current: StoredTokens,
+  refreshed: TokenResponse,
+): StoredTokens {
+  const stored = toStored(refreshed);
+  return {
+    ...stored,
+    refreshToken: stored.refreshToken ?? current.refreshToken,
+  };
+}
+
+function isOAuthGrantError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; message?: string };
+  if (e.code === "invalid_grant") return true;
+  const msg = (e.message ?? "").toLowerCase();
+  return (
+    msg.includes("invalid_grant") ||
+    msg.includes("invalid_token") ||
+    msg.includes("revoked") ||
+    (msg.includes("authorization code") && msg.includes("expired"))
+  );
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -132,18 +164,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const refreshPromise = (async (): Promise<string | null> => {
         try {
-          const refreshed = await refreshAsync(
-            {
-              clientId: getOAuthClientId(),
-              refreshToken: currentTokens.refreshToken!,
-            },
+          const refreshed = await current.refreshAsync(
+            { clientId: getOAuthClientId() },
             getRovasDiscovery(),
           );
-          const stored = toStored(refreshed);
+          const stored = mergeRefreshedTokens(currentTokens, refreshed);
           await persist(stored);
           return refreshed.accessToken;
-        } catch {
-          await persist(null);
+        } catch (error) {
+          if (isOAuthGrantError(error)) {
+            await persist(null);
+          }
           return null;
         } finally {
           refreshInFlightRef.current = null;
@@ -161,7 +192,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refreshAccessToken],
   );
 
+  useEffect(() => {
+    if (status !== "signedIn") return;
+
+    const refreshIfNeeded = () => {
+      void refreshAccessToken(false);
+    };
+
+    refreshIfNeeded();
+
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") refreshIfNeeded();
+    });
+
+    return () => sub.remove();
+  }, [refreshAccessToken, status]);
+
   const signIn = useCallback(async (): Promise<boolean> => {
+    await WebBrowser.dismissBrowser().catch(() => undefined);
+    WebBrowser.maybeCompleteAuthSession();
+
     const discovery = getRovasDiscovery();
     const redirectUri = getOAuthRedirectUri();
     const request = new AuthRequest({
@@ -188,17 +238,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("PKCE code_verifier missing from auth request");
     }
 
-    const token = await exchangeCodeAsync(
-      {
-        clientId: getOAuthClientId(),
-        code,
-        redirectUri,
-        extraParams: {
-          code_verifier: request.codeVerifier,
+    let token: TokenResponse;
+    try {
+      token = await exchangeCodeAsync(
+        {
+          clientId: getOAuthClientId(),
+          code,
+          redirectUri,
+          extraParams: {
+            code_verifier: request.codeVerifier,
+          },
         },
-      },
-      discovery,
-    );
+        discovery,
+      );
+    } catch (error) {
+      if (isOAuthGrantError(error)) {
+        throw new AuthCodeExpiredError();
+      }
+      throw error;
+    }
     await persist(toStored(token));
     return true;
   }, [persist]);

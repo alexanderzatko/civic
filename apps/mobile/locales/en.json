@@ -371,6 +371,7 @@
   "auth.create_account": "Create account",
   "auth.opening_browser": "Opening Rovas…",
   "auth.error_generic": "Sign-in failed. Please try again.",
+  "auth.error_code_expired": "The login link expired. Tap Sign in again to start fresh.",
   "auth.pkce_hint": "Tapping opens the system browser and sends you to Rovas.",
   "auth.rovas_callout_title": "Civic and Rovas",
   "auth.rovas_callout_body_before": "Civic is a mobile companion to the web application ",
