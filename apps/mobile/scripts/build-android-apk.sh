@@ -31,8 +31,21 @@ echo "Building release APK (first run can take 30–40 minutes)…"
   ./gradlew assembleRelease
 )
 
+BUILT_APK="android/app/build/outputs/apk/release/app-release.apk"
+
 mkdir -p "${OUT_DIR}"
-cp android/app/build/outputs/apk/release/app-release.apk "${OUT_APK}"
+cp "${BUILT_APK}" "${OUT_APK}"
 echo ""
 echo "APK ready: ${OUT_APK}"
 ls -lh "${OUT_APK}"
+
+echo ""
+echo "Installing on emulator/device…"
+if npx expo run:android --variant release --binary "${BUILT_APK}" --no-bundler; then
+  echo "App launched on device/emulator."
+else
+  echo ""
+  echo "Warning: APK built successfully but install/launch failed." >&2
+  echo "  Start or cold-boot an emulator in Android Studio, then retry launch:" >&2
+  echo "  npx expo run:android --variant release --binary ${BUILT_APK} --no-bundler" >&2
+fi
