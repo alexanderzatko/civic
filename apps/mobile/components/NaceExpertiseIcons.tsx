@@ -15,6 +15,7 @@ import { t } from "@/lib/i18n";
 type Props = {
   sections: NaceExpertiseSection[];
   iconSize?: number;
+  title?: string;
 };
 
 function formatMe(n: number): string {
@@ -72,7 +73,11 @@ function visibleExpertiseSections(
     .slice(0, MAX_ICONS);
 }
 
-export function NaceExpertiseIcons({ sections, iconSize = 48 }: Props) {
+export function NaceExpertiseIcons({
+  sections,
+  iconSize = 36,
+  title,
+}: Props) {
   const [selected, setSelected] = useState<NaceExpertiseSection | null>(null);
 
   const visible = visibleExpertiseSections(sections);
@@ -85,21 +90,24 @@ export function NaceExpertiseIcons({ sections, iconSize = 48 }: Props) {
 
   return (
     <>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.row}
-        style={[styles.scroll, { height: rowHeight }]}
-      >
-        {visible.map((section) => (
-          <ExpertiseIcon
-            key={section.section_tid}
-            section={section}
-            size={iconSize}
-            onPress={() => setSelected(section)}
-          />
-        ))}
-      </ScrollView>
+      <View style={title ? styles.block : undefined}>
+        {title ? <Text style={styles.title}>{title}</Text> : null}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.row}
+          style={[styles.scroll, { height: rowHeight }]}
+        >
+          {visible.map((section) => (
+            <ExpertiseIcon
+              key={section.section_tid}
+              section={section}
+              size={iconSize}
+              onPress={() => setSelected(section)}
+            />
+          ))}
+        </ScrollView>
+      </View>
 
       <Modal
         visible={selected != null}
@@ -111,11 +119,15 @@ export function NaceExpertiseIcons({ sections, iconSize = 48 }: Props) {
           <Pressable style={styles.card} onPress={() => {}}>
             {selected ? (
               <>
-                <Text style={styles.cardTitle}>{selected.section_label}</Text>
-                <Text style={styles.cardMe}>
-                  {formatMe(selected.me)} {t("common.me")} ({selected.share_percent}
-                  %)
-                </Text>
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardTitle}>{selected.section_label}</Text>
+                  <Text style={styles.cardMe}>
+                    {formatMe(selected.me)} {t("common.me")}
+                  </Text>
+                  <Text style={styles.cardShare}>
+                    {selected.share_percent}%
+                  </Text>
+                </View>
                 <Pressable
                   style={styles.closeBtn}
                   onPress={() => setSelected(null)}
@@ -133,6 +145,14 @@ export function NaceExpertiseIcons({ sections, iconSize = 48 }: Props) {
 }
 
 const styles = StyleSheet.create({
+  block: {
+    gap: 8,
+    marginTop: 4,
+  },
+  title: {
+    fontSize: 13,
+    color: colors.muted,
+  },
   scroll: {
     flexGrow: 0,
     alignSelf: "stretch",
@@ -175,15 +195,27 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
     gap: 8,
   },
+  cardBody: {
+    alignItems: "center",
+    gap: 8,
+  },
   cardTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: colors.ink,
+    textAlign: "center",
   },
   cardMe: {
     fontSize: 16,
-    fontWeight: "600",
     color: colors.brand,
+    textAlign: "center",
+    marginVertical: 8,
+  },
+  cardShare: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: colors.brand,
+    textAlign: "center",
   },
   closeBtn: {
     marginTop: 8,

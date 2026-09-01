@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { displayMerits, type UserLookup } from "@civic/shared";
 import { ProjectMeTable } from "@/components/ProjectMeTable";
+import { NaceExpertiseIcons } from "@/components/NaceExpertiseIcons";
 import { TaxMonthsTable } from "@/components/TaxMonthsTable";
 import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
@@ -16,6 +17,7 @@ type Props = {
     | "taxes_last_3_months"
     | "top_charities"
     | "top_volunteer_projects"
+    | "nace_expertise"
   >;
   /** `self` = signed-in user's Home; `other` = looked-up Community profile. */
   emptyTone?: "self" | "other";
@@ -190,6 +192,10 @@ export function ContributionBreakdown({
                 <ProjectMeTable
                   rows={profile.top_volunteer_projects}
                   emptyLabel={t("community.volunteer_empty")}
+                />
+                <NaceExpertiseIcons
+                  sections={profile.nace_expertise}
+                  title={t("community.expertise_title")}
                 />
               </>
             ) : (

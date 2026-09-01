@@ -17,7 +17,6 @@ import {
 } from "@civic/shared";
 import { ContributionBreakdown } from "@/components/ContributionBreakdown";
 import { MeLogo } from "@/components/MeLogo";
-import { NaceExpertiseIcons } from "@/components/NaceExpertiseIcons";
 import { RankPanel } from "@/components/RankPanel";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
@@ -164,10 +163,6 @@ export default function HomeScreen() {
             userMe={personalMe}
             onScrollLockChange={setScrollLocked}
           />
-        ) : null}
-
-        {!loading && (profile?.nace_expertise?.length ?? 0) > 0 ? (
-          <NaceExpertiseIcons sections={profile!.nace_expertise} />
         ) : null}
 
         {!loading && profile ? (

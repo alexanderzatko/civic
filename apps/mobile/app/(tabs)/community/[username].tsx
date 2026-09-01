@@ -16,7 +16,6 @@ import {
 } from "@civic/shared";
 import { ContributionBreakdown } from "@/components/ContributionBreakdown";
 import { MeLogo } from "@/components/MeLogo";
-import { NaceExpertiseIcons } from "@/components/NaceExpertiseIcons";
 import { RankPanel } from "@/components/RankPanel";
 import { colors } from "@/constants/theme";
 import {
@@ -142,10 +141,6 @@ export default function CommunityProfileScreen() {
           linkCommunity={false}
           onScrollLockChange={setScrollLocked}
         />
-      ) : null}
-
-      {profile.nace_expertise?.length ? (
-        <NaceExpertiseIcons sections={profile.nace_expertise} />
       ) : null}
 
       <ContributionBreakdown profile={profile} emptyTone="other" />
