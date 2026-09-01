@@ -8,7 +8,6 @@ import type {
   MeritIndexRow,
   MeritIndexSort,
   MeritIndexOrder,
-  MeritSourceCategory,
   ProjectDetail,
   ProjectShareholderItem,
   ProjectShareholderPage,
