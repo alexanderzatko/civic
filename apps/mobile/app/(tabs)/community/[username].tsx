@@ -125,7 +125,13 @@ export default function CommunityProfileScreen() {
       <View style={styles.hero}>
         <MeLogo size={48} />
         <Text style={styles.handle}>
-          @{profile.username} · {profile.display_name}
+          @{profile.username}
+          {profile.member_since_year > 0
+            ? ` · ${t("impact.member_since").replace("{{year}}", String(profile.member_since_year))}`
+            : ""}
+          {profile.display_name !== profile.username
+            ? ` · ${profile.display_name}`
+            : ""}
         </Text>
         <Text style={styles.meTotal}>
           {formatMe(profile.total_me)} {t("common.me")}

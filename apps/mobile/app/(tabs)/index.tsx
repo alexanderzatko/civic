@@ -151,7 +151,12 @@ export default function HomeScreen() {
                 {formatEurApprox(personalMe, meritRate)}
               </Text>
               {username ? (
-                <Text style={styles.uidHint}>@{username}</Text>
+                <Text style={styles.uidHint}>
+                  @{username}
+                  {profile?.member_since_year
+                    ? `  ·  ${t("impact.member_since").replace("{{year}}", String(profile.member_since_year))}`
+                    : ""}
+                </Text>
               ) : null}
             </>
           )}

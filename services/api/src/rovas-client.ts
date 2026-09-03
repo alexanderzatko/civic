@@ -300,6 +300,11 @@ export class RovasClient {
           ? body.display_name
           : name,
       total_me: body.total_me,
+      member_since_year: (() => {
+        const raw = (body as { member_since_year?: unknown }).member_since_year;
+        const y = Number(raw);
+        return Number.isFinite(y) && y > 0 ? y : 0;
+      })(),
       by_category: normalizeCategories(
         body.by_category,
         (body as { by_source?: unknown }).by_source,

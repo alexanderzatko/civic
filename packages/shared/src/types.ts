@@ -145,6 +145,8 @@ export interface UserLookup {
   username: string;
   display_name: string;
   total_me: number;
+  /** Year the Rovas account was created (0 when not returned by Rovas). */
+  member_since_year: number;
   by_category: ContributionCategoryBreakdown;
   /** NACE section expertise icons (Merit Index); empty when none. */
   nace_expertise: NaceExpertiseSection[];
