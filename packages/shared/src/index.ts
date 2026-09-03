@@ -15,6 +15,13 @@ export {
 } from "./merits.js";
 
 export {
+  categoriesFromMeritSources,
+  resolveContributionCategories,
+  type MeritSourceBreakdown,
+  type MeritSourceKey,
+} from "./merit-sources.js";
+
+export {
   isValidReceiptUid,
   normalizeUid,
   parseReceiptUid,

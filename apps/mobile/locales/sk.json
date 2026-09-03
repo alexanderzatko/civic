@@ -313,6 +313,7 @@
   "community.volunteer_hint": "Top projekty podľa získaných meritov",
   "community.volunteer_empty": "Zatiaľ žiadne verejné dobrovoľnícke projekty.",
   "community.volunteer_none": "Tento používateľ zatiaľ nezaznamenal žiadne príspevky z dobrovoľníckej práce.",
+  "community.volunteer_penalty_hint": "Čisté dobrovoľnícke Merity zahŕňajú aj penalizácie.",
   "community.expertise_title": "Oblasti odbornosti",
   "community.invite_title": "Pozvať priateľa do Civic",
   "community.invite_body": "Pošlite priateľovi pozvánku e-mailom. Po registrácii v Rováši sa môžete nájsť cez vyhľadávanie v Komunite.",

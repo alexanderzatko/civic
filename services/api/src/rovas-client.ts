@@ -9,6 +9,7 @@ import type {
   MeritIndexRow,
   MeritIndexSort,
   MeritIndexOrder,
+  MeritSourceBreakdown,
   ProjectDetail,
   ProjectShareholderItem,
   ProjectShareholderPage,
@@ -34,6 +35,7 @@ import type {
   RewardKind,
   WorkReportMapConfig,
 } from "@civic/shared";
+import { resolveContributionCategories } from "@civic/shared";
 import {
   appendLangParam,
   type CivicContentLang,
@@ -298,7 +300,10 @@ export class RovasClient {
           ? body.display_name
           : name,
       total_me: body.total_me,
-      by_category: normalizeCategories(body.by_category),
+      by_category: normalizeCategories(
+        body.by_category,
+        (body as { by_source?: unknown }).by_source,
+      ),
       nace_expertise: normalizeNaceExpertise(body.nace_expertise),
       taxes_last_3_months: normalizeTaxMonths(body.taxes_last_3_months),
       top_charities: normalizeProjectRows(body.top_charities),
@@ -1015,12 +1020,28 @@ export type RovasClaimVatReceiptResponse = {
 
 function normalizeCategories(
   raw: Partial<ContributionCategoryBreakdown> | undefined,
+  bySource?: unknown,
 ): ContributionCategoryBreakdown {
-  return {
-    taxes: Number(raw?.taxes) || 0,
-    charity: Number(raw?.charity) || 0,
-    volunteer: Number(raw?.volunteer) || 0,
-  };
+  return resolveContributionCategories(
+    raw,
+    normalizeMeritSources(bySource),
+  );
+}
+
+/** Sparse Rovas `by_source` map; returns undefined when absent/empty. */
+function normalizeMeritSources(
+  raw: unknown,
+): MeritSourceBreakdown | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: MeritSourceBreakdown = {};
+  let saw = false;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    const me = Number(value);
+    if (!key || !Number.isFinite(me)) continue;
+    out[key] = me;
+    saw = true;
+  }
+  return saw ? out : undefined;
 }
 
 function normalizeNaceExpertise(raw: unknown): NaceExpertiseSection[] {
@@ -1306,7 +1327,10 @@ function normalizeMeritIndexRow(raw: unknown): MeritIndexRow | null {
       typeof r.country_label === "string" && r.country_label
         ? r.country_label
         : null,
-    by_category: normalizeCategories(r.by_category),
+    by_category: normalizeCategories(
+      r.by_category,
+      (r as { by_source?: unknown }).by_source,
+    ),
     nace_expertise: normalizeNaceExpertise(r.nace_expertise),
   };
 }

@@ -23,12 +23,17 @@ const SEGMENTS: Array<{
 ];
 
 export function MeritSourceBar({ by, height = 10 }: Props) {
-  const total = by.taxes + by.charity + by.volunteer;
+  // Penalties can make volunteer negative; bar shares use positive parts only.
+  const taxes = Math.max(0, by.taxes);
+  const charity = Math.max(0, by.charity);
+  const volunteer = Math.max(0, by.volunteer);
+  const total = taxes + charity + volunteer;
+  const values = { taxes, charity, volunteer };
   const pct = (n: number) =>
     total > 0 ? Math.round((n / total) * 100) : 0;
 
   const accessibilityLabel = SEGMENTS.map(
-    (s) => `${t(s.labelKey)} ${pct(by[s.key])}%`,
+    (s) => `${t(s.labelKey)} ${pct(values[s.key])}%`,
   ).join(", ");
 
   if (total <= 0) {
@@ -46,7 +51,7 @@ export function MeritSourceBar({ by, height = 10 }: Props) {
       accessibilityLabel={accessibilityLabel}
     >
       {SEGMENTS.map((seg) => {
-        const share = by[seg.key] / total;
+        const share = values[seg.key] / total;
         if (share <= 0) return null;
         return (
           <View

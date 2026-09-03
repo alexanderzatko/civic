@@ -184,7 +184,9 @@ export function ContributionBreakdown({
             ))}
 
           {activeId === "volunteer" &&
-            (valueFor("volunteer") > 0 ? (
+            (valueFor("volunteer") > 0 ||
+            profile.top_volunteer_projects.length > 0 ||
+            profile.nace_expertise.length > 0 ? (
               <>
                 <Text style={styles.drawerHint}>
                   {t("community.volunteer_hint")}
@@ -198,6 +200,10 @@ export function ContributionBreakdown({
                   title={t("community.expertise_title")}
                 />
               </>
+            ) : valueFor("volunteer") < 0 ? (
+              <Text style={styles.drawerHint}>
+                {t("community.volunteer_penalty_hint")}
+              </Text>
             ) : (
               <Text style={styles.drawerHint}>{volunteerNone}</Text>
             ))}

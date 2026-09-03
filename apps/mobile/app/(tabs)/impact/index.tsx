@@ -95,6 +95,12 @@ export default function ImpactScreen() {
   );
 
   useEffect(() => {
+    // Immediate feedback on filter tap — do not leave stale rows visible for
+    // the ~350ms debounce + multi-second Rovas round-trip with no spinner.
+    setLoading(true);
+    setError(null);
+    setRows([]);
+    setTotal(0);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       void loadPage(0, false);
@@ -110,7 +116,7 @@ export default function ImpactScreen() {
   }
 
   function loadMore() {
-    if (loadingMore || rows.length >= total) return;
+    if (loading || loadingMore || rows.length >= total) return;
     void loadPage(offsetRef.current + PAGE_SIZE, true);
   }
 
@@ -120,7 +126,7 @@ export default function ImpactScreen() {
 
       <ImpactFilterBar filters={filters} onChange={setFilters} />
 
-      {loading && rows.length === 0 ? (
+      {loading ? (
         <ActivityIndicator color={colors.brand} style={{ marginVertical: 24 }} />
       ) : null}
 
@@ -130,7 +136,7 @@ export default function ImpactScreen() {
         <Text style={styles.hint}>{t("impact.empty")}</Text>
       ) : null}
 
-      {rows.length > 0 ? (
+      {!loading && rows.length > 0 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator>
           <View style={styles.table}>
             <View style={styles.tableHeader}>

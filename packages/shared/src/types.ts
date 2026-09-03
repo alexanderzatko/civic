@@ -136,6 +136,9 @@ export interface MeProfile {
  * Public contribution profile from `GET /users/lookup?username=`
  * (proxies Rovas `GET /rovas/users_lookup?username=`).
  * Percentile / rank ladder are computed on Civic from `/rank/distribution`.
+ *
+ * `by_category` is Civic’s taxes/charity/volunteer mix. When Rovas sends
+ * `by_source`, the API remaps it (penalty → volunteer) before returning.
  */
 export interface UserLookup {
   rovas_uid: string;
@@ -322,6 +325,10 @@ export interface MeritIndexRow {
   value_eur: number;
   country_iso2: string | null;
   country_label: string | null;
+  /**
+   * Civic ME-source mix. When Rovas includes `by_source`, Civic remaps it
+   * (penalty → volunteer) into these buckets.
+   */
   by_category: ContributionCategoryBreakdown;
   nace_expertise: NaceExpertiseSection[];
 }
