@@ -14,8 +14,11 @@ export const colors = {
   ok: "#1B6B4A",
   /** Merit-source categories (Zdroje meritov / profile section accents). */
   catTaxes: "#3B6EA5",
+  catTaxesSoft: "rgba(59, 110, 165, 0.18)",
   catCharity: "#1B6B4A",
+  catCharitySoft: "rgba(27, 107, 74, 0.18)",
   catVolunteer: "#C47A2C",
+  catVolunteerSoft: "rgba(196, 122, 44, 0.18)",
   /** Rovas `section#block-block-12` — pending verifications banner. */
   verifyBanner: "#FFA108",
   verifyBannerInk: "#12241C",

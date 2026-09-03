@@ -10,7 +10,6 @@ const PATHS = [
     titleKey: "earn.taxes",
     descKey: "earn.taxes_desc",
     ctaKey: "earn.taxes_cta",
-    primary: true,
   },
   {
     href: "/(tabs)/earn/charity" as const,
@@ -18,7 +17,6 @@ const PATHS = [
     titleKey: "earn.charity",
     descKey: "earn.charity_desc",
     ctaKey: "earn.charity_cta",
-    primary: false,
   },
   {
     href: "/(tabs)/earn/volunteer" as const,
@@ -26,9 +24,27 @@ const PATHS = [
     titleKey: "earn.volunteer",
     descKey: "earn.volunteer_desc",
     ctaKey: "earn.volunteer_cta",
-    primary: false,
   },
 ];
+
+/** Renders locale strings with optional **bold** segments. */
+function DescText({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <Text style={styles.cardDesc}>
+      {parts.map((part, i) => {
+        if (part.startsWith("**") && part.endsWith("**")) {
+          return (
+            <Text key={i} style={styles.cardDescBold}>
+              {part.slice(2, -2)}
+            </Text>
+          );
+        }
+        return <Text key={i}>{part}</Text>;
+      })}
+    </Text>
+  );
+}
 
 export default function EarnHubScreen() {
   return (
@@ -42,19 +58,11 @@ export default function EarnHubScreen() {
               <Text style={styles.badgeText}>{path.n}</Text>
             </View>
           </View>
-          <Text style={styles.cardDesc}>{t(path.descKey)}</Text>
+          <DescText text={t(path.descKey)} />
           <View style={styles.ctaRow}>
             <Link href={path.href} asChild>
-              <Pressable
-                style={path.primary ? styles.primaryBtn : styles.secondaryBtn}
-              >
-                <Text
-                  style={
-                    path.primary ? styles.primaryText : styles.secondaryText
-                  }
-                >
-                  {t(path.ctaKey)}
-                </Text>
+              <Pressable style={styles.secondaryBtn}>
+                <Text style={styles.secondaryText}>{t(path.ctaKey)}</Text>
               </Pressable>
             </Link>
           </View>
@@ -93,15 +101,8 @@ const styles = StyleSheet.create({
   badgeText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   cardTitle: { flex: 1, fontSize: 17, fontWeight: "700", color: colors.ink },
   cardDesc: { fontSize: 14, color: colors.muted, lineHeight: 20 },
+  cardDescBold: { fontWeight: "700", color: colors.ink },
   ctaRow: { flexDirection: "row", justifyContent: "flex-end" },
-  primaryBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignItems: "center",
-  },
-  primaryText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   secondaryBtn: {
     borderRadius: 12,
     paddingVertical: 10,

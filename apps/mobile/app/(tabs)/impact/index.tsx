@@ -37,6 +37,30 @@ function formatMe(n: number, locale: Locale): string {
   return displayMerits(n).toLocaleString(numLocale);
 }
 
+/**
+ * ME amount matching the active Merit-subset filter, when available.
+ * - source_category → by_category[source] (always present on rows)
+ * - nace_section_tid alone → matching nace_expertise[].me when that section
+ *   is among the top expertise rows Rovas returns (else null)
+ * Country (and other) filters do not subset Merits — return null.
+ */
+function filteredMeForRow(
+  row: MeritIndexRow,
+  filters: ImpactFilters,
+): number | null {
+  if (filters.source_category) {
+    const v = row.by_category[filters.source_category];
+    return typeof v === "number" ? v : null;
+  }
+  if (filters.nace_section_tid != null) {
+    const section = row.nace_expertise.find(
+      (s) => Number(s.section_tid) === filters.nace_section_tid,
+    );
+    return section != null ? section.me : null;
+  }
+  return null;
+}
+
 function filtersToQuery(f: ImpactFilters, offset: number): MeritIndexFilters {
   return {
     limit: PAGE_SIZE,
@@ -142,12 +166,13 @@ export default function ImpactScreen() {
             <View style={styles.tableHeader}>
               <HeaderCell label={t("impact.col_position")} width={40} />
               <HeaderCell label={t("impact.col_worker")} width={128} />
-              <HeaderCell label={t("impact.col_me")} width={72} />
+              <HeaderCell label={t("impact.col_me")} width={80} />
               <HeaderCell label={t("impact.col_nace")} width={108} />
               <HeaderCell label={t("impact.col_sources")} width={88} />
               <HeaderCell label={t("impact.col_country")} width={56} />
             </View>
             {rows.map((row) => {
+              const filteredMe = filteredMeForRow(row, filters);
               const rowContent = (
                 <>
                   <Text style={[styles.td, styles.colPos]}>{row.position}</Text>
@@ -164,9 +189,22 @@ export default function ImpactScreen() {
                       })}
                     </Text>
                   </View>
-                  <Text style={[styles.td, styles.colMe]}>
-                    {formatMe(row.total_me, locale)}
-                  </Text>
+                  <View style={styles.colMe}>
+                    {filteredMe != null ? (
+                      <>
+                        <Text style={[styles.td, styles.colMePrimary]}>
+                          {formatMe(filteredMe, locale)}
+                        </Text>
+                        <Text style={styles.colMeTotal}>
+                          {formatMe(row.total_me, locale)}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={[styles.td, styles.colMePrimary]}>
+                        {formatMe(row.total_me, locale)}
+                      </Text>
+                    )}
+                  </View>
                   <View style={styles.colNace}>
                     <NaceExpertiseIcons
                       sections={row.nace_expertise}
@@ -254,7 +292,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: colors.surface,
-    minWidth: 580,
+    minWidth: 588,
   },
   tableHeader: {
     flexDirection: "row",
@@ -294,10 +332,21 @@ const styles = StyleSheet.create({
   colPos: { width: 40, textAlign: "center" },
   colWorker: { width: 128 },
   colMe: {
-    width: 72,
-    textAlign: "right",
+    width: 80,
     paddingRight: 10,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  colMePrimary: {
+    textAlign: "right",
     fontWeight: "700",
+  },
+  colMeTotal: {
+    marginTop: 2,
+    fontSize: 11,
+    lineHeight: 14,
+    color: colors.muted,
+    textAlign: "right",
   },
   colCountry: { width: 56 },
   colNace: { width: 108, overflow: "hidden", alignItems: "flex-start" },

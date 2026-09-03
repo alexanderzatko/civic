@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { PendingVerificationsHost } from "@/components/PendingVerificationsHost";
+import { SocialLeaderboardIcon } from "@/components/SocialLeaderboardIcon";
 import { colors } from "@/constants/theme";
 import { civicStackScreenOptions } from "@/lib/civic-screen-options";
 import { useLocale } from "@/lib/locale";
@@ -35,7 +36,7 @@ export default function TabLayout() {
             tabBarLabel: t("impact"),
             headerShown: false,
             tabBarIcon: ({ color }) => (
-              <MaterialIcons name="emoji-events" color={color} size={24} />
+              <SocialLeaderboardIcon color={color} size={24} />
             ),
           }}
         />

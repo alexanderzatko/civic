@@ -41,14 +41,26 @@ const SOURCE_OPTIONS: Array<{
   id: MeritSourceCategory | null;
   labelKey: string;
   color?: string;
+  background?: string;
 }> = [
   { id: null, labelKey: "impact.source_all" },
-  { id: "taxes", labelKey: "community.cat_taxes", color: colors.catTaxes },
-  { id: "charity", labelKey: "community.cat_charity", color: colors.catCharity },
+  {
+    id: "taxes",
+    labelKey: "community.cat_taxes",
+    color: colors.catTaxes,
+    background: colors.catTaxesSoft,
+  },
+  {
+    id: "charity",
+    labelKey: "community.cat_charity",
+    color: colors.catCharity,
+    background: colors.catCharitySoft,
+  },
   {
     id: "volunteer",
     labelKey: "community.cat_volunteer",
     color: colors.catVolunteer,
+    background: colors.catVolunteerSoft,
   },
 ];
 
@@ -56,11 +68,13 @@ function Chip({
   label,
   active,
   color,
+  background,
   onPress,
 }: {
   label: string;
   active: boolean;
   color?: string;
+  background?: string;
   onPress: () => void;
 }) {
   return (
@@ -68,8 +82,9 @@ function Chip({
       onPress={onPress}
       style={[
         styles.chip,
-        active && styles.chipActive,
-        active && color ? { borderColor: color } : null,
+        color ? { borderColor: color, backgroundColor: background } : null,
+        active && !color ? styles.chipActive : null,
+        active ? styles.chipSelected : null,
       ]}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
@@ -77,8 +92,8 @@ function Chip({
       <Text
         style={[
           styles.chipText,
-          active && styles.chipTextActive,
-          active && color ? { color } : null,
+          color ? { color } : null,
+          active && !color ? styles.chipTextActive : null,
         ]}
         numberOfLines={1}
       >
@@ -200,6 +215,7 @@ export function ImpactFilterBar({ filters, onChange }: Props) {
               label={t(opt.labelKey)}
               active={active}
               color={opt.color}
+              background={opt.background}
               onPress={() =>
                 patch({
                   source_category: opt.id ?? undefined,
@@ -397,6 +413,9 @@ const styles = StyleSheet.create({
   chipActive: {
     backgroundColor: "#EEF2EF",
     borderColor: colors.brand,
+  },
+  chipSelected: {
+    borderWidth: 2.5,
   },
   chipText: { fontSize: 13, fontWeight: "600", color: colors.ink },
   chipTextActive: { color: colors.brandSoft },
