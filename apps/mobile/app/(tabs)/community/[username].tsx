@@ -23,6 +23,7 @@ import {
   fetchRankDistribution,
   lookupUser,
 } from "@/lib/api";
+import { formatMemberHandle } from "@/lib/format-member-handle";
 import { rememberRecentProfile } from "@/lib/profile-recents";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
@@ -125,13 +126,11 @@ export default function CommunityProfileScreen() {
       <View style={styles.hero}>
         <MeLogo size={48} />
         <Text style={styles.handle}>
-          @{profile.username}
-          {profile.member_since_year > 0
-            ? ` · ${t("impact.member_since").replace("{{year}}", String(profile.member_since_year))}`
-            : ""}
-          {profile.display_name !== profile.username
-            ? ` · ${profile.display_name}`
-            : ""}
+          {formatMemberHandle({
+            username: profile.username,
+            displayName: profile.display_name,
+            memberSinceYear: profile.member_since_year,
+          })}
         </Text>
         <Text style={styles.meTotal}>
           {formatMe(profile.total_me)} {t("common.me")}

@@ -27,6 +27,7 @@ import {
   fetchRankDistribution,
   lookupUser,
 } from "@/lib/api";
+import { formatMemberHandle } from "@/lib/format-member-handle";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
@@ -152,10 +153,11 @@ export default function HomeScreen() {
               </Text>
               {username ? (
                 <Text style={styles.uidHint}>
-                  @{username}
-                  {profile?.member_since_year
-                    ? `  ·  ${t("impact.member_since").replace("{{year}}", String(profile.member_since_year))}`
-                    : ""}
+                  {formatMemberHandle({
+                    username,
+                    displayName: profile?.display_name,
+                    memberSinceYear: profile?.member_since_year,
+                  })}
                 </Text>
               ) : null}
             </>
