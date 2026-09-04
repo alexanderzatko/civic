@@ -39,6 +39,7 @@ export {
 
 export type {
   CharityProject,
+  CharityProjectsResponse,
   ClaimReceiptError,
   ClaimReceiptErrorCode,
   ClaimReceiptResponse,

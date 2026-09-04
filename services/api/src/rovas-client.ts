@@ -34,6 +34,8 @@ import type {
   CreateWorkReportErrorCode,
   RewardKind,
   WorkReportMapConfig,
+  CharityProject,
+  CharityProjectsResponse,
 } from "@civic/shared";
 import { resolveContributionCategories } from "@civic/shared";
 import {
@@ -405,11 +407,36 @@ export class RovasClient {
   }
 
   /**
+   * Approved charitable projects catalog (public / anonymous).
+   * `GET /rovas/civic_charity_projects?lang=&query=&limit=`
+   */
+  async fetchCharityProjects(opts?: {
+    lang?: CivicContentLang;
+    query?: string;
+    limit?: number;
+  }): Promise<CharityProjectsResponse> {
+    const params = new URLSearchParams();
+    appendLangParam(params, opts?.lang);
+    const q = opts?.query?.trim();
+    if (q) params.set("query", q);
+    if (opts?.limit != null && Number.isFinite(opts.limit)) {
+      params.set("limit", String(Math.min(Math.max(Math.trunc(opts.limit), 1), 20)));
+    }
+    const qs = params.toString();
+    const body = await this.getJson<{
+      total?: unknown;
+      projects?: unknown;
+    }>(`/rovas/civic_charity_projects${qs ? `?${qs}` : ""}`);
+    return normalizeCharityProjectsResponse(body);
+  }
+
+  /**
    * Project detail for Civic modal.
    * `GET /rovas/civic_project/{nid}?lang=`
+   * Bearer optional — anonymous allowed for approved charitable projects.
    */
   async fetchProject(
-    accessToken: string,
+    accessToken: string | null | undefined,
     projectNid: string,
     opts?: { lang?: CivicContentLang },
   ): Promise<ProjectDetail> {
@@ -419,7 +446,7 @@ export class RovasClient {
     const qs = params.toString();
     const body = await this.getJson<Partial<ProjectDetail>>(
       `/rovas/civic_project/${nid}${qs ? `?${qs}` : ""}`,
-      accessToken,
+      accessToken ?? undefined,
     );
     return normalizeProjectDetail(body, projectNid);
   }
@@ -427,9 +454,10 @@ export class RovasClient {
   /**
    * Paginated work reports for a project.
    * `GET /rovas/civic_project_work_reports?project_nid=&lang=`
+   * Bearer optional — anonymous allowed for approved charitable projects.
    */
   async fetchProjectWorkReports(
-    accessToken: string,
+    accessToken: string | null | undefined,
     projectNid: string,
     opts?: { limit?: number; offset?: number; lang?: CivicContentLang },
   ): Promise<ProjectWorkReportPage> {
@@ -443,7 +471,7 @@ export class RovasClient {
     appendLangParam(params, opts?.lang);
     const body = await this.getJson<Partial<ProjectWorkReportPage>>(
       `/rovas/civic_project_work_reports?${params}`,
-      accessToken,
+      accessToken ?? undefined,
     );
     return normalizeWorkReportPage(body, projectNid, limit, offset);
   }
@@ -451,9 +479,10 @@ export class RovasClient {
   /**
    * Paginated project shareholders.
    * `GET /rovas/civic_project_shareholders?project_nid=`
+   * Bearer optional — anonymous allowed for approved charitable projects.
    */
   async fetchProjectShareholders(
-    accessToken: string,
+    accessToken: string | null | undefined,
     projectNid: string,
     opts?: { limit?: number; offset?: number },
   ): Promise<ProjectShareholderPage> {
@@ -466,7 +495,7 @@ export class RovasClient {
     });
     const body = await this.getJson<Partial<ProjectShareholderPage>>(
       `/rovas/civic_project_shareholders?${params}`,
-      accessToken,
+      accessToken ?? undefined,
     );
     return normalizeShareholderPage(body, projectNid, limit, offset);
   }
@@ -1227,7 +1256,72 @@ function normalizeProjectDetail(
         : "",
     work_reports: wr,
     shareholders,
+    is_charity: Boolean(raw.is_charity),
+    charity_status: normalizeCharityStatus(raw.charity_status),
+    organization:
+      typeof raw.organization === "string" && raw.organization.trim()
+        ? raw.organization.trim()
+        : null,
+    donate_instructions:
+      typeof raw.donate_instructions === "string" && raw.donate_instructions.trim()
+        ? raw.donate_instructions.trim()
+        : null,
+    donate_url:
+      typeof raw.donate_url === "string" && raw.donate_url.trim()
+        ? raw.donate_url.trim()
+        : null,
   };
+}
+
+function normalizeCharityStatus(
+  raw: unknown,
+): "approved" | "pending" | null {
+  if (raw === "approved" || raw === "pending") return raw;
+  return null;
+}
+
+function normalizeCharityProjectRow(raw: unknown): CharityProject | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const projectNid = nidOrNull(r.project_nid);
+  const title = typeof r.title === "string" ? r.title.trim() : "";
+  if (!projectNid || !title) return null;
+  const organization =
+    typeof r.organization === "string" && r.organization.trim()
+      ? r.organization.trim()
+      : title;
+  const summary =
+    typeof r.summary === "string" && r.summary.trim() ? r.summary.trim() : "";
+  const totalMe = Number(r.total_me);
+  return {
+    id: projectNid,
+    project_nid: projectNid,
+    title,
+    organization,
+    summary,
+    rovas_url:
+      typeof r.rovas_url === "string" && r.rovas_url.trim()
+        ? r.rovas_url.trim()
+        : "",
+    type: "charity",
+    total_me: Number.isFinite(totalMe) ? totalMe : 0,
+  };
+}
+
+function normalizeCharityProjectsResponse(raw: {
+  total?: unknown;
+  projects?: unknown;
+}): CharityProjectsResponse {
+  const projects = Array.isArray(raw?.projects)
+    ? raw.projects
+        .map(normalizeCharityProjectRow)
+        .filter((p): p is CharityProject => p != null)
+    : [];
+  const total =
+    typeof raw?.total === "number" && Number.isFinite(raw.total)
+      ? Math.max(0, Math.trunc(raw.total))
+      : projects.length;
+  return { total, projects };
 }
 
 function nidOrNull(raw: unknown): string | null {

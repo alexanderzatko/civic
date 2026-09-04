@@ -1,24 +1,8 @@
-/** Curated Rovas project stubs for charity / invest screens (v1). */
+/** Curated Rovas project stubs for the invest screen (v1). Charity uses live Rovas catalog. */
 
 import type { CharityProject } from "@civic/shared";
 
 export const CURATED_PROJECTS: CharityProject[] = [
-  {
-    id: "stub-charity-1",
-    title: "Pomoc ľuďom bez domova",
-    organization: "Príkladová organizácia",
-    summary: "Podpora denného centra a materiálnej pomoci.",
-    rovas_url: "https://rovas.app/project/1",
-    type: "charity",
-  },
-  {
-    id: "stub-charity-2",
-    title: "Vzdelávanie detí z ohrozených rodín",
-    organization: "Príkladová organizácia",
-    summary: "Doučovanie a mimoškolské aktivity.",
-    rovas_url: "https://rovas.app/project/2",
-    type: "charity",
-  },
   {
     id: "stub-invest-1",
     title: "Komunitná záhrada",

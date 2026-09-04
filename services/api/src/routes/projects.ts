@@ -6,7 +6,7 @@ import type {
   ProjectWorkReportPage,
   VolunteerProjectRow,
 } from "@civic/shared";
-import { requireAuth } from "../auth.js";
+import { optionalAuth, requireAuth } from "../auth.js";
 import { resolveCivicContentLang } from "../content-lang.js";
 import type { AppContext } from "../context.js";
 import {
@@ -179,12 +179,12 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   /**
    * Project detail for in-app modal.
    * Proxies Rovas `GET /rovas/civic_project/{nid}?lang=`.
+   * Optional Bearer — anonymous allowed for approved charitable projects.
    */
   app.get(
     "/projects/:nid",
-    { preHandler: [requireAuth(ctx)] },
+    { preHandler: [optionalAuth(ctx)] },
     async (req, reply) => {
-      const user = req.authUser!;
       const nid = parseNid((req.params as { nid?: unknown }).nid);
       if (!nid) {
         return reply.code(400).send({
@@ -195,7 +195,7 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
 
       try {
         const detail: ProjectDetail = await ctx.rovas.fetchProject(
-          user.accessToken,
+          req.authUser?.accessToken,
           nid,
           { lang: parseLang(req.query as { lang?: unknown }) },
         );
@@ -209,12 +209,12 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   /**
    * Paginated work reports for a project.
    * Proxies Rovas `GET /rovas/civic_project_work_reports?project_nid=&lang=`.
+   * Optional Bearer — anonymous allowed for approved charitable projects.
    */
   app.get(
     "/projects/:nid/work-reports",
-    { preHandler: [requireAuth(ctx)] },
+    { preHandler: [optionalAuth(ctx)] },
     async (req, reply) => {
-      const user = req.authUser!;
       const nid = parseNid((req.params as { nid?: unknown }).nid);
       if (!nid) {
         return reply.code(400).send({
@@ -230,10 +230,14 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       };
       try {
         const page: ProjectWorkReportPage =
-          await ctx.rovas.fetchProjectWorkReports(user.accessToken, nid, {
-            ...parsePager(query),
-            lang: parseLang(query),
-          });
+          await ctx.rovas.fetchProjectWorkReports(
+            req.authUser?.accessToken,
+            nid,
+            {
+              ...parsePager(query),
+              lang: parseLang(query),
+            },
+          );
         return page;
       } catch (err) {
         return sendRovasError(reply, err);
@@ -244,12 +248,12 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   /**
    * Paginated shareholders for a project.
    * Proxies Rovas `GET /rovas/civic_project_shareholders?project_nid=`.
+   * Optional Bearer — anonymous allowed for approved charitable projects.
    */
   app.get(
     "/projects/:nid/shareholders",
-    { preHandler: [requireAuth(ctx)] },
+    { preHandler: [optionalAuth(ctx)] },
     async (req, reply) => {
-      const user = req.authUser!;
       const nid = parseNid((req.params as { nid?: unknown }).nid);
       if (!nid) {
         return reply.code(400).send({
@@ -261,7 +265,7 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       try {
         const page: ProjectShareholderPage =
           await ctx.rovas.fetchProjectShareholders(
-            user.accessToken,
+            req.authUser?.accessToken,
             nid,
             parsePager(req.query as { limit?: unknown; offset?: unknown }),
           );

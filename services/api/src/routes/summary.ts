@@ -100,11 +100,37 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   });
 
   app.get("/charities/projects", async (req, reply) => {
-    const q = req.query as { type?: string };
+    const q = req.query as {
+      type?: string;
+      query?: string;
+      limit?: string;
+      lang?: string;
+    };
     const type = q.type === "invest" ? "invest" : "charity";
-    return reply.send({
-      projects: CURATED_PROJECTS.filter((p) => p.type === type),
-    });
+
+    if (type === "invest") {
+      const projects = CURATED_PROJECTS.filter((p) => p.type === "invest");
+      return reply.send({ projects, total: projects.length });
+    }
+
+    try {
+      const lang =
+        typeof q.lang === "string" ? resolveCivicContentLang(q.lang) : undefined;
+      const limit =
+        q.limit != null && Number.isFinite(Number(q.limit))
+          ? Number(q.limit)
+          : undefined;
+      const search =
+        typeof q.query === "string" && q.query.trim() ? q.query.trim() : undefined;
+      const body = await ctx.rovas.fetchCharityProjects({
+        lang,
+        query: search,
+        limit,
+      });
+      return reply.send(body);
+    } catch (err) {
+      return sendRovasError(reply, err);
+    }
   });
 
   app.get(

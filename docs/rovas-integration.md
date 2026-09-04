@@ -65,9 +65,6 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `GET /users/me/merit-history` | Signed-in Merit ledger for Profil — proxies Rovas `GET /rovas/civic_merit_history?limit=&offset=&lang=` (Bearer). Same rows as Views `merit_history` / `page_1` (`/user/%/merits`). Rovas **live** — see **merit history (profile ledger)**. |
 | `GET /rank/index` | Merit Index leaderboard for Prínos tab — proxies Rovas `GET /rovas/civic_merit_index`. Optional Bearer; public read on Rovas. Sort/filter/pagination params forwarded. When items include `by_source`, Civic remaps ME-source bars the same way as users_lookup (see Rovas **Next work: by_source on merit index**). Filtered first-page latency is currently ~6s on rovdev — see Rovas **Next work: merit index filter latency**. |
 | `GET /rank/index/countries` | Merit Index country dropdown — proxies Rovas `GET /rovas/civic_merit_index_countries`. Optional Bearer; public read on Rovas. |
-| `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}?lang=` (Bearer). Optional `lang=sk|en` for translated `title`/`summary` (+ embedded WR text). See Rovas **project detail + work reports** and **localized project and work-report text**. |
-| `GET /projects/:nid/work-reports` | Paginated work ledgers — proxies Rovas `GET /rovas/civic_project_work_reports?project_nid=&lang=` (Bearer). Same `lang` rules as project detail. |
-| `GET /projects/:nid/shareholders` | Paginated shareholders — proxies Rovas `GET /rovas/civic_project_shareholders?project_nid=` (Bearer). See Rovas **Next work: project shareholders + WR photos**. |
 | `GET /projects/mine` | Volunteer form — proxies Rovas `GET /rovas/civic_my_projects?lang=` (Bearer). Up to **3** projects where the user filed work reports most recently; empty if none. Search/create for others. See Rovas **volunteer report (Civic deferred form)**. |
 | `GET /projects/search` | Volunteer typeahead — proxies Rovas `GET /rovas/civic_projects_search?query=` (Civic `?q=`; maps to Rovas `query`). |
 | `POST /projects` | Create project — proxies Rovas `POST /rovas/civic_create_project` (`name`, `description`, optional `url`). Defaults on Rovas: status for sale, Public. |
@@ -93,6 +90,9 @@ Optional Bearer:
 | `GET /rank/index` | Merit Index leaderboard — proxies Rovas `GET /rovas/civic_merit_index` (no Bearer required) |
 | `GET /rank/index/countries` | Merit Index country filter — proxies Rovas `GET /rovas/civic_merit_index_countries` (no Bearer required) |
 | `GET /nace` | NACE tree for Prínos filters — proxies Rovas `GET /rovas/civic_nace_tree` (no Bearer required) |
+| `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}?lang=`. Anonymous allowed for NeoFund-**approved** charitable projects; other projects need Bearer. Charity fields: `is_charity`, `charity_status`, `organization`, `donate_instructions`, `donate_url`. See Rovas **Next work: charitable projects (Civic catalog)**. |
+| `GET /projects/:nid/work-reports` | Paginated work ledgers — same anonymous rule as project detail |
+| `GET /projects/:nid/shareholders` | Paginated shareholders — same anonymous rule as project detail |
 
 Public:
 
@@ -100,6 +100,7 @@ Public:
 |-------|--------|
 | `GET /community/contributions/summary` | Proxies Rovas `/rovas/contributions/aggregate` |
 | `GET /merit-rate` | National hourly wage for ME↔€ / claim preview — proxies Rovas `GET /rovas/civic_national_hourly_rate` (falls back to `HOURLY_WAGE_EUR` if unreachable) |
+| `GET /charities/projects` | Charity catalog — proxies Rovas `GET /rovas/civic_charity_projects` when `type=charity` (`query`, `limit`, `lang`). Envelope `{ total, projects[] }`. Invest stubs remain static (`type=invest`). See Rovas **Next work: charitable projects (Civic catalog)**. |
 
 `ROVAS_BASE_URL` is read from the API `.env` (default `https://dev.rovas.app`).
 

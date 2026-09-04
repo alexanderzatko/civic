@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import type {
-  CharityProject,
+  CharityProjectsResponse,
   ClaimReceiptResponse,
   ClaimShareInput,
   ContributionsSummary,
@@ -272,7 +272,7 @@ export function fetchProject(projectNid: string): Promise<ProjectDetail> {
   const params = new URLSearchParams({ lang: getLocale() });
   return apiFetch<ProjectDetail>(
     `/projects/${encodeURIComponent(projectNid)}?${params}`,
-    { auth: "required" },
+    { auth: "optional" },
   );
 }
 
@@ -285,7 +285,7 @@ export function fetchProjectWorkReports(
   if (opts?.offset != null) params.set("offset", String(opts.offset));
   return apiFetch<ProjectWorkReportPage>(
     `/projects/${encodeURIComponent(projectNid)}/work-reports?${params}`,
-    { auth: "required" },
+    { auth: "optional" },
   );
 }
 
@@ -299,7 +299,7 @@ export function fetchProjectShareholders(
   const qs = params.toString();
   return apiFetch<ProjectShareholderPage>(
     `/projects/${encodeURIComponent(projectNid)}/shareholders${qs ? `?${qs}` : ""}`,
-    { auth: "required" },
+    { auth: "optional" },
   );
 }
 
@@ -325,8 +325,13 @@ export function fetchMeritRate(): Promise<MeritRate> {
 
 export function fetchProjects(
   type: "charity" | "invest",
-): Promise<{ projects: CharityProject[] }> {
-  return apiFetch(`/charities/projects?type=${type}`);
+  opts?: { query?: string; limit?: number },
+): Promise<CharityProjectsResponse> {
+  const params = new URLSearchParams({ type, lang: getLocale() });
+  const q = opts?.query?.trim();
+  if (q) params.set("query", q);
+  if (opts?.limit != null) params.set("limit", String(opts.limit));
+  return apiFetch(`/charities/projects?${params}`);
 }
 
 export function fetchMyProjects(): Promise<{ projects: VolunteerProjectRow[] }> {

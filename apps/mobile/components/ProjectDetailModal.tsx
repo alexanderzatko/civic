@@ -243,6 +243,12 @@ export function ProjectDetailModal({
                   onValuePress={() => openUser(detail.owner_username!)}
                 />
               ) : null}
+              {detail.organization ? (
+                <MetaRow
+                  label={t("project.organization")}
+                  value={detail.organization}
+                />
+              ) : null}
               {detail.total_hours != null ? (
                 <MetaRow
                   label={t("project.total_hours")}
@@ -264,6 +270,27 @@ export function ProjectDetailModal({
                 value={String(detail.shareholder_count)}
               />
             </View>
+
+            {detail.is_charity ? (
+              <View style={styles.donateBlock}>
+                <Text style={styles.sectionTitle}>{t("project.donate_title")}</Text>
+                {detail.donate_instructions ? (
+                  <Text style={styles.donateInstructions}>
+                    {detail.donate_instructions}
+                  </Text>
+                ) : (
+                  <Text style={styles.hint}>{t("project.donate_none")}</Text>
+                )}
+                {detail.donate_url ? (
+                  <Pressable
+                    onPress={() => void Linking.openURL(detail.donate_url!)}
+                    accessibilityRole="link"
+                  >
+                    <Text style={styles.link}>{t("project.donate_open")} →</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
 
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
@@ -538,6 +565,24 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: 14,
     gap: 8,
+  },
+  donateBlock: {
+    backgroundColor: colors.catCharitySoft,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    gap: 10,
+  },
+  donateInstructions: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.ink,
+  },
+  link: {
+    color: colors.brand,
+    fontWeight: "700",
+    fontSize: 14,
   },
   metaRow: {
     flexDirection: "row",
