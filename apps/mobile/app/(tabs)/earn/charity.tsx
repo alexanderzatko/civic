@@ -221,6 +221,7 @@ export default function CharityScreen() {
             ) : null}
             {donorRate > 0 ? (
               <Text style={styles.me}>
+                {t("charity.me_per_eur_label")}{" "}
                 {t("charity.me_per_eur").replace(
                   "{{rate}}",
                   formatMePerEur(donorRate),
