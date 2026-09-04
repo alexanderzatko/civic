@@ -134,6 +134,7 @@
   "receipts.error_rovas": "Rovas did not accept the registration. Try again later or contact support.",
   "charity.title": "Charity projects",
   "charity.intro": "Find charities that grant Merits for donations. Tap a project for details and how to donate.",
+  "charity.me_per_eur": "~{{rate}} ME / €",
   "charity.search_placeholder": "Search by charity name…",
   "charity.empty": "No approved charity projects yet.",
   "charity.search_empty": "No charities match that name.",

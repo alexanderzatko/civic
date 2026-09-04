@@ -10,22 +10,39 @@ import {
   Linking,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { displayMerits, type CharityProject } from "@civic/shared";
+import {
+  DEFAULT_SETTINGS,
+  round2,
+  type CharityProject,
+  type MeritRate,
+} from "@civic/shared";
 import { ProjectDetailModal } from "@/components/ProjectDetailModal";
 import { colors } from "@/constants/theme";
-import { fetchProjects } from "@/lib/api";
+import { fetchMeritRate, fetchProjects } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { getRovasBaseUrl } from "@/lib/oauth";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MIN_TOTAL = 6;
+const DEFAULT_MERITS_PER_HOUR = 10;
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function formatMe(n: number): string {
-  return displayMerits(n).toLocaleString("sk-SK");
+/** Pass-through donor yield: ME per € at the national hourly rate. */
+function mePerEur(rate: MeritRate | null): number {
+  const hourly = rate?.hourly_wage_eur ?? DEFAULT_SETTINGS.hourlyWageEur;
+  const perHour = rate?.merits_per_hour ?? DEFAULT_MERITS_PER_HOUR;
+  if (!(hourly > 0)) return 0;
+  return round2(perHour / hourly);
+}
+
+function formatMePerEur(n: number): string {
+  return n.toLocaleString("sk-SK", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 2,
+  });
 }
 
 function charityEnrollmentUrl(): string {
@@ -41,6 +58,7 @@ export default function CharityScreen() {
   const [query, setQuery] = useState("");
   const [projectNid, setProjectNid] = useState<string | null>(null);
   const [fallbackTitle, setFallbackTitle] = useState<string | null>(null);
+  const [meritRate, setMeritRate] = useState<MeritRate | null>(null);
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -48,6 +66,7 @@ export default function CharityScreen() {
   const [inviteError, setInviteError] = useState<string | null>(null);
 
   const showSearch = total >= SEARCH_MIN_TOTAL;
+  const donorRate = mePerEur(meritRate);
 
   const loadDefault = useCallback(async () => {
     setLoading(true);
@@ -77,6 +96,11 @@ export default function CharityScreen() {
     void loadDefault();
   }, [loadDefault]);
 
+  useEffect(() => {
+    void fetchMeritRate()
+      .then(setMeritRate)
+      .catch(() => setMeritRate(null));
+  }, []);
   useEffect(() => {
     if (!showSearch) return;
 
@@ -195,9 +219,12 @@ export default function CharityScreen() {
                 {p.summary}
               </Text>
             ) : null}
-            {p.total_me != null ? (
+            {donorRate > 0 ? (
               <Text style={styles.me}>
-                {formatMe(p.total_me)} {t("common.me")}
+                {t("charity.me_per_eur").replace(
+                  "{{rate}}",
+                  formatMePerEur(donorRate),
+                )}
               </Text>
             ) : null}
           </Pressable>
