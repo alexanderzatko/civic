@@ -200,7 +200,7 @@ export default function CharityScreen() {
                 {formatMe(p.total_me)} {t("common.me")}
               </Text>
             ) : null}
-            <Text style={styles.link}>{t("project.open_hint")} →</Text>
+            <Text style={styles.link}>{t("common.open")} →</Text>
           </Pressable>
         ))}
 
