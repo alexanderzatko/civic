@@ -200,7 +200,6 @@ export default function CharityScreen() {
                 {formatMe(p.total_me)} {t("common.me")}
               </Text>
             ) : null}
-            <Text style={styles.link}>{t("common.open")} →</Text>
           </Pressable>
         ))}
 
@@ -295,7 +294,6 @@ const styles = StyleSheet.create({
   org: { color: colors.brandSoft, fontWeight: "600", fontSize: 13 },
   summary: { color: colors.muted, fontSize: 14, marginTop: 2 },
   me: { color: colors.ink, fontWeight: "600", fontSize: 13, marginTop: 4 },
-  link: { color: colors.brand, fontWeight: "700", marginTop: 6 },
   inviteCard: {
     marginTop: 8,
     borderRadius: 14,
