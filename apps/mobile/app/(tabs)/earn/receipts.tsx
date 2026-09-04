@@ -44,6 +44,7 @@ import {
   type SplitRecipient,
 } from "@/lib/split-shares";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 
 type ScanBounds = {
   left: number;
@@ -59,6 +60,7 @@ type MeProfile = {
 };
 
 export default function ReceiptsScreen() {
+  useLocale();
   const { status: authStatus } = useAuth();
   const signedIn = authStatus === "signedIn";
   const [permission, requestPermission] = useCameraPermissions();

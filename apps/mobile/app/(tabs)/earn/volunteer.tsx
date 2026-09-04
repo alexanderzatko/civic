@@ -34,6 +34,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 import {
   pickVolunteerPhoto,
   rotateVolunteerPhoto,
@@ -88,6 +89,7 @@ function parseDurationHours(
 }
 
 export default function VolunteerScreen() {
+  useLocale();
   const { status } = useAuth();
   const signedIn = status === "signedIn";
 

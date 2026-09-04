@@ -25,6 +25,7 @@ import { colors } from "@/constants/theme";
 import { fetchWorkReportDetail, submitVerification } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 import { formatDurationHoursMinutes } from "@/lib/format-duration";
 import {
   isVerificationSlotCompleted,
@@ -46,6 +47,7 @@ function verifyErrorCopy(code: SubmitVerificationErrorCode | string): string {
 }
 
 export default function VerifyWorkReportScreen() {
+  useLocale();
   const { status } = useAuth();
   const signedIn = status === "signedIn";
   const params = useLocalSearchParams<{ slot_nid: string; work_report_nid?: string }>();

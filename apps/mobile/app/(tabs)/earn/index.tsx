@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 
 const PATHS = [
   {
@@ -47,6 +48,9 @@ function DescText({ text }: { text: string }) {
 }
 
 export default function EarnHubScreen() {
+  // Subscribe so body copy refreshes when the UI locale changes.
+  useLocale();
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.subtitle}>{t("earn.subtitle")}</Text>

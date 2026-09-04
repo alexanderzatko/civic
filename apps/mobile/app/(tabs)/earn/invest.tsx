@@ -11,8 +11,10 @@ import type { CharityProject } from "@civic/shared";
 import { colors } from "@/constants/theme";
 import { fetchProjects } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 
 export default function InvestScreen() {
+  useLocale();
   const [projects, setProjects] = useState<CharityProject[]>([]);
   const [loading, setLoading] = useState(true);
 

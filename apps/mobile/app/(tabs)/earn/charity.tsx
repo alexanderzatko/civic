@@ -20,6 +20,7 @@ import { ProjectDetailModal } from "@/components/ProjectDetailModal";
 import { colors } from "@/constants/theme";
 import { fetchMeritRate, fetchProjects } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 import { getRovasBaseUrl } from "@/lib/oauth";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -50,6 +51,7 @@ function charityEnrollmentUrl(): string {
 }
 
 export default function CharityScreen() {
+  useLocale();
   const [projects, setProjects] = useState<CharityProject[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

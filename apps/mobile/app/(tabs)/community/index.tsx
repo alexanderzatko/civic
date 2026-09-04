@@ -27,6 +27,7 @@ import {
 } from "@/lib/profile-recents";
 import { useUserSearch } from "@/lib/use-user-search";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 
 function formatMe(n: number): string {
   return displayMerits(n).toLocaleString("sk-SK");
@@ -48,6 +49,7 @@ function isValidEmail(value: string): boolean {
 }
 
 export default function CommunityScreen() {
+  useLocale();
   const { status } = useAuth();
   const signedIn = status === "signedIn";
   const [query, setQuery] = useState("");
