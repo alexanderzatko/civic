@@ -43,6 +43,14 @@ function RootNavigator() {
           name="(auth)/register"
           options={{ title: t("auth.register_nav_title") }}
         />
+        <Stack.Screen
+          name="oauth/callback"
+          options={{
+            headerShown: false,
+            animation: "none",
+            gestureEnabled: false,
+          }}
+        />
       </Stack>
     </>
   );

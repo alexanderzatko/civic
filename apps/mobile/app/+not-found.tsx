@@ -1,40 +1,20 @@
-import { Link, Stack } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
-import { colors } from "@/constants/theme";
+import { useEffect } from "react";
+import { router, Stack } from "expo-router";
+import { AppSplash } from "@/components/AppSplash";
 
+/**
+ * Unmatched routes (including brief deep-link races) show the splash
+ * instead of an error, then recover to Home.
+ */
 export default function NotFoundScreen() {
+  useEffect(() => {
+    router.replace("/(tabs)");
+  }, []);
+
   return (
     <>
-      <Stack.Screen options={{ title: "Oops!" }} />
-      <View style={styles.container}>
-        <Text style={styles.title}>This screen doesn't exist.</Text>
-        <Link href="/" style={styles.link}>
-          <Text style={styles.linkText}>Go to home screen</Text>
-        </Link>
-      </View>
+      <Stack.Screen options={{ headerShown: false }} />
+      <AppSplash />
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-    backgroundColor: colors.bg,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: colors.ink,
-  },
-  link: {
-    marginTop: 15,
-    paddingVertical: 15,
-  },
-  linkText: {
-    fontSize: 14,
-    color: colors.brand,
-  },
-});
