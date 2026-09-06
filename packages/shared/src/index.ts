@@ -9,9 +9,13 @@ export {
   computeMerits,
   displayMerits,
   floor2,
+  formatMeritsCompact,
+  formatMeritsCompactLabel,
   round2,
   splitMerits,
+  type CompactMerits,
   type MeritInput,
+  type MeritSiPrefix,
 } from "./merits.js";
 
 export {

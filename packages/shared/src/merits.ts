@@ -70,3 +70,72 @@ export function splitMerits(params: {
 export function displayMerits(merits: number): number {
   return Math.round(merits);
 }
+
+/** SI prefixes for sub-ME amounts (steps of 10³). */
+export type MeritSiPrefix = "" | "m" | "μ" | "n" | "p";
+
+export type CompactMerits = {
+  /** Signed, locale-formatted coefficient (no unit). */
+  coefficient: string;
+  /** Empty for ≥ 1 ME; otherwise milli / micro / nano / pico. */
+  prefix: MeritSiPrefix;
+};
+
+const PREFIX_BY_EXP: Record<number, MeritSiPrefix> = {
+  [-3]: "m",
+  [-6]: "μ",
+  [-9]: "n",
+  [-12]: "p",
+};
+
+/**
+ * Compact ME for history rows: ≥ 1 ME keeps up to 2 decimals; smaller
+ * amounts use m / μ / n / p so the coefficient stays in [1, 1000)
+ * (e.g. 0.42 → "420 m", 0.0015 → "1.5 m").
+ */
+export function formatMeritsCompact(
+  merits: number,
+  locale = "sk-SK",
+): CompactMerits {
+  if (!Number.isFinite(merits) || merits === 0) {
+    return { coefficient: "0", prefix: "" };
+  }
+
+  const sign = merits < 0 ? -1 : 1;
+  const abs = Math.abs(merits);
+
+  if (abs >= 1) {
+    return {
+      coefficient: (sign * round2(abs)).toLocaleString(locale, {
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 0,
+      }),
+      prefix: "",
+    };
+  }
+
+  // Thousands-step exponent in {-3,-6,-9,-12}.
+  const exp = Math.max(-12, Math.floor(Math.log10(abs) / 3) * 3) as
+    | -3
+    | -6
+    | -9
+    | -12;
+  const prefix = PREFIX_BY_EXP[exp] ?? "p";
+  const scaled = round2(abs * 10 ** -exp);
+  return {
+    coefficient: (sign * scaled).toLocaleString(locale, {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+    }),
+    prefix,
+  };
+}
+
+/** Coefficient plus optional SI prefix, e.g. "1.67" or "420 m". */
+export function formatMeritsCompactLabel(
+  merits: number,
+  locale = "sk-SK",
+): string {
+  const { coefficient, prefix } = formatMeritsCompact(merits, locale);
+  return prefix ? `${coefficient} ${prefix}` : coefficient;
+}

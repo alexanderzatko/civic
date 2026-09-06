@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { computeMerits, displayMerits, splitMerits } from "./merits.js";
+import {
+  computeMerits,
+  displayMerits,
+  formatMeritsCompact,
+  formatMeritsCompactLabel,
+  splitMerits,
+} from "./merits.js";
 import { parseReceiptUid, normalizeUid } from "./receipt-uid.js";
 
 describe("parseReceiptUid", () => {
@@ -68,5 +74,43 @@ describe("displayMerits", () => {
   it("rounds to whole numbers for UI", () => {
     assert.equal(displayMerits(1.67), 2);
     assert.equal(displayMerits(1.4), 1);
+  });
+});
+
+describe("formatMeritsCompact", () => {
+  it("keeps decimals for ≥ 1 ME", () => {
+    assert.deepEqual(formatMeritsCompact(1.67, "en-US"), {
+      coefficient: "1.67",
+      prefix: "",
+    });
+    assert.equal(formatMeritsCompactLabel(1.4, "en-US"), "1.4");
+  });
+
+  it("uses milli for sub-ME grants", () => {
+    assert.deepEqual(formatMeritsCompact(0.42, "en-US"), {
+      coefficient: "420",
+      prefix: "m",
+    });
+    assert.equal(formatMeritsCompactLabel(0.0015, "en-US"), "1.5 m");
+  });
+
+  it("uses micro / nano / pico for tinier amounts", () => {
+    assert.deepEqual(formatMeritsCompact(5e-6, "en-US"), {
+      coefficient: "5",
+      prefix: "μ",
+    });
+    assert.deepEqual(formatMeritsCompact(2e-10, "en-US"), {
+      coefficient: "200",
+      prefix: "p",
+    });
+    assert.deepEqual(formatMeritsCompact(5e-9, "en-US"), {
+      coefficient: "5",
+      prefix: "n",
+    });
+  });
+
+  it("preserves sign and zero", () => {
+    assert.equal(formatMeritsCompactLabel(-0.42, "en-US"), "-420 m");
+    assert.deepEqual(formatMeritsCompact(0), { coefficient: "0", prefix: "" });
   });
 });

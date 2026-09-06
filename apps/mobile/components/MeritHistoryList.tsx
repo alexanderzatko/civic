@@ -7,13 +7,13 @@ import {
   View,
 } from "react-native";
 import {
-  displayMerits,
+  formatMeritsCompactLabel,
   type MeritHistoryItem,
   type MeritHistorySourceKind,
 } from "@civic/shared";
 import { ProjectDetailModal } from "@/components/ProjectDetailModal";
 import { colors } from "@/constants/theme";
-import { t } from "@/lib/i18n";
+import { getLocale, t } from "@/lib/i18n";
 
 type Props = {
   items: MeritHistoryItem[];
@@ -25,7 +25,8 @@ type Props = {
 };
 
 function formatMe(n: number): string {
-  return displayMerits(n).toLocaleString("sk-SK");
+  const numLocale = getLocale() === "sk" ? "sk-SK" : "en-US";
+  return formatMeritsCompactLabel(n, numLocale);
 }
 
 function formatHistoryDate(iso: string): string {
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
   tdNegative: { color: colors.danger },
   colDate: { width: 78 },
   colSource: { flex: 1 },
-  colMe: { width: 56, textAlign: "right" },
+  colMe: { width: 72, textAlign: "right" },
   moreBtn: {
     alignSelf: "center",
     paddingVertical: 10,
