@@ -375,6 +375,8 @@
   "profile.history_title": "Merit history",
   "profile.history_col_date": "Date",
   "profile.history_col_source": "Source",
+  "profile.history_col_me": "ME*",
+  "profile.history_me_legend": "* Amounts below 1 ME use SI prefixes: m = milli (×10⁻³), μ = micro (×10⁻⁶), n = nano (×10⁻⁹), p = pico (×10⁻¹²).",
   "profile.history_source_project": "Project",
   "profile.history_source_report": "Report",
   "profile.history_source_purchase": "Merits purchase",

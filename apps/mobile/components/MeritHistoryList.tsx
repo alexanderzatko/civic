@@ -72,58 +72,65 @@ export function MeritHistoryList({
       ) : items.length === 0 ? (
         <Text style={styles.empty}>{t("profile.history_empty")}</Text>
       ) : (
-        <View style={styles.table}>
-          <View style={styles.header}>
-            <Text style={[styles.th, styles.colDate]}>
-              {t("profile.history_col_date")}
-            </Text>
-            <Text style={[styles.th, styles.colSource]}>
-              {t("profile.history_col_source")}
-            </Text>
-            <Text style={[styles.th, styles.colMe]}>{t("common.me")}</Text>
+        <>
+          <View style={styles.table}>
+            <View style={styles.header}>
+              <Text style={[styles.th, styles.colDate]}>
+                {t("profile.history_col_date")}
+              </Text>
+              <Text style={[styles.th, styles.colSource]}>
+                {t("profile.history_col_source")}
+              </Text>
+              <Text style={[styles.th, styles.colMe]}>
+                {t("profile.history_col_me")}
+              </Text>
+            </View>
+            {items.map((row) => {
+              const clickable = Boolean(row.project_nid);
+              const negative = row.merits < 0;
+              return (
+                <Pressable
+                  key={row.disbursement_nid}
+                  style={styles.row}
+                  disabled={!clickable}
+                  onPress={() => {
+                    if (!row.project_nid) return;
+                    setOpenNid(row.project_nid);
+                    setOpenTitle(row.source_title);
+                  }}
+                  accessibilityRole={clickable ? "button" : undefined}
+                  accessibilityHint={
+                    clickable ? t("project.open_hint") : undefined
+                  }
+                >
+                  <Text style={[styles.td, styles.colDate]}>
+                    {formatHistoryDate(row.created_at)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.td,
+                      styles.colSource,
+                      clickable && styles.tdLink,
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {sourceLine(row)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.tdMe,
+                      styles.colMe,
+                      negative && styles.tdNegative,
+                    ]}
+                  >
+                    {formatMe(row.merits)}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
-          {items.map((row) => {
-            const clickable = Boolean(row.project_nid);
-            const negative = row.merits < 0;
-            return (
-              <Pressable
-                key={row.disbursement_nid}
-                style={styles.row}
-                disabled={!clickable}
-                onPress={() => {
-                  if (!row.project_nid) return;
-                  setOpenNid(row.project_nid);
-                  setOpenTitle(row.source_title);
-                }}
-                accessibilityRole={clickable ? "button" : undefined}
-                accessibilityHint={clickable ? t("project.open_hint") : undefined}
-              >
-                <Text style={[styles.td, styles.colDate]}>
-                  {formatHistoryDate(row.created_at)}
-                </Text>
-                <Text
-                  style={[
-                    styles.td,
-                    styles.colSource,
-                    clickable && styles.tdLink,
-                  ]}
-                  numberOfLines={2}
-                >
-                  {sourceLine(row)}
-                </Text>
-                <Text
-                  style={[
-                    styles.tdMe,
-                    styles.colMe,
-                    negative && styles.tdNegative,
-                  ]}
-                >
-                  {formatMe(row.merits)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+          <Text style={styles.legend}>{t("profile.history_me_legend")}</Text>
+        </>
       )}
       {canLoadMore ? (
         <Pressable
@@ -188,6 +195,7 @@ const styles = StyleSheet.create({
   colDate: { width: 78 },
   colSource: { flex: 1 },
   colMe: { width: 72, textAlign: "right" },
+  legend: { fontSize: 12, color: colors.muted, lineHeight: 18 },
   moreBtn: {
     alignSelf: "center",
     paddingVertical: 10,

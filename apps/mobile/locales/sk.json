@@ -375,6 +375,8 @@
   "profile.history_title": "História meritov",
   "profile.history_col_date": "Dátum",
   "profile.history_col_source": "Zdroj",
+  "profile.history_col_me": "ME*",
+  "profile.history_me_legend": "* Sumy pod 1 ME používajú SI predpony: m = mili (×10⁻³), μ = mikro (×10⁻⁶), n = nano (×10⁻⁹), p = piko (×10⁻¹²).",
   "profile.history_source_project": "Projekt",
   "profile.history_source_report": "Výkaz",
   "profile.history_source_purchase": "Nákup meritov",
