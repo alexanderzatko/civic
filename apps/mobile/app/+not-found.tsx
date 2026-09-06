@@ -8,12 +8,12 @@ import { AppSplash } from "@/components/AppSplash";
  */
 export default function NotFoundScreen() {
   useEffect(() => {
-    router.replace("/(tabs)");
+    router.replace("/");
   }, []);
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen options={{ headerShown: false, animation: "none" }} />
       <AppSplash />
     </>
   );

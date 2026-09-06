@@ -27,7 +27,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     try {
       const ok = await signIn();
       if (ok) {
-        router.replace("/(tabs)");
+        router.replace("/");
       }
     } catch (e) {
       if (e instanceof AuthCodeExpiredError) {

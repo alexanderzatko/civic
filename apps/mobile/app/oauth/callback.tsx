@@ -7,16 +7,15 @@ import { useAuth } from "@/lib/auth";
 const FALLBACK_REDIRECT_MS = 12_000;
 
 /**
- * Deep-link target for `civic://oauth/callback` after Rovas login.
- * AuthProvider / signIn complete the token exchange; this screen only
- * bridges with the native splash look until Home is ready.
+ * Shown while Rovas OAuth finishes after `civic://oauth/callback`.
+ * Deep links are rewritten here by `+native-intent` (query string stripped).
  */
 export default function OAuthCallbackScreen() {
   const { status } = useAuth();
 
   useEffect(() => {
     if (status === "signedIn") {
-      router.replace("/(tabs)");
+      router.replace("/");
     }
   }, [status]);
 
@@ -25,10 +24,9 @@ export default function OAuthCallbackScreen() {
 
     (async () => {
       if (status === "loading" || status === "signedIn") return;
-      // Still exchanging (Android browser return) — keep splash.
       const pending = await loadPendingOAuth();
       if (cancelled || pending) return;
-      router.replace("/(tabs)");
+      router.replace("/");
     })();
 
     return () => {
@@ -38,7 +36,7 @@ export default function OAuthCallbackScreen() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.replace("/(tabs)");
+      router.replace("/");
     }, FALLBACK_REDIRECT_MS);
     return () => clearTimeout(timer);
   }, []);
