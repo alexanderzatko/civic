@@ -71,8 +71,9 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `GET /nace` | NACE drill-down tree — proxies Rovas `GET /rovas/civic_nace_tree?lang=`. Optional Bearer; public read on Rovas (volunteer form still sends Bearer when signed in). |
 | `POST /nace/classify` | AI NACE from work description — proxies Rovas `POST /rovas/civic_ai_nace` (see Rovas **AI NACE + title**). Returns `status`: `ok` \| `need_more_info` \| `unavailable` \| `error`. Manual NACE tree remains fallback. |
 | `GET /work-reports/map-config` | Map proof widget — proxies Rovas `GET /rovas/civic_work_report_map_config` (basemap tiles, centre, allowed geometry types). Civic serves an OSM fallback until Rovas ships the endpoint. |
+| `GET /work-reports/fee-info` | Volunteer form disclosure — Civic env only (`WR_USAGE_FEE_*`, `CIVIC_APP_PROJECT_NID`). Returns `{ enabled, wr_usage_fee_rate, rovas_platform_fee_rate }`. No Rovas call. |
 | `GET /work-reports/:nid` | Verify screen — proxies Rovas `GET /rovas/civic_work_report/{nid}?lang=` (extended WR + verification context). See Rovas **Next work: Civic WR verification (in-app)**. |
-| `POST /work-reports` | Submit volunteer report — proxies Rovas `POST /rovas/civic_create_work_report` (hours, date, description, NACE, proof URL and/or photos and/or `field_location` GeoJSON, `reward_kind`). |
+| `POST /work-reports` | Submit volunteer report — proxies Rovas `POST /rovas/civic_create_work_report` (hours, date, description, NACE, proof URL and/or photos and/or `field_location` GeoJSON, `reward_kind`). When `WR_USAGE_FEE_ENABLED` and `CIVIC_APP_PROJECT_NID` are set, Civic attaches `usage_fee_project_id` + `usage_fee_rate` for a deferred app AUR on approval. See Rovas **Next work: Civic WR usage fee (app AUR)**. |
 | `GET /verifications/pending` | In-app verification notifications — proxies Rovas `GET /rovas/civic_pending_verifications?lang=`. |
 | `POST /verifications/:slot_nid` | Submit verdict — proxies Rovas `POST /rovas/civic_submit_verification` (`verdict`, optional `verified_hours`, `note`). |
 | `POST /push-tokens` | Register Expo push token for OS notifications (Phase 4). Body: `expo_push_token`, `platform` (`ios` \| `android`). |
@@ -146,6 +147,29 @@ before verifier UX works end-to-end on rovdev.
 **OS push (Phase 4):** mobile registers Expo tokens via `POST /push-tokens` after
 sign-in. Server-side send + Rovas assignment webhook are documented in the Rovas
 integration doc follow-up section.
+
+## Civic WR usage fee (app AUR)
+
+After two verifiers approve a work report filed through Civic, Rovas takes its
+usual **1%** platform AUR, then (when enabled) an additional **Civic app fee**
+(~3% of `hours × 10` Chrons) as a second AUR to the Civic project. Merits go to
+that project’s shareholders. Reports filed on Rovas directly are unaffected.
+
+**Config (Civic API env only — Rovas does not store Civic’s project nid):**
+
+| Variable | Role |
+|----------|------|
+| `WR_USAGE_FEE_ENABLED` | Attach fee params on `POST /work-reports` |
+| `WR_USAGE_FEE_RATE` | Fraction (default `0.03`) |
+| `CIVIC_APP_PROJECT_NID` | Rovas project nid receiving the AUR |
+
+**One-time ops:** create a “Civic” project in the Rovas UI (Merit allocation
+100% to the NeoFund/ops owner), then set `CIVIC_APP_PROJECT_NID`.
+
+**Rovas:** [Next work: Civic WR usage fee (app AUR)](../../rovas/docs/integration/civic.md#next-work-civic-wr-usage-fee-app-aur)
+— stores fee params on create; charges on approval via `rules_create_aur`.
+
+Form disclosure: `GET /work-reports/fee-info` + `volunteer.fee_notice` (EN/SK).
 
 ## Claim registry SoT
 

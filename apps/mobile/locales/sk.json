@@ -154,6 +154,7 @@
   "volunteer.title": "Dobrovoľnícka práca",
   "volunteer.heading": "Reportujte dobrovoľnícku prácu",
   "volunteer.intro": "Po overení dvoma dobrovoľníkmi vám Rováš pripíše buď Chrony* alebo rovnaké množstvo Meritov podľa vašej voľby. Odoslaním formulára vám vzniká povinnosť overovať výkazy iných dobrovoľníkov.",
+  "volunteer.fee_notice": "Podanie cez Civic zráža po overení {{civic_percent}}% poplatok aplikácie Civic z výnosu (navyše k {{rovas_percent}}% poplatku platformy Rováš). Ak nechcete platiť poplatok Civic, podajte výkaz priamo v Rováši.",
   "volunteer.sign_in_hint": "Prihláste sa, aby ste mohli nahlásiť dobrovoľnícku prácu.",
   "volunteer.project": "Projekt",
   "volunteer.step1_heading": "Krok 1 – vyberte projekt pre váš report",

@@ -611,6 +611,17 @@ export interface CreateWorkReportBody {
   reward_kind?: RewardKind;
   photos?: WorkReportPhotoInput[];
   field_location?: WorkReportGeoJsonGeometry;
+  /** Set by Civic API from env — not chosen by the mobile client. */
+  usage_fee_project_id?: number;
+  /** Fraction in (0, 1]; set by Civic API from env. */
+  usage_fee_rate?: number;
+}
+
+/** Civic API `GET /work-reports/fee-info` — form disclosure (no Rovas call). */
+export interface WorkReportFeeInfo {
+  enabled: boolean;
+  wr_usage_fee_rate: number;
+  rovas_platform_fee_rate: number;
 }
 
 export type CreateWorkReportErrorCode =

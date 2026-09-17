@@ -32,6 +32,7 @@ import type {
   SubmitVerificationBody,
   SubmitVerificationResponse,
   WorkReportDetail,
+  WorkReportFeeInfo,
   WorkReportMapConfig,
 } from "@civic/shared";
 import { getLocale } from "@/lib/i18n";
@@ -380,6 +381,10 @@ export function classifyNaceFromDescription(
 
 export function fetchWorkReportMapConfig(): Promise<WorkReportMapConfig> {
   return apiFetch("/work-reports/map-config", { auth: "required" });
+}
+
+export function fetchWorkReportFeeInfo(): Promise<WorkReportFeeInfo> {
+  return apiFetch("/work-reports/fee-info", { auth: "optional" });
 }
 
 export function createWorkReport(

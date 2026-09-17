@@ -51,6 +51,7 @@ async function main() {
       "POST /work-reports",
       "GET /work-reports/:nid",
       "GET /work-reports/map-config",
+      "GET /work-reports/fee-info",
       "GET /verifications/pending",
       "POST /verifications/:slot_nid",
       "POST /push-tokens",

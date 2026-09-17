@@ -31,6 +31,7 @@ import {
   classifyNaceFromDescription,
   fetchMyProjects,
   fetchNaceTree,
+  fetchWorkReportFeeInfo,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
@@ -44,6 +45,21 @@ import {
 import { useProjectSearch } from "@/lib/use-project-search";
 
 const ROVAS_API_DOCS = "https://neofund.sk/rovas-api";
+const FALLBACK_CIVIC_FEE_PERCENT = "3";
+const FALLBACK_ROVAS_FEE_PERCENT = "1";
+
+function formatFeePercent(rate: number, fallback: string): string {
+  if (!Number.isFinite(rate) || rate <= 0) return fallback;
+  const pct = rate * 100;
+  const rounded = Math.round(pct * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
+
+function feeNoticeCopy(civicPct: string, rovasPct: string): string {
+  return t("volunteer.fee_notice")
+    .replace(/\{\{civic_percent\}\}/g, civicPct)
+    .replace(/\{\{rovas_percent\}\}/g, rovasPct);
+}
 
 function todaySk(): string {
   const n = new Date();
@@ -122,6 +138,9 @@ export default function VolunteerScreen() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [feeEnabled, setFeeEnabled] = useState(true);
+  const [civicFeePct, setCivicFeePct] = useState(FALLBACK_CIVIC_FEE_PERCENT);
+  const [rovasFeePct, setRovasFeePct] = useState(FALLBACK_ROVAS_FEE_PERCENT);
   const scrollRef = useRef<ScrollView>(null);
   const scrollYRef = useRef(0);
 
@@ -142,10 +161,32 @@ export default function VolunteerScreen() {
       .catch(() => setNaceTree([]));
   }, [signedIn]);
 
+  const loadFeeInfo = useCallback(() => {
+    void fetchWorkReportFeeInfo()
+      .then((info) => {
+        setFeeEnabled(info.enabled);
+        setCivicFeePct(
+          formatFeePercent(info.wr_usage_fee_rate, FALLBACK_CIVIC_FEE_PERCENT),
+        );
+        setRovasFeePct(
+          formatFeePercent(
+            info.rovas_platform_fee_rate,
+            FALLBACK_ROVAS_FEE_PERCENT,
+          ),
+        );
+      })
+      .catch(() => {
+        setFeeEnabled(true);
+        setCivicFeePct(FALLBACK_CIVIC_FEE_PERCENT);
+        setRovasFeePct(FALLBACK_ROVAS_FEE_PERCENT);
+      });
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       loadMine();
-    }, [loadMine]),
+      loadFeeInfo();
+    }, [loadMine, loadFeeInfo]),
   );
 
   const resetForm = useCallback(() => {
@@ -345,6 +386,11 @@ export default function VolunteerScreen() {
       >
         <Text style={styles.heading}>{t("volunteer.heading")}</Text>
         <Text style={styles.intro}>{t("volunteer.intro")}</Text>
+        {feeEnabled ? (
+          <Text style={styles.feeNotice}>
+            {feeNoticeCopy(civicFeePct, rovasFeePct)}
+          </Text>
+        ) : null}
 
         {!signedIn ? (
           <View style={styles.authBox}>
@@ -680,6 +726,12 @@ const styles = StyleSheet.create({
   container: { padding: 20, gap: 10, paddingBottom: 48 },
   heading: { fontSize: 20, fontWeight: "700", color: colors.ink },
   intro: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  feeNotice: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 8,
+  },
   authBox: {
     backgroundColor: "#E8EFEA",
     borderRadius: 14,

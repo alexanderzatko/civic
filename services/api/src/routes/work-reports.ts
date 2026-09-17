@@ -1,10 +1,12 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import type {
   ClassifyNaceResponse,
+  CreateWorkReportBody,
   CreateWorkReportErrorCode,
   CreateWorkReportResponse,
   NaceNode,
   RewardKind,
+  WorkReportFeeInfo,
   WorkReportGeoJsonGeometry,
   WorkReportPhotoInput,
 } from "@civic/shared";
@@ -20,6 +22,44 @@ import { parseFieldLocation } from "../work-report-location.js";
 
 const MAX_PHOTOS = 5;
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
+/** Hardcoded fallback for form disclosure if settings are misconfigured. */
+const FALLBACK_WR_USAGE_FEE_RATE = 0.03;
+const FALLBACK_ROVAS_PLATFORM_FEE_RATE = 0.01;
+
+function wrUsageFeePayload(
+  settings: AppContext["config"]["settings"],
+): { usage_fee_project_id: number; usage_fee_rate: number } | null {
+  if (!settings.wrUsageFeeEnabled) return null;
+  const nid = settings.civicAppProjectNid;
+  if (!/^\d+$/.test(nid) || nid === "0") return null;
+  const rate = settings.wrUsageFeeRate;
+  if (!Number.isFinite(rate) || rate <= 0 || rate > 1) return null;
+  return {
+    usage_fee_project_id: Number(nid),
+    usage_fee_rate: rate,
+  };
+}
+
+function feeInfoFromSettings(
+  settings: AppContext["config"]["settings"],
+): WorkReportFeeInfo {
+  const payload = wrUsageFeePayload(settings);
+  const rate =
+    payload?.usage_fee_rate ??
+    (Number.isFinite(settings.wrUsageFeeRate) && settings.wrUsageFeeRate > 0
+      ? settings.wrUsageFeeRate
+      : FALLBACK_WR_USAGE_FEE_RATE);
+  const platform =
+    Number.isFinite(settings.rovasPlatformFeeRate) &&
+    settings.rovasPlatformFeeRate > 0
+      ? settings.rovasPlatformFeeRate
+      : FALLBACK_ROVAS_PLATFORM_FEE_RATE;
+  return {
+    enabled: payload != null,
+    wr_usage_fee_rate: rate,
+    rovas_platform_fee_rate: platform,
+  };
+}
 
 function sendRovasError(reply: FastifyReply, err: unknown) {
   if (err instanceof RovasClientError) {
@@ -161,6 +201,14 @@ export const workReportsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async 
   );
 
   /**
+   * Civic app WR usage-fee rates for volunteer form disclosure.
+   * Reads Civic env only — no Rovas round-trip.
+   */
+  app.get("/work-reports/fee-info", async () => {
+    return feeInfoFromSettings(ctx.config.settings);
+  });
+
+  /**
    * Map layers / view for volunteer work-report map proof.
    * Proxies Rovas `GET /rovas/civic_work_report_map_config`.
    */
@@ -295,7 +343,8 @@ export const workReportsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async 
       }
 
       try {
-        const created = await ctx.rovas.createWorkReport(user.accessToken, {
+        const fee = wrUsageFeePayload(ctx.config.settings);
+        const payload: CreateWorkReportBody = {
           project_nid: projectNid,
           date_started: Math.floor(dateStarted),
           hours,
@@ -306,7 +355,17 @@ export const workReportsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async 
           ...(webUrl ? { web_url: webUrl } : {}),
           ...(photosOrErr.length > 0 ? { photos: photosOrErr } : {}),
           ...(fieldLocation ? { field_location: fieldLocation } : {}),
-        });
+          ...(fee
+            ? {
+                usage_fee_project_id: fee.usage_fee_project_id,
+                usage_fee_rate: fee.usage_fee_rate,
+              }
+            : {}),
+        };
+        const created = await ctx.rovas.createWorkReport(
+          user.accessToken,
+          payload,
+        );
         const res: CreateWorkReportResponse = {
           ok: true,
           work_report_nid: created.work_report_nid,

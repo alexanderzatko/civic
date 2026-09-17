@@ -50,6 +50,17 @@ export interface CivicSettings {
   merchantProximityKm: number;
   minDeltaTHours: number;
   maxLocationAccuracyM: number;
+  /**
+   * When true and civicAppProjectNid is set, Civic attaches usage-fee params
+   * on work-report create (deferred AUR on Rovas approval).
+   */
+  wrUsageFeeEnabled: boolean;
+  /** Fraction of WR Chron grant charged as Civic app fee (e.g. 0.03 = 3%). */
+  wrUsageFeeRate: number;
+  /** Rovas project nid that receives the Civic app AUR (Merits). Empty = fee off. */
+  civicAppProjectNid: string;
+  /** Rovas platform WR fee (informational for form disclosure). */
+  rovasPlatformFeeRate: number;
 }
 
 /** Documented v1 defaults — keep in sync with .env.example comments. */
@@ -73,6 +84,10 @@ export const DEFAULT_SETTINGS: CivicSettings = {
   merchantProximityKm: 50,
   minDeltaTHours: 0.25,
   maxLocationAccuracyM: 500,
+  wrUsageFeeEnabled: false,
+  wrUsageFeeRate: 0.03,
+  civicAppProjectNid: "",
+  rovasPlatformFeeRate: 0.01,
 };
 
 function envNumber(key: string, fallback: number): number {
@@ -158,6 +173,19 @@ export function loadSettings(
     maxLocationAccuracyM: envNumber(
       "MAX_LOCATION_ACCURACY_M",
       DEFAULT_SETTINGS.maxLocationAccuracyM,
+    ),
+    wrUsageFeeEnabled: envBool(
+      "WR_USAGE_FEE_ENABLED",
+      DEFAULT_SETTINGS.wrUsageFeeEnabled,
+    ),
+    wrUsageFeeRate: envNumber(
+      "WR_USAGE_FEE_RATE",
+      DEFAULT_SETTINGS.wrUsageFeeRate,
+    ),
+    civicAppProjectNid: (env.CIVIC_APP_PROJECT_NID ?? "").trim(),
+    rovasPlatformFeeRate: envNumber(
+      "ROVAS_PLATFORM_FEE_RATE",
+      DEFAULT_SETTINGS.rovasPlatformFeeRate,
     ),
   };
 }

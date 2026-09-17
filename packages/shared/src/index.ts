@@ -109,6 +109,7 @@ export type {
   CreateWorkReportSuccess,
   CreateWorkReportError,
   CreateWorkReportResponse,
+  WorkReportFeeInfo,
   PendingVerificationItem,
   PendingVerificationsPage,
   SubmitVerificationBody,
