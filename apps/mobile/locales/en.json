@@ -154,7 +154,7 @@
   "volunteer.title": "Volunteer work",
   "volunteer.heading": "Report volunteer work",
   "volunteer.intro": "After two volunteers verify it, Rovas credits either Chrons* or the same amount of Merits, according to your choice. Submitting the form also creates an obligation to verify other volunteers’ reports.",
-  "volunteer.fee_notice": "Filing through Civic deducts a {{civic_percent}}% Civic app fee from the proceeds after verification (in addition to Rovas’s {{rovas_percent}}% platform fee). To avoid the Civic fee, file the work report on Rovas instead.",
+  "volunteer.fee_notice": "The Civic app charges a {{civic_percent}}% fee on the reward for an approved work report (in addition to Rovas’s {{rovas_percent}}% platform fee). You can avoid the Civic fee by filing the report directly on Rovas.",
   "volunteer.sign_in_hint": "Sign in to report volunteer work.",
   "volunteer.project": "Project",
   "volunteer.step1_heading": "Step 1 – choose project for your report",

@@ -386,11 +386,6 @@ export default function VolunteerScreen() {
       >
         <Text style={styles.heading}>{t("volunteer.heading")}</Text>
         <Text style={styles.intro}>{t("volunteer.intro")}</Text>
-        {feeEnabled ? (
-          <Text style={styles.feeNotice}>
-            {feeNoticeCopy(civicFeePct, rovasFeePct)}
-          </Text>
-        ) : null}
 
         {!signedIn ? (
           <View style={styles.authBox}>
@@ -676,6 +671,12 @@ export default function VolunteerScreen() {
           </Text>
         </View>
 
+        {feeEnabled ? (
+          <Text style={styles.feeNotice}>
+            {feeNoticeCopy(civicFeePct, rovasFeePct)}
+          </Text>
+        ) : null}
+
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
         <View style={styles.actions}>
@@ -730,7 +731,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     lineHeight: 19,
-    marginTop: 8,
   },
   authBox: {
     backgroundColor: "#E8EFEA",
