@@ -68,25 +68,12 @@ function feeNoticeCopy(civicPct: string, rovasPct: string): string {
     .replace(/\{\{rovas_percent\}\}/g, rovasPct);
 }
 
-function rewardPreviewCopy(
-  amount: string,
-  fee: string | null,
-  unit: string,
-  withFeeMarker: boolean,
-): string {
-  if (fee == null) {
-    return t("volunteer.reward_preview_no_fee")
-      .replace(/\{\{amount\}\}/g, amount)
-      .replace(/\{\{unit\}\}/g, unit);
-  }
-  const key = withFeeMarker
-    ? "volunteer.reward_preview"
-    : "volunteer.reward_preview_fee";
-  return t(key)
-    .replace(/\{\{amount\}\}/g, amount)
-    .replace(/\{\{fee\}\}/g, fee)
-    .replace(/\{\{unit\}\}/g, unit);
-}
+type RewardPreviewModel = {
+  label: string;
+  amount: string;
+  showFeeMarker: boolean;
+  feeLine: string | null;
+};
 
 function todaySk(): string {
   const n = new Date();
@@ -237,7 +224,7 @@ export default function VolunteerScreen() {
   const canSubmit = Boolean(signedIn && selected);
 
   const durationHours = parseDurationHours(hours, minutes);
-  const rewardPreview = (() => {
+  const rewardPreview = ((): RewardPreviewModel | null => {
     if (durationHours == null || durationHours <= 0) return null;
     const gross = round2(durationHours * 10);
     const civicRate = feeEnabled ? civicFeeRate : 0;
@@ -245,20 +232,20 @@ export default function VolunteerScreen() {
     const feeAmount = round2(gross * totalFeeRate);
     const net = round2(gross - feeAmount);
     const unit = reward === "chrons" ? "CHR" : "ME";
-    if (feeAmount <= 0) {
-      return rewardPreviewCopy(
-        formatRewardAmount(gross),
-        null,
-        unit,
-        false,
-      );
-    }
-    return rewardPreviewCopy(
-      formatRewardAmount(net),
-      formatRewardAmount(feeAmount),
-      unit,
-      feeEnabled,
-    );
+    const amountValue = `${formatRewardAmount(feeAmount > 0 ? net : gross)} ${unit}`;
+    const feeLine =
+      feeAmount > 0
+        ? t("volunteer.reward_preview_fee_line").replace(
+            /\{\{fee\}\}/g,
+            formatRewardAmount(feeAmount),
+          )
+        : null;
+    return {
+      label: t("volunteer.reward_preview_label"),
+      amount: amountValue,
+      showFeeMarker: feeEnabled,
+      feeLine,
+    };
   })();
   const civicFeePct = formatFeePercent(civicFeeRate, FALLBACK_CIVIC_FEE_RATE);
   const rovasFeePct = formatFeePercent(rovasFeeRate, FALLBACK_ROVAS_FEE_RATE);
@@ -730,7 +717,18 @@ export default function VolunteerScreen() {
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
         {rewardPreview ? (
-          <Text style={styles.rewardPreview}>{rewardPreview}</Text>
+          <View style={styles.rewardPreviewBox}>
+            <Text style={styles.rewardPreviewLabel}>{rewardPreview.label}</Text>
+            <Text style={styles.rewardPreviewAmount}>
+              {rewardPreview.amount}
+              {rewardPreview.showFeeMarker ? (
+                <Text style={styles.rewardPreviewMarker}>**</Text>
+              ) : null}
+            </Text>
+            {rewardPreview.feeLine ? (
+              <Text style={styles.rewardPreviewFee}>{rewardPreview.feeLine}</Text>
+            ) : null}
+          </View>
         ) : null}
 
         <View style={styles.actions}>
@@ -788,11 +786,38 @@ const styles = StyleSheet.create({
   container: { padding: 20, gap: 10, paddingBottom: 48 },
   heading: { fontSize: 20, fontWeight: "700", color: colors.ink },
   intro: { color: colors.muted, fontSize: 14, lineHeight: 20 },
-  rewardPreview: {
+  rewardPreviewBox: {
+    marginTop: 16,
+    marginBottom: 4,
+    alignItems: "center",
+    gap: 2,
+  },
+  rewardPreviewLabel: {
     color: colors.ink,
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: "600",
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  rewardPreviewAmount: {
+    color: colors.ink,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  rewardPreviewMarker: {
+    fontSize: 14,
+    lineHeight: 26,
+    fontWeight: "400",
+    color: colors.ink,
+  },
+  rewardPreviewFee: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
   },
   feeNotice: {
     color: colors.muted,
