@@ -759,7 +759,17 @@ export default function VolunteerScreen() {
         </View>
         </View>
 
-        <Text style={styles.footer}>
+        <Text style={styles.footerMuted}>
+          {t("volunteer.chron_footer_1")}
+          {"\n"}
+          {t("volunteer.chron_footer_3")}
+        </Text>
+        {feeEnabled ? (
+          <Text style={styles.footerMuted}>
+            {feeNoticeCopy(civicFeePct, rovasFeePct)}
+          </Text>
+        ) : null}
+        <Text style={styles.footerApiHint}>
           {t("volunteer.api_hint_before")}
           <Text
             style={styles.link}
@@ -769,13 +779,6 @@ export default function VolunteerScreen() {
           </Text>
           {t("volunteer.api_hint_after")}
         </Text>
-        <Text style={styles.footerMuted}>{t("volunteer.chron_footer_1")}</Text>
-        {feeEnabled ? (
-          <Text style={styles.footerMuted}>
-            {feeNoticeCopy(civicFeePct, rovasFeePct)}
-          </Text>
-        ) : null}
-        <Text style={styles.footerMuted}>{t("volunteer.chron_footer_3")}</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -892,11 +895,19 @@ const styles = StyleSheet.create({
   btnText: { color: "#fff", fontWeight: "700" },
   ghost: { paddingVertical: 14, paddingHorizontal: 12 },
   ghostText: { color: colors.muted, fontWeight: "700" },
-  footer: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: 8 },
+  footerApiHint: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
+    marginTop: 28,
+  },
   footerMuted: {
     color: colors.muted,
     fontSize: 12,
+    lineHeight: 17,
     textAlign: "center",
+    marginTop: 8,
   },
   success: { fontSize: 16, color: colors.ink, lineHeight: 22 },
 });
