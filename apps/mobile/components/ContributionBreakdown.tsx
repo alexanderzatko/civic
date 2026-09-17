@@ -12,7 +12,6 @@ type MeritSourceId = "taxes" | "charity" | "volunteer";
 type Props = {
   profile: Pick<
     UserLookup,
-    | "total_me"
     | "by_category"
     | "taxes_last_3_months"
     | "top_charities"
@@ -103,12 +102,7 @@ export function ContributionBreakdown({
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t("community.mix_title")}</Text>
-        <Text style={styles.headerTotal}>
-          {formatMe(profile.total_me)} {t("common.me")}
-        </Text>
-      </View>
+      <Text style={styles.headerTitle}>{t("community.mix_title")}</Text>
 
       <View style={styles.cabinet}>
         <View style={styles.tabs} accessibilityRole="tablist">
@@ -218,13 +212,7 @@ const BORDER = 1.5;
 
 const styles = StyleSheet.create({
   wrap: { width: "100%", alignSelf: "stretch", gap: 10 },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
   headerTitle: { fontSize: 14, fontWeight: "600", color: colors.ink },
-  headerTotal: { fontSize: 13, color: colors.muted },
   cabinet: {
     width: "100%",
   },
