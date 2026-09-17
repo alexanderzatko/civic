@@ -21,6 +21,7 @@ import type {
   VolunteerProjectRow,
 } from "@civic/shared";
 import type { WorkReportGeoJsonGeometry } from "@civic/shared";
+import { round2 } from "@civic/shared";
 import { CreateProjectSection } from "@/components/CreateProjectSection";
 import { NacePicker, findNaceNode } from "@/components/NacePicker";
 import { VolunteerMapProofSection } from "@/components/VolunteerMapProofSection";
@@ -45,20 +46,46 @@ import {
 import { useProjectSearch } from "@/lib/use-project-search";
 
 const ROVAS_API_DOCS = "https://neofund.sk/rovas-api";
-const FALLBACK_CIVIC_FEE_PERCENT = "3";
-const FALLBACK_ROVAS_FEE_PERCENT = "1";
+const FALLBACK_CIVIC_FEE_RATE = 0.03;
+const FALLBACK_ROVAS_FEE_RATE = 0.01;
 
-function formatFeePercent(rate: number, fallback: string): string {
-  if (!Number.isFinite(rate) || rate <= 0) return fallback;
-  const pct = rate * 100;
+function formatFeePercent(rate: number, fallbackRate: number): string {
+  const r = Number.isFinite(rate) && rate > 0 ? rate : fallbackRate;
+  const pct = r * 100;
   const rounded = Math.round(pct * 100) / 100;
   return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
+
+function formatRewardAmount(n: number): string {
+  const rounded = round2(n);
+  if (Number.isInteger(rounded)) return String(rounded);
+  return rounded.toFixed(2).replace(/\.?0+$/, "");
 }
 
 function feeNoticeCopy(civicPct: string, rovasPct: string): string {
   return t("volunteer.fee_notice")
     .replace(/\{\{civic_percent\}\}/g, civicPct)
     .replace(/\{\{rovas_percent\}\}/g, rovasPct);
+}
+
+function rewardPreviewCopy(
+  amount: string,
+  fee: string | null,
+  unit: string,
+  withFeeMarker: boolean,
+): string {
+  if (fee == null) {
+    return t("volunteer.reward_preview_no_fee")
+      .replace(/\{\{amount\}\}/g, amount)
+      .replace(/\{\{unit\}\}/g, unit);
+  }
+  const key = withFeeMarker
+    ? "volunteer.reward_preview"
+    : "volunteer.reward_preview_fee";
+  return t(key)
+    .replace(/\{\{amount\}\}/g, amount)
+    .replace(/\{\{fee\}\}/g, fee)
+    .replace(/\{\{unit\}\}/g, unit);
 }
 
 function todaySk(): string {
@@ -139,8 +166,8 @@ export default function VolunteerScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [feeEnabled, setFeeEnabled] = useState(true);
-  const [civicFeePct, setCivicFeePct] = useState(FALLBACK_CIVIC_FEE_PERCENT);
-  const [rovasFeePct, setRovasFeePct] = useState(FALLBACK_ROVAS_FEE_PERCENT);
+  const [civicFeeRate, setCivicFeeRate] = useState(FALLBACK_CIVIC_FEE_RATE);
+  const [rovasFeeRate, setRovasFeeRate] = useState(FALLBACK_ROVAS_FEE_RATE);
   const scrollRef = useRef<ScrollView>(null);
   const scrollYRef = useRef(0);
 
@@ -165,20 +192,22 @@ export default function VolunteerScreen() {
     void fetchWorkReportFeeInfo()
       .then((info) => {
         setFeeEnabled(info.enabled);
-        setCivicFeePct(
-          formatFeePercent(info.wr_usage_fee_rate, FALLBACK_CIVIC_FEE_PERCENT),
+        setCivicFeeRate(
+          Number.isFinite(info.wr_usage_fee_rate) && info.wr_usage_fee_rate > 0
+            ? info.wr_usage_fee_rate
+            : FALLBACK_CIVIC_FEE_RATE,
         );
-        setRovasFeePct(
-          formatFeePercent(
-            info.rovas_platform_fee_rate,
-            FALLBACK_ROVAS_FEE_PERCENT,
-          ),
+        setRovasFeeRate(
+          Number.isFinite(info.rovas_platform_fee_rate) &&
+            info.rovas_platform_fee_rate > 0
+            ? info.rovas_platform_fee_rate
+            : FALLBACK_ROVAS_FEE_RATE,
         );
       })
       .catch(() => {
         setFeeEnabled(true);
-        setCivicFeePct(FALLBACK_CIVIC_FEE_PERCENT);
-        setRovasFeePct(FALLBACK_ROVAS_FEE_PERCENT);
+        setCivicFeeRate(FALLBACK_CIVIC_FEE_RATE);
+        setRovasFeeRate(FALLBACK_ROVAS_FEE_RATE);
       });
   }, []);
 
@@ -206,6 +235,33 @@ export default function VolunteerScreen() {
   }, []);
 
   const canSubmit = Boolean(signedIn && selected);
+
+  const durationHours = parseDurationHours(hours, minutes);
+  const rewardPreview = (() => {
+    if (durationHours == null || durationHours <= 0) return null;
+    const gross = round2(durationHours * 10);
+    const civicRate = feeEnabled ? civicFeeRate : 0;
+    const totalFeeRate = civicRate + rovasFeeRate;
+    const feeAmount = round2(gross * totalFeeRate);
+    const net = round2(gross - feeAmount);
+    const unit = reward === "chrons" ? "CHR" : "ME";
+    if (feeAmount <= 0) {
+      return rewardPreviewCopy(
+        formatRewardAmount(gross),
+        null,
+        unit,
+        false,
+      );
+    }
+    return rewardPreviewCopy(
+      formatRewardAmount(net),
+      formatRewardAmount(feeAmount),
+      unit,
+      feeEnabled,
+    );
+  })();
+  const civicFeePct = formatFeePercent(civicFeeRate, FALLBACK_CIVIC_FEE_RATE);
+  const rovasFeePct = formatFeePercent(rovasFeeRate, FALLBACK_ROVAS_FEE_RATE);
 
   const onPickPhoto = async () => {
     setFormError(null);
@@ -671,13 +727,11 @@ export default function VolunteerScreen() {
           </Text>
         </View>
 
-        {feeEnabled ? (
-          <Text style={styles.feeNotice}>
-            {feeNoticeCopy(civicFeePct, rovasFeePct)}
-          </Text>
-        ) : null}
-
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
+
+        {rewardPreview ? (
+          <Text style={styles.rewardPreview}>{rewardPreview}</Text>
+        ) : null}
 
         <View style={styles.actions}>
           <Pressable
@@ -716,7 +770,11 @@ export default function VolunteerScreen() {
           {t("volunteer.api_hint_after")}
         </Text>
         <Text style={styles.footerMuted}>{t("volunteer.chron_footer_1")}</Text>
-        <Text style={styles.footerMuted}>{t("volunteer.chron_footer_2")}</Text>
+        {feeEnabled ? (
+          <Text style={styles.footerMuted}>
+            {feeNoticeCopy(civicFeePct, rovasFeePct)}
+          </Text>
+        ) : null}
         <Text style={styles.footerMuted}>{t("volunteer.chron_footer_3")}</Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -727,6 +785,12 @@ const styles = StyleSheet.create({
   container: { padding: 20, gap: 10, paddingBottom: 48 },
   heading: { fontSize: 20, fontWeight: "700", color: colors.ink },
   intro: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  rewardPreview: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
+  },
   feeNotice: {
     color: colors.muted,
     fontSize: 13,
