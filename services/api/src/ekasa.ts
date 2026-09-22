@@ -118,24 +118,63 @@ export class EkasaClient {
   }
 }
 
-/** Prefer vatAmountBasic + vatAmountReduced; fall back to vatSummary sum. */
+/**
+ * VAT total for Merit conversion.
+ *
+ * Prefer, in order:
+ * 1. `vatAmountBasic + vatAmountReduced` when that sum is positive
+ * 2. Sum of `vatSummary[].vatAmount` for rows with positive `vatRate`
+ * 3. Item-level from gross `price` + `vatRate` (FS Jan 2025 / 23% gap:
+ *    basic/reduced stay 0 while 23% only appears in summary or items)
+ *
+ * Do not treat explicit zeros in basic/reduced as authoritative — post-2025
+ * standard-rate (23%) amounts are omitted from those fields.
+ */
 export function extractVatEur(receipt: FsReceipt): number {
   const basic = Number(receipt.vatAmountBasic ?? 0);
   const reduced = Number(receipt.vatAmountReduced ?? 0);
-  const fromFields = basic + reduced;
-  if (fromFields > 0 || (receipt.vatAmountBasic != null && receipt.vatAmountReduced != null)) {
-    return roundMoney(fromFields);
+  const fromFields = roundMoney(basic + reduced);
+  if (fromFields > 0) {
+    return fromFields;
   }
 
-  if (Array.isArray(receipt.vatSummary)) {
-    const sum = receipt.vatSummary.reduce(
-      (acc, row) => acc + Number(row.vatAmount ?? 0),
-      0,
-    );
-    return roundMoney(sum);
+  const fromSummary = sumVatSummary(receipt);
+  if (fromSummary > 0) {
+    return fromSummary;
+  }
+
+  const fromItems = sumItemVatGross(receipt);
+  if (fromItems > 0) {
+    return fromItems;
   }
 
   return 0;
+}
+
+/** Sum vatSummary amounts for taxed rates (skip 0% / free rows). */
+function sumVatSummary(receipt: FsReceipt): number {
+  if (!Array.isArray(receipt.vatSummary)) return 0;
+  const sum = receipt.vatSummary.reduce((acc, row) => {
+    const rate = Number(row.vat?.vatRate ?? 0);
+    if (!(rate > 0)) return acc;
+    return acc + Number(row.vatAmount ?? 0);
+  }, 0);
+  return roundMoney(sum);
+}
+
+/**
+ * Derive VAT from line items when recap fields are empty.
+ * FS `price` is gross (VAT-inclusive); VAT = price × rate / (100 + rate).
+ */
+function sumItemVatGross(receipt: FsReceipt): number {
+  if (!Array.isArray(receipt.items)) return 0;
+  const sum = receipt.items.reduce((acc, item) => {
+    const rate = Number(item.vatRate ?? 0);
+    const price = Number(item.price ?? 0);
+    if (!(rate > 0) || !Number.isFinite(price) || price === 0) return acc;
+    return acc + (price * rate) / (100 + rate);
+  }, 0);
+  return roundMoney(sum);
 }
 
 export function extractMerchantName(receipt: FsReceipt): string | null {

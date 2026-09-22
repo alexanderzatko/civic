@@ -15,16 +15,69 @@ describe("extractVatEur", () => {
     );
   });
 
-  it("falls back to vatSummary", () => {
+  it("falls back to vatSummary when basic/reduced absent", () => {
     assert.equal(
       extractVatEur({
         vatSummary: [
-          { vatAmount: 0 },
-          { vatAmount: 0.5 },
-          { vatAmount: 1.0 },
+          { vatAmount: 0, vat: { vatRate: 0 } },
+          { vatAmount: 0.5, vat: { vatRate: 10 } },
+          { vatAmount: 1.0, vat: { vatRate: 20 } },
         ],
       }),
       1.5,
+    );
+  });
+
+  it("falls back to vatSummary when basic/reduced are explicit zeros (23% FS gap)", () => {
+    // ORLEN / post–Jan 2025: standard 23% only in vatSummary; basic fields stay 0.
+    assert.equal(
+      extractVatEur({
+        vatAmountBasic: 0,
+        vatAmountReduced: 0,
+        vatRateBasic: 20,
+        vatRateReduced: 10,
+        freeTaxAmount: 46.11,
+        totalPrice: 46.11,
+        vatSummary: [
+          { vatBase: 37.49, vatAmount: 8.62, vat: { vatRate: 23 } },
+        ],
+        items: [
+          {
+            name: "EFECTA 95",
+            vatRate: 23,
+            price: 46.11,
+            quantity: 25.53,
+            itemType: "K",
+          },
+        ],
+      }),
+      8.62,
+    );
+  });
+
+  it("falls back to item gross prices when recap rows are empty", () => {
+    assert.equal(
+      extractVatEur({
+        vatAmountBasic: 0,
+        vatAmountReduced: 0,
+        vatSummary: [],
+        items: [{ name: "Fuel", vatRate: 23, price: 46.11 }],
+      }),
+      8.62,
+    );
+  });
+
+  it("returns 0 for genuine zero-VAT slips (invoice payment)", () => {
+    assert.equal(
+      extractVatEur({
+        vatAmountBasic: 0,
+        vatAmountReduced: 0,
+        freeTaxAmount: 575.49,
+        totalPrice: 575.49,
+        vatSummary: [{ vatBase: 0, vatAmount: 0, vat: { vatRate: 0 } }],
+        items: [{ name: "Úhrada faktúry", vatRate: 0, price: 575.49 }],
+      }),
+      0,
     );
   });
 });

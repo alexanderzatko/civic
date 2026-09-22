@@ -83,11 +83,13 @@ Example (abbreviated):
 
 ### VAT total for Merit conversion
 
-Prefer, in order:
+Implemented in `extractVatEur` (`services/api/src/ekasa.ts`). Prefer, in order:
 
-1. `vatAmountBasic + vatAmountReduced` when both present
+1. `vatAmountBasic + vatAmountReduced` when that **sum is positive**
 2. Sum of `vatSummary[].vatAmount` where `vatRate > 0`
-3. If recap rows missing (known FS issue from Jan 2025 on some receipts), sum item-level `items[].vatRate` / price — document chosen fallback in implementation
+3. If recap rows are empty/zero (known FS issue from Jan 2025: **23%** standard rate often leaves basic/reduced at `0` while amounts only appear in `vatSummary` or items), derive from items: for each line with `vatRate > 0`, VAT = `price × rate / (100 + rate)` (`price` is gross)
+
+Do **not** treat `vatAmountBasic`/`vatAmountReduced` present-as-zero as final — that wrongly yields `0` ME on valid 23% slips (e.g. ORLEN fuel) while `vatSummary` still has the real DPH.
 
 ### Error / non-verified cases
 

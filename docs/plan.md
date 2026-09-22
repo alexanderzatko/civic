@@ -249,7 +249,7 @@ flowchart LR
 
 1. Confirm lookup on 3–5 real receipt UIDs; document in `docs/ekasa-receipt-api.md`.
 2. Map `notification` values when `receipt` is null (offline pending, not found, etc.).
-3. Confirm VAT recap handling when summary rows are incomplete (FS notice re Jan 2025 DPH rates).
+3. ~~Confirm VAT recap handling when summary rows are incomplete (FS notice re Jan 2025 DPH rates).~~ Done: `extractVatEur` falls through to `vatSummary` / item gross when basic+reduced sum to 0 (23% gap).
 4. Test WAF behaviour from Civic API server IP; document required headers.
 5. Record merchant address fields in FS JSON (`organization` name, street, city) for merchant-proximity geocoding (§11).
 
