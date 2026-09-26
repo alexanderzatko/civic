@@ -5,7 +5,7 @@ A Slovak-first mobile contribution hub that lets users see and grow their **cont
 Three Merit-earning paths are surfaced from day one:
 
 1. **Tax payment** — VAT verified via eKasa receipt scan (v1)
-2. **Charitable contribution** — donate to or invest in a Rovas-listed project
+2. **Gifts** — gift to a verified public-benefit / nonprofit organisation (or invest in a Rovas-listed project)
 3. **Volunteer work** — report hours against a Rovas project
 
 Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**).

@@ -407,8 +407,8 @@ export class RovasClient {
   }
 
   /**
-   * Approved charitable projects catalog (public / anonymous).
-   * `GET /rovas/civic_charity_projects?lang=&query=&limit=`
+   * Approved public-benefit / nonprofit projects catalog (Gifts path; public / anonymous).
+   * Wire: `GET /rovas/civic_charity_projects?lang=&query=&limit=`
    */
   async fetchCharityProjects(opts?: {
     lang?: CivicContentLang;
@@ -433,7 +433,7 @@ export class RovasClient {
   /**
    * Project detail for Civic modal.
    * `GET /rovas/civic_project/{nid}?lang=`
-   * Bearer optional — anonymous allowed for approved charitable projects.
+   * Bearer optional — anonymous allowed for approved public-benefit / nonprofit projects (`is_charity` + approved org).
    */
   async fetchProject(
     accessToken: string | null | undefined,
@@ -454,7 +454,7 @@ export class RovasClient {
   /**
    * Paginated work reports for a project.
    * `GET /rovas/civic_project_work_reports?project_nid=&lang=`
-   * Bearer optional — anonymous allowed for approved charitable projects.
+   * Bearer optional — anonymous allowed for approved public-benefit / nonprofit projects.
    */
   async fetchProjectWorkReports(
     accessToken: string | null | undefined,
@@ -479,7 +479,7 @@ export class RovasClient {
   /**
    * Paginated project shareholders.
    * `GET /rovas/civic_project_shareholders?project_nid=`
-   * Bearer optional — anonymous allowed for approved charitable projects.
+   * Bearer optional — anonymous allowed for approved public-benefit / nonprofit projects.
    */
   async fetchProjectShareholders(
     accessToken: string | null | undefined,

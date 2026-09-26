@@ -18,7 +18,7 @@ export interface UserSearchResult {
   display_name: string;
 }
 
-/** Named contribution row on a public profile (charity / volunteer). */
+/** Named contribution row on a public profile (gifts / volunteer). */
 export interface UserLookupProjectRow {
   /** Drupal project nid when Rovas includes it (additive). */
   project_nid?: string;
@@ -94,13 +94,16 @@ export interface ProjectDetail {
   work_reports: ProjectWorkReportPage;
   /** First page of shareholders when public; empty page when private/unavailable. */
   shareholders: ProjectShareholderPage;
-  /** True when the Rovas project has the charitable checkbox set. */
+  /**
+   * True when the Rovas project has the public-benefit / nonprofit checkbox set
+   * (wire field `is_charity` — Gifts path, not colloquial charity-only).
+   */
   is_charity?: boolean;
   /** NeoFund approval state when `is_charity`; omit/`null` otherwise. */
   charity_status?: "approved" | "pending" | null;
-  /** Org legal name for charity projects. */
+  /** Org legal name for Gifts-path (verified nonprofit) projects. */
   organization?: string | null;
-  /** How to donate (plain text); shown in Civic for approved charities. */
+  /** How to donate (plain text); shown in Civic for approved nonprofit projects. */
   donate_instructions?: string | null;
   /** Optional off-app donate URL (opens in the device browser). */
   donate_url?: string | null;
@@ -162,7 +165,7 @@ export interface UserLookup {
   nace_expertise: NaceExpertiseSection[];
   /** Last ≤3 calendar months of VAT-claim Merits; empty if none. */
   taxes_last_3_months: UserLookupTaxMonth[];
-  /** Top ≤3 charity orgs by ME; empty if unavailable. */
+  /** Top ≤3 gift / nonprofit orgs by ME; empty if unavailable. */
   top_charities: UserLookupProjectRow[];
   /** Top ≤3 volunteer projects by ME; empty if unavailable. */
   top_volunteer_projects: UserLookupProjectRow[];
@@ -262,14 +265,15 @@ export interface ContributionsSummary {
 }
 
 export interface CharityProject {
-  /** Stable row key — `project_nid` for live charity rows; stub id for invest. */
+  /** Stable row key — `project_nid` for live Gifts-path rows; stub id for invest. */
   id: string;
-  /** Rovas project nid when known (live charity catalog). */
+  /** Rovas project nid when known (live nonprofit catalog). */
   project_nid?: string;
   title: string;
   organization: string;
   summary: string;
   rovas_url: string;
+  /** Wire type: `charity` = Gifts / verified nonprofit catalog; `invest` = invest stubs. */
   type: "charity" | "invest";
   /** Project Merit total (`field_merit_reward`); used for popularity sort. */
   total_me?: number;
@@ -281,7 +285,7 @@ export interface CharityProject {
 export interface CharityProjectsResponse {
   projects: CharityProject[];
   /**
-   * Count of all approved charitable projects (ignores limit/query).
+   * Count of all approved public-benefit / nonprofit projects (ignores limit/query).
    * Civic hides search when `total < 6`. For invest stubs equals `projects.length`.
    */
   total: number;

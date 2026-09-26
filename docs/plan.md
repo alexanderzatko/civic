@@ -1,6 +1,6 @@
 ---
 name: Civic
-overview: Plan for Civic — a Slovak-first mobile contribution hub (Expo) + API backend. Three Merit-earning paths (taxes via eKasa receipt scan, charity donations, volunteer work). v1 builds the VAT-receipt path end-to-end and ships the other paths as navigational stubs hyperlinking to Rovas. Users sign in via Rovas OAuth (Google, Facebook, Rovas account). Monorepo at ~/Documents/homeProjects/civic; Rovas gets OAuth server + claim rule + read endpoints for charity/community aggregates.
+overview: Plan for Civic — a Slovak-first mobile contribution hub (Expo) + API backend. Three Merit-earning paths (taxes via eKasa receipt scan, gifts to verified public-benefit / nonprofit orgs, volunteer work). v1 builds the VAT-receipt path end-to-end and ships the other paths as navigational stubs hyperlinking to Rovas. Users sign in via Rovas OAuth (Google, Facebook, Rovas account). Monorepo at ~/Documents/homeProjects/civic; Rovas gets OAuth server + claim rule + read endpoints for gifts/community aggregates.
 todos:
   - id: plan-approval
     content: Review and approve this plan (hourly wage source, FS lookup approach, fraud defaults)
@@ -58,12 +58,12 @@ todos:
 Build **Civic**, a Slovak-first mobile app that lets users see and grow their **contribution to society**, expressed in Merits (ME) on their Rovas account. Three Merit-earning paths are surfaced from day one:
 
 1. **Tax payment** — VAT verified via eKasa receipt scan (v1); income tax later
-2. **Charitable contribution** — donate to or invest in a Rovas-listed project
+2. **Gifts** — gift to a verified public-benefit / nonprofit organisation (or invest in a Rovas-listed project)
 3. **Volunteer work** — report hours against a Rovas project
 
 Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**). Every path converts an act of economic value-surrender into the same Merit unit so a single dashboard can show the user's contribution mix.
 
-**v1 implementation strategy:** the **VAT-receipt path is built end-to-end**. The other two paths (charity, volunteer) plus the investment side-path ship as **navigational stubs that hyperlink to existing Rovas project pages** — so the full information architecture is visible to users while the heavier Rovas-side endpoints (charity list, volunteer-report proxy, ME aggregates) are designed in later phases. See §9 for the screen-by-screen v1 status and §15 for the phase plan.
+**v1 implementation strategy:** the **VAT-receipt path is built end-to-end**. The other two paths (gifts / `charity` wire id, volunteer) plus the investment side-path ship as **navigational stubs that hyperlink to existing Rovas project pages** — so the full information architecture is visible to users while the heavier Rovas-side endpoints (nonprofit catalog, volunteer-report proxy, ME aggregates) are designed in later phases. See §9 for the screen-by-screen v1 status and §15 for the phase plan.
 
 **Out of scope for v1:**
 
@@ -72,7 +72,7 @@ Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**). 
 - OCR-only receipts without eKasa QR / UID
 - Official Finančná správa endorsement
 - Tax refunds or legal tax advice
-- Native in-app charity donation flow (v1 hyperlinks to Rovas)
+- Native in-app gift / donation flow (v1 hyperlinks to Rovas)
 - Native in-app volunteer-report submission (v1 hyperlinks to Rovas)
 
 **Future (not planned here):** donation receipts, eFaktúra B2B (2027+), bank estimates as non-Merit dashboard, in-app investment flow with auto-Merit yield. **Income-tax Merits + ÚPVS / slovensko.sk citizen identity** are sketched in §16 (post-v1).
@@ -306,7 +306,7 @@ When a single receipt is claimed for multiple Rovas users (§7), the **total** i
 | GET | `/receipts` | Rovas Bearer required | Paginated claim history for authenticated `rovas_uid` — proxies Rovas claim reads (§8c); shares received + receipts submitted (§7) |
 | GET | `/me/contributions/summary` | Rovas Bearer required | Per-category ME breakdown for screen 0 (taxes, charity, volunteer); taxes/receipt stats from Rovas claim summary once live — charity/volunteer 0 until those paths ship |
 | GET | `/community/contributions/summary` | Public | Aggregate ME totals + per-category breakdown for the logged-out screen 0 |
-| GET | `/charities/projects` | Public | `type=charity`: proxies Rovas `GET /rovas/civic_charity_projects` (approved charities; `total` + top/`query` list). `type=invest`: static curated stubs until invest path ships. |
+| GET | `/charities/projects` | Public | `type=charity`: proxies Rovas `GET /rovas/civic_charity_projects` (approved public-benefit / nonprofit projects; `total` + top/`query` list). Wire id stays `charity`. `type=invest`: static curated stubs until invest path ships. |
 | GET | `/rank/distribution` | Public (Rovas Bearer optional) | Proxies the existing **Rovas Merit Distribution** module Services endpoint; returns log-scale buckets `[{ label, count }]` for the histogram on screen 0. With a Bearer token, the response also returns `user_bucket_index` so the mobile app can highlight the caller's bucket and label it with their Rovas username |
 | GET | `/users/lookup` | Rovas Bearer required | Community public profile — `?username=<rovas_username>` proxies Rovas `GET /rovas/users_lookup`; returns `UserLookup` (`rovas_uid`, `display_name`, `total_me`, `by_category`, tax months, top charity/volunteer). Percentile computed on Civic from `/rank/distribution`. |
 | GET | `/users/me/merit-history` | Rovas Bearer required | Paginated Merit ledger for Profil — proxies Rovas `GET /rovas/civic_merit_history` (Views `merit_history` / `page_1`). |
@@ -554,8 +554,8 @@ Civic's home, earn-hub, and community screens consume read-only signals from Rov
 | Endpoint (working name) | Used by (Civic screen) | Returns | Status |
 |-------------------------|------------------------|---------|--------|
 | `GET /rovas/merit_distribution` | Screen 0 (rank histogram) | Log-scale buckets `[{ label, count }]` for global Merit balance distribution; with auth, includes `user_bucket_index` so the highlighted bar and username label can be drawn | **Existing** — produced by the **Rovas Merit Distribution** module already in production. v1 just needs Services-Bearer auth confirmed and Civic API proxying. |
-| `GET /rovas/civic_charity_projects` | Screen 3 (Charitatívne projekty) | Approved charity catalog `{ total, projects[] }` sorted by `total_me`; optional `query` / `limit` / `lang` | **Next work** — see Rovas `docs/integration/civic.md` → charitable projects (Civic catalog) |
-| Rovas page `/charity-projects` | Screen 3 (invite form) | Public enrollment why/how for charities; linked from Civic mailto invite | **Next work** — same Rovas section |
+| `GET /rovas/civic_charity_projects` | Screen 3 (Neziskové projekty / Gifts path) | Approved public-benefit / nonprofit catalog `{ total, projects[] }` sorted by `total_me`; optional `query` / `limit` / `lang`. Wire name stays `civic_charity_projects`. | **Next work** — see Rovas `docs/integration/civic.md` → charitable projects (Civic catalog); labels → **broaden Gifts path labels (public-benefit orgs)** |
+| Rovas page `/charity-projects` | Screen 3 (invite form) | Public enrollment why/how for verified nonprofits; linked from Civic mailto invite | **Next work** — same Rovas sections |
 | `GET /rovas/projects?type=invest` | Screen 5 (Investičné projekty) | Same shape; `expected_yield_me_per_month` extension | Phase 2 stretch |
 | `GET /rovas/contributions/aggregate` | Screen 0 logged-out + per-user position calc | `{ total_me, by_category: { taxes, charity, volunteer } }`, plus optional `user_percentile` when called with Bearer | Phase 2 stretch |
 | `GET /rovas/users/search?q=…` | Screen 2 (split-claim recipient picker, §7) | Minimal `[{ rovas_uid, username, display_name }]` for typeahead. `q` ≥ 3 chars, ≤ 10 results, public fields only. Honours per-user "not searchable" preference (Phase 3+). | **Phase 2** — ships with the multi-beneficiary claim rule. Separate from `/users/lookup`. |
@@ -599,7 +599,7 @@ Slovak labels are the user-facing source of truth (see §3 Language strategy). R
 | 0 | `/(tabs)/index` | Váš príspevok spoločnosti | Home / contribution dashboard | **Fully built** — logged-in: user ME total (rounded, whole-number) + EUR equivalent + **rank histogram** (sourced from existing Rovas Merit Distribution module, §8c) with the user's bucket highlighted and username labelled + community-position callout (the word "komunite" deep-links to screen 6). Logged-out: aggregate community total + same rank histogram without highlight + sign-in/register CTAs. |
 | 1 | `/(tabs)/earn` | Získať merity | Earn hub | **Fully built** — three numbered cards routing to children |
 | 2 | `/(tabs)/earn/receipts` | Bločky | Receipts | **Fully built** — eKasa scan + claim history (the §4 / §6 receipt flow lives here). After verify and before claim, the user can **split the Merits across multiple Rovas users** (§7): the scanner is pre-seeded at 100% plus any "vždy zdieľať" recipients from local memory; recipients are added via a Rovas-user search dialog or picked from a previously-shared list; shares default to equal split with per-row override. History tabs show both "Moje merity z bločkov" (shares the user received) and "Moje naskenované bločky" (receipts the user submitted). |
-| 3 | `/(tabs)/earn/charity` | Charitatívne projekty | Charity projects | **Built (discovery)** — public catalog via `/charities/projects?type=charity` → Rovas `civic_charity_projects` (top 5 by project `total_me`; search when `total ≥ 6`); row opens in-app `ProjectDetailModal` (donate instructions); invite-organisation collapsible `mailto:` appends enrollment URL (`/charity-projects`). No in-app payments. Rovas **Next work: charitable projects (Civic catalog)**. |
+| 3 | `/(tabs)/earn/charity` | Neziskové projekty | Nonprofit projects (Gifts path) | **Built (discovery)** — public catalog via `/charities/projects?type=charity` → Rovas `civic_charity_projects` (verified public-benefit / nonprofit orgs; top 5 by project `total_me`; search when `total ≥ 6`); row opens in-app `ProjectDetailModal` (donate instructions); invite-organisation collapsible `mailto:` appends enrollment URL (`/charity-projects`). No in-app payments. Wire ids keep `charity`; product framing is Gifts / Dary. Rovas **Next work: broaden Gifts path labels (public-benefit orgs)**; catalog still **Next work: charitable projects (Civic catalog)**. |
 | 4 | `/(tabs)/earn/volunteer` | Dobrovoľnícka práca | Volunteer report | **Stub** — form skeleton mirroring the simplified Rovas form; submit disabled with "coming soon" until §8c proxy ships |
 | 5 | `/(tabs)/earn/invest` | Investičné projekty | Investment projects | **Stub** — list backed by `/charities/projects?type=invest`; each item hyperlinks to `rovas.app/project/<id>` |
 | 6 | `/(tabs)/community` | Komunita | Community / user lookup by Rovas username | **Built** — search + public profile stack; recents in SecureStore; invite-friend mailto last |

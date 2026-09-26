@@ -179,7 +179,7 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   /**
    * Project detail for in-app modal.
    * Proxies Rovas `GET /rovas/civic_project/{nid}?lang=`.
-   * Optional Bearer — anonymous allowed for approved charitable projects.
+   * Optional Bearer — anonymous allowed for approved public-benefit / nonprofit projects.
    */
   app.get(
     "/projects/:nid",
@@ -209,7 +209,7 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   /**
    * Paginated work reports for a project.
    * Proxies Rovas `GET /rovas/civic_project_work_reports?project_nid=&lang=`.
-   * Optional Bearer — anonymous allowed for approved charitable projects.
+   * Optional Bearer — anonymous allowed for approved public-benefit / nonprofit projects.
    */
   app.get(
     "/projects/:nid/work-reports",
@@ -248,7 +248,7 @@ export const projectsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
   /**
    * Paginated shareholders for a project.
    * Proxies Rovas `GET /rovas/civic_project_shareholders?project_nid=`.
-   * Optional Bearer — anonymous allowed for approved charitable projects.
+   * Optional Bearer — anonymous allowed for approved public-benefit / nonprofit projects.
    */
   app.get(
     "/projects/:nid/shareholders",

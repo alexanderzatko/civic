@@ -1,4 +1,4 @@
-/** Curated Rovas project stubs for the invest screen (v1). Charity uses live Rovas catalog. */
+/** Curated Rovas project stubs for the invest screen (v1). Gifts path uses live Rovas nonprofit catalog. */
 
 import type { CharityProject } from "@civic/shared";
 

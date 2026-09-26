@@ -11,6 +11,12 @@ Rovas agents read that file, not this conversation.
 
 This document is the **Civic-side** companion (Expo login + Civic API Bearer).
 
+**Gifts path framing:** user-facing copy is **Gifts** / **Dary** (verified
+public-benefit / nonprofit orgs). Wire ids stay `charity` / `is_charity` /
+`/charities/…`. Rovas UI labels still to update — see Rovas
+**Next work: broaden Gifts path labels (public-benefit orgs)** in
+[`~/Documents/homeProjects/rovas/docs/integration/civic.md`](../../rovas/docs/integration/civic.md).
+
 ## Expo client
 
 | Setting | Value |
@@ -91,7 +97,7 @@ Optional Bearer:
 | `GET /rank/index` | Merit Index leaderboard — proxies Rovas `GET /rovas/civic_merit_index` (no Bearer required) |
 | `GET /rank/index/countries` | Merit Index country filter — proxies Rovas `GET /rovas/civic_merit_index_countries` (no Bearer required) |
 | `GET /nace` | NACE tree for Prínos filters — proxies Rovas `GET /rovas/civic_nace_tree` (no Bearer required) |
-| `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}?lang=`. Anonymous allowed for NeoFund-**approved** charitable projects; other projects need Bearer. Charity fields: `is_charity`, `charity_status`, `organization`, `donate_instructions`, `donate_url`. See Rovas **Next work: charitable projects (Civic catalog)**. |
+| `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}?lang=`. Anonymous allowed for NeoFund-**approved** public-benefit / nonprofit projects (`is_charity` + approved org); other projects need Bearer. Gift-path fields (wire names): `is_charity`, `charity_status`, `organization`, `donate_instructions`, `donate_url`. See Rovas **Next work: charitable projects (Civic catalog)** and **Next work: broaden Gifts path labels (public-benefit orgs)**. |
 | `GET /projects/:nid/work-reports` | Paginated work ledgers — same anonymous rule as project detail |
 | `GET /projects/:nid/shareholders` | Paginated shareholders — same anonymous rule as project detail |
 
@@ -101,7 +107,7 @@ Public:
 |-------|--------|
 | `GET /community/contributions/summary` | Proxies Rovas `/rovas/contributions/aggregate` |
 | `GET /merit-rate` | National hourly wage for ME↔€ / claim preview — proxies Rovas `GET /rovas/civic_national_hourly_rate` (falls back to `HOURLY_WAGE_EUR` if unreachable) |
-| `GET /charities/projects` | Charity catalog — proxies Rovas `GET /rovas/civic_charity_projects` when `type=charity` (`query`, `limit`, `lang`). Envelope `{ total, projects[] }`. Invest stubs remain static (`type=invest`). See Rovas **Next work: charitable projects (Civic catalog)**. |
+| `GET /charities/projects` | Gifts / nonprofit catalog — proxies Rovas `GET /rovas/civic_charity_projects` when `type=charity` (`query`, `limit`, `lang`). Envelope `{ total, projects[] }`. Invest stubs remain static (`type=invest`). Wire path/type stay `charities` / `charity`. See Rovas **Next work: charitable projects (Civic catalog)** and **Next work: broaden Gifts path labels (public-benefit orgs)**. |
 
 `ROVAS_BASE_URL` is read from the API `.env` (default `https://dev.rovas.app`).
 
