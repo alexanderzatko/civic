@@ -1,5 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { PanResponder, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import {
   bucketIndexForMe,
   bucketIndexFromSlider,
@@ -8,7 +14,7 @@ import {
   spelledBucketLabel,
   type RankDistribution,
 } from "@civic/shared";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { colors } from "@/constants/theme";
 import { getLocale, t } from "@/lib/i18n";
 
@@ -255,12 +261,15 @@ function RankDistributionDetail({
   distribution,
   highlightIndex = -1,
   userBucketIndex = -1,
+  onBarPress,
 }: {
   distribution: RankDistribution;
   /** Bucket to emphasize; `-1` leaves all bars unaccented. */
   highlightIndex?: number;
   /** When the highlighted bar is the signed-in user's band, use the "you" accent. */
   userBucketIndex?: number;
+  /** When set, bars are tappable (guest chart / exploratory probe). */
+  onBarPress?: (index: number) => void;
 }) {
   const maxCount = Math.max(...distribution.buckets.map((b) => b.count), 1);
   const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
@@ -279,37 +288,63 @@ function RankDistributionDetail({
               : 0;
           const isHighlight = i === highlightIndex;
           const isYours = i === userBucketIndex;
+          const bar = (
+            <View
+              style={[
+                styles.bar,
+                {
+                  height: h,
+                  backgroundColor: isHighlight
+                    ? isYours
+                      ? colors.you
+                      : colors.brand
+                    : isYours
+                      ? colors.youSoft
+                      : colors.border,
+                },
+              ]}
+            />
+          );
           return (
             <View key={`${b.label}-${i}`} style={styles.barCol}>
-              <View
-                style={[
-                  styles.bar,
-                  {
-                    height: h,
-                    backgroundColor: isHighlight
-                      ? isYours
-                        ? colors.you
-                        : colors.brand
-                      : isYours
-                        ? colors.youSoft
-                        : colors.border,
-                  },
-                ]}
-              />
+              {onBarPress ? (
+                <Pressable
+                  style={styles.barHit}
+                  onPress={() => onBarPress(i)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    spelledBucketLabel(distribution, i, locale) ?? b.label
+                  }
+                  accessibilityState={{ selected: isHighlight }}
+                >
+                  {bar}
+                </Pressable>
+              ) : (
+                bar
+              )}
             </View>
           );
         })}
       </View>
-      {bucketLabel ? (
-        <Text style={styles.bucketHint}>{bucketLabel}</Text>
+      {bucketLabel || onBarPress ? (
+        <Text
+          style={[styles.bucketHint, !bucketLabel ? styles.bucketHintHidden : null]}
+        >
+          {bucketLabel ?? " "}
+        </Text>
       ) : null}
     </View>
   );
 }
 
+const SWEEP_START_MS = 450;
+const SWEEP_STEP_MS = 160;
+const SWEEP_HOLD_MS = 380;
+
 /**
  * Always-visible Merit histogram (no ladder). Used on the anonymous Home
- * screen to show community distribution without a personal highlight.
+ * screen: tap a bar for its count; on focus, a short sweep hints at the
+ * interaction.
  */
 export function RankDistributionChart({
   distribution,
@@ -318,10 +353,81 @@ export function RankDistributionChart({
   distribution: RankDistribution;
   caption?: string;
 }) {
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+  const cancelSweepRef = useRef<(() => void) | null>(null);
+  const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
+  const bucketCount = distribution.buckets.length;
+
+  const stopSweep = useCallback(() => {
+    cancelSweepRef.current?.();
+    cancelSweepRef.current = null;
+  }, []);
+
+  const startSweep = useCallback(() => {
+    stopSweep();
+    if (bucketCount <= 0) return;
+
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const schedule = (fn: () => void, ms: number) => {
+      timers.push(setTimeout(fn, ms));
+    };
+
+    cancelSweepRef.current = () => {
+      cancelled = true;
+      for (const id of timers) clearTimeout(id);
+    };
+
+    setHighlightIndex(-1);
+    for (let i = 0; i < bucketCount; i++) {
+      schedule(() => {
+        if (!cancelled) setHighlightIndex(i);
+      }, SWEEP_START_MS + i * SWEEP_STEP_MS);
+    }
+    schedule(() => {
+      if (!cancelled) setHighlightIndex(-1);
+    }, SWEEP_START_MS + bucketCount * SWEEP_STEP_MS + SWEEP_HOLD_MS);
+  }, [bucketCount, stopSweep]);
+
+  useFocusEffect(
+    useCallback(() => {
+      startSweep();
+      return () => stopSweep();
+    }, [startSweep, stopSweep]),
+  );
+
+  const onBarPress = useCallback(
+    (index: number) => {
+      stopSweep();
+      setHighlightIndex(index);
+    },
+    [stopSweep],
+  );
+
+  const probeCount =
+    highlightIndex >= 0
+      ? (distribution.buckets[highlightIndex]?.count ?? 0)
+      : null;
+
   return (
     <View style={styles.card}>
       {caption ? <Text style={styles.caption}>{caption}</Text> : null}
-      <RankDistributionDetail distribution={distribution} />
+      {probeCount != null ? (
+        <Text style={styles.probeHint}>
+          {t("home.rank_probe_prefix")}{" "}
+          <Text style={styles.probeCount}>
+            {probeCount.toLocaleString(locale)}
+          </Text>
+        </Text>
+      ) : (
+        <Text style={[styles.probeHint, styles.probeHintHidden]}> </Text>
+      )}
+      <RankDistributionDetail
+        distribution={distribution}
+        highlightIndex={highlightIndex}
+        onBarPress={onBarPress}
+      />
+      <Text style={styles.tapHint}>{t("home.rank_guest_tap_hint")}</Text>
     </View>
   );
 }
@@ -523,11 +629,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.muted,
     textAlign: "center",
+    minHeight: 26,
   },
   probeCount: {
     fontSize: 18,
     fontWeight: "600",
     color: colors.brand,
+  },
+  probeHintHidden: {
+    opacity: 0,
   },
   detail: {
     gap: 8,
@@ -542,11 +652,25 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "flex-end",
   },
+  barHit: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "flex-end",
+  },
   bar: {
     width: "100%",
     borderRadius: 2,
   },
   bucketHint: {
+    fontSize: 12,
+    color: colors.muted,
+    textAlign: "center",
+    minHeight: 16,
+  },
+  bucketHintHidden: {
+    opacity: 0,
+  },
+  tapHint: {
     fontSize: 12,
     color: colors.muted,
     textAlign: "center",

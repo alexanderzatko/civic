@@ -10,8 +10,12 @@ use *zásluha*, *credit*, *odmena*). Use the established forms in locale files:
 
 | Concept | English | Slovak (examples) |
 |--------|---------|-------------------|
-| Merit unit | Merit, Merits, ME | Merit, Merity, Meritov, ME |
-| Time token | Chron, Chrons | Chron, Chrony |
+| Merit unit | Merit, Merits, ME | Merit, merity, meritov, ME (sentence case) |
+| Time token | Chron, Chrons | Chron, chrony (sentence case) |
+
+Slovak copy uses **sentence case** for these terms: lowercase mid-sentence
+(`získať merity`), capital only at sentence start or as a standalone label
+(`Merity`). English keeps the capitalized *terminus technicus*.
 
 See `.cursor/rules/civic-terminology.mdc` and the NeoFund glossary linked from
 the repo README.

@@ -11,8 +11,10 @@ When writing or editing user-facing copy (locales, alerts, notifications, docs):
   **Do not translate** them — never substitute Slovak or English equivalents such
   as *zásluha*, *credit*, *odmena*, *kredity*, or generic “points”.
 - Use the forms already established in `apps/mobile/locales/`:
-  - EN: Merit, Merits, ME; Chron, Chrons
-  - SK: Merit, Merity, Meritov, ME; Chron, Chrony
+  - EN: Merit, Merits, ME; Chron, Chrons (capitalized as English *termini technici*)
+  - SK: Merit / merity / meritov / ME; Chron / chrony — **sentence case**: lowercase
+    mid-sentence (`získať merity`); capitalize only at sentence start or as a
+    standalone UI label (`Merity`). Do not Title-Case mid-sentence.
 - Broader product definitions: NeoFund glossary at
   `~/Documents/Business/NeoFund_NP/glossary.md` (linked from repo `README.md`).
 

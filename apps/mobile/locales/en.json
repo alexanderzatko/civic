@@ -17,6 +17,7 @@
   "home.signed_in_as": "Rovas account",
   "home.rank_caption": "Where you stand compared to others",
   "home.rank_guest_caption": "How Merits are distributed among contributors",
+  "home.rank_guest_tap_hint": "Tap a bar to see how many people are in that band",
   "home.rank_bucket": "Your band",
   "home.rank_probe_prefix": "People in this interval:",
   "home.rank_anonymous": "Sign in to see your place in the community.",
