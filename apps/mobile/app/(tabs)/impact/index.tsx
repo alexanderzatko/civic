@@ -18,6 +18,7 @@ import {
   type ImpactFilters,
 } from "@/components/ImpactFilterBar";
 import { MeritSourceBar } from "@/components/MeritSourceBar";
+import { MeritSpotlight } from "@/components/MeritSpotlight";
 import { NaceExpertiseIcons } from "@/components/NaceExpertiseIcons";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
@@ -147,6 +148,8 @@ export default function ImpactScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.intro}>{t("impact.intro_base")}</Text>
+
+      <MeritSpotlight variant="impact" />
 
       <ImpactFilterBar filters={filters} onChange={setFilters} />
 

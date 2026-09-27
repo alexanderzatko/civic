@@ -374,6 +374,51 @@ export interface MeritIndexPage {
   items: MeritIndexRow[];
 }
 
+/** Time window for Merit spotlight (`GET /rank/spotlight`). */
+export type MeritSpotlightPeriod = "day" | "week" | "month";
+
+/** One area lead in a Merit spotlight period. */
+export interface MeritSpotlightLead {
+  category: MeritSourceCategory;
+  earned_me: number;
+  rovas_uid: string;
+  username: string;
+  display_name: string;
+  country_iso2: string | null;
+}
+
+/** Signed-in viewer stats for the spotlight period (optional Bearer). */
+export interface MeritSpotlightYou {
+  earned_me: number;
+  by_category: ContributionCategoryBreakdown;
+  /** Merits credited on today's calendar day (Europe/Bratislava). */
+  earned_today_me: number;
+  /** Categories where the viewer is the period lead. */
+  is_lead_for: MeritSourceCategory[];
+}
+
+/**
+ * Period Merit spotlight from `GET /rank/spotlight`
+ * (Rovas `GET /rovas/civic_merit_spotlight`).
+ */
+export interface MeritSpotlight {
+  period: MeritSpotlightPeriod;
+  /** Inclusive `YYYY-MM-DD` (Europe/Bratislava). */
+  period_start: string;
+  period_end: string;
+  country_iso2: string | null;
+  community_earned_me: number;
+  active_earners: number;
+  leads: MeritSpotlightLead[];
+  you?: MeritSpotlightYou;
+}
+
+export interface MeritSpotlightFilters {
+  period: MeritSpotlightPeriod;
+  country_iso2?: string;
+  lang?: string;
+}
+
 /** Civic `GET /merit-rate` — Rovas national wage with local fallback. */
 export interface MeritRate {
   country_code: string;

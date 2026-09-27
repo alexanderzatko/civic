@@ -17,6 +17,7 @@ import {
 } from "@civic/shared";
 import { ContributionBreakdown } from "@/components/ContributionBreakdown";
 import { MeLogo } from "@/components/MeLogo";
+import { MeritSpotlight } from "@/components/MeritSpotlight";
 import { RankDistributionChart, RankPanel } from "@/components/RankPanel";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
@@ -140,6 +141,8 @@ export default function HomeScreen() {
       >
         <Text style={styles.title}>{t("home.title")}</Text>
 
+        <MeritSpotlight variant="home" />
+
         <View style={styles.personalBlock}>
           <MeLogo size={56} />
           {loading ? (
@@ -202,6 +205,8 @@ export default function HomeScreen() {
         <Text style={styles.introBold}>{t("home.intro_me")}</Text>
         {t("home.intro_end")}
       </Text>
+
+      <MeritSpotlight variant="home" />
 
       <View style={styles.personalBlock}>
         <MeLogo size={48} />

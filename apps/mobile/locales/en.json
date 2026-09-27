@@ -458,5 +458,18 @@
   "impact.chip_since": "From",
   "impact.chip_me_range": "ME range",
   "impact.chip_eur_range": "€ range",
-  "impact.sources_empty": "No source breakdown"
+  "impact.sources_empty": "No source breakdown",
+  "spotlight.title": "Merit spotlight",
+  "spotlight.subtitle": "Top Merits earned recently — by area. Tap Earn to follow their path.",
+  "spotlight.period_day": "Yesterday",
+  "spotlight.period_week": "Last week",
+  "spotlight.period_month": "Last month",
+  "spotlight.dismiss": "Dismiss",
+  "spotlight.open_merank": "See more on ME•rank",
+  "spotlight.earn_cta": "Earn",
+  "spotlight.earn_cta_a11y": "Earn Merits via {{area}}",
+  "spotlight.your_merits": "Your Merits {{period}}: {{me}} ME",
+  "spotlight.gap": "{{me}} ME behind this {{period}}'s {{area}} lead",
+  "spotlight.you_are_lead": "You're this {{period}}'s {{area}} lead",
+  "spotlight.thin_period": "{{me}} ME earned {{period}} — be among the first to contribute."
 }

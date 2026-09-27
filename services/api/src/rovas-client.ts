@@ -10,6 +10,12 @@ import type {
   MeritIndexSort,
   MeritIndexOrder,
   MeritSourceBreakdown,
+  MeritSourceCategory,
+  MeritSpotlight,
+  MeritSpotlightFilters,
+  MeritSpotlightLead,
+  MeritSpotlightPeriod,
+  MeritSpotlightYou,
   ProjectDetail,
   ProjectShareholderItem,
   ProjectShareholderPage,
@@ -404,6 +410,34 @@ export class RovasClient {
       accessToken ?? undefined,
     );
     return normalizeMeritIndexCountries(body?.countries);
+  }
+
+  /**
+   * Period Merit spotlight (top earners by area in a time window).
+   * `GET /rovas/civic_merit_spotlight?period=&country_iso2=&lang=`
+   * Returns an empty payload on 404 so Civic UI can hide until Rovas ships.
+   */
+  async fetchMeritSpotlight(
+    accessToken: string | null | undefined,
+    filters: MeritSpotlightFilters,
+  ): Promise<MeritSpotlight> {
+    const period = normalizeSpotlightPeriod(filters.period);
+    const country = filters.country_iso2?.trim().toUpperCase() || null;
+    const params = new URLSearchParams({ period });
+    if (country) params.set("country_iso2", country);
+    appendLangParam(params, filters.lang as CivicContentLang | undefined);
+    try {
+      const body = await this.getJson<Partial<MeritSpotlight>>(
+        `/rovas/civic_merit_spotlight?${params}`,
+        accessToken ?? undefined,
+      );
+      return normalizeMeritSpotlight(body, period, country);
+    } catch (err) {
+      if (err instanceof RovasClientError && err.status === 404) {
+        return emptyMeritSpotlight(period, country);
+      }
+      throw err;
+    }
   }
 
   /**
@@ -1454,6 +1488,121 @@ function normalizeMeritIndexCountries(raw: unknown): MeritIndexCountry[] {
     });
   }
   return out.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+const SPOTLIGHT_PERIODS: MeritSpotlightPeriod[] = ["day", "week", "month"];
+const SPOTLIGHT_CATEGORIES: MeritSourceCategory[] = [
+  "taxes",
+  "charity",
+  "volunteer",
+];
+
+function normalizeSpotlightPeriod(
+  raw: string | undefined,
+): MeritSpotlightPeriod {
+  if (raw && SPOTLIGHT_PERIODS.includes(raw as MeritSpotlightPeriod)) {
+    return raw as MeritSpotlightPeriod;
+  }
+  return "week";
+}
+
+function emptyMeritSpotlight(
+  period: MeritSpotlightPeriod,
+  country_iso2: string | null,
+): MeritSpotlight {
+  return {
+    period,
+    period_start: "",
+    period_end: "",
+    country_iso2,
+    community_earned_me: 0,
+    active_earners: 0,
+    leads: [],
+  };
+}
+
+function normalizeSpotlightLead(raw: unknown): MeritSpotlightLead | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<MeritSpotlightLead>;
+  if (
+    !r.category ||
+    !SPOTLIGHT_CATEGORIES.includes(r.category as MeritSourceCategory)
+  ) {
+    return null;
+  }
+  const username = typeof r.username === "string" ? r.username.trim() : "";
+  if (!username) return null;
+  const earned = Number(r.earned_me);
+  if (!Number.isFinite(earned) || earned <= 0) return null;
+  return {
+    category: r.category as MeritSourceCategory,
+    earned_me: earned,
+    rovas_uid: r.rovas_uid != null ? String(r.rovas_uid) : "",
+    username,
+    display_name:
+      typeof r.display_name === "string" && r.display_name.trim()
+        ? r.display_name.trim()
+        : username,
+    country_iso2:
+      typeof r.country_iso2 === "string" && r.country_iso2.trim()
+        ? r.country_iso2.trim().toUpperCase()
+        : null,
+  };
+}
+
+function normalizeSpotlightYou(raw: unknown): MeritSpotlightYou | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Partial<MeritSpotlightYou> & {
+    by_category?: Partial<ContributionCategoryBreakdown>;
+    by_source?: MeritSourceBreakdown;
+  };
+  const by = resolveContributionCategories(r.by_category, r.by_source);
+  const isLead = Array.isArray(r.is_lead_for)
+    ? r.is_lead_for.filter((c): c is MeritSourceCategory =>
+        SPOTLIGHT_CATEGORIES.includes(c as MeritSourceCategory),
+      )
+    : [];
+  return {
+    earned_me: Number(r.earned_me) || 0,
+    by_category: by,
+    earned_today_me: Number(r.earned_today_me) || 0,
+    is_lead_for: isLead,
+  };
+}
+
+function normalizeMeritSpotlight(
+  raw: Partial<MeritSpotlight> | undefined,
+  fallbackPeriod: MeritSpotlightPeriod,
+  fallbackCountry: string | null,
+): MeritSpotlight {
+  const period = normalizeSpotlightPeriod(
+    typeof raw?.period === "string" ? raw.period : fallbackPeriod,
+  );
+  const leads = Array.isArray(raw?.leads)
+    ? raw.leads
+        .map(normalizeSpotlightLead)
+        .filter((x): x is MeritSpotlightLead => x != null)
+        .sort(
+          (a, b) =>
+            SPOTLIGHT_CATEGORIES.indexOf(a.category) -
+            SPOTLIGHT_CATEGORIES.indexOf(b.category),
+        )
+    : [];
+  const you = normalizeSpotlightYou(raw?.you);
+  return {
+    period,
+    period_start:
+      typeof raw?.period_start === "string" ? raw.period_start : "",
+    period_end: typeof raw?.period_end === "string" ? raw.period_end : "",
+    country_iso2:
+      typeof raw?.country_iso2 === "string" && raw.country_iso2.trim()
+        ? raw.country_iso2.trim().toUpperCase()
+        : fallbackCountry,
+    community_earned_me: Number(raw?.community_earned_me) || 0,
+    active_earners: Number(raw?.active_earners) || 0,
+    leads,
+    ...(you ? { you } : {}),
+  };
 }
 
 function normalizeMeritIndexPage(

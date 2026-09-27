@@ -1,0 +1,551 @@
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Link, router } from "expo-router";
+import {
+  displayMerits,
+  type MeritSourceCategory,
+  type MeritSpotlight as MeritSpotlightData,
+  type MeritSpotlightLead,
+  type MeritSpotlightPeriod,
+} from "@civic/shared";
+import { colors } from "@/constants/theme";
+import { useAuth } from "@/lib/auth";
+import { fetchMeritSpotlight } from "@/lib/api";
+import { getLocale, t, type Locale } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
+import {
+  dismissSpotlightForToday,
+  isSpotlightDismissedToday,
+} from "@/lib/spotlight-dismiss";
+
+const DEFAULT_COUNTRY = "SK";
+const PERIODS: MeritSpotlightPeriod[] = ["day", "week", "month"];
+const CATEGORY_ORDER: MeritSourceCategory[] = [
+  "taxes",
+  "charity",
+  "volunteer",
+];
+
+/** Show gap nudge only when the lead is within reach. */
+const GAP_ABS_MAX = 50;
+const GAP_REL_MAX = 3;
+
+type Props = {
+  /** Home: dismissible daily card. ME•rank: permanent header. */
+  variant: "home" | "impact";
+};
+
+function formatMe(n: number, locale: Locale): string {
+  const numLocale = locale === "sk" ? "sk-SK" : "en-US";
+  return displayMerits(n).toLocaleString(numLocale);
+}
+
+function interpolate(
+  template: string,
+  vars: Record<string, string>,
+): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
+}
+
+function categoryLabel(cat: MeritSourceCategory): string {
+  switch (cat) {
+    case "taxes":
+      return t("earn.taxes");
+    case "charity":
+      return t("earn.charity");
+    case "volunteer":
+      return t("earn.volunteer");
+  }
+}
+
+function categoryColor(cat: MeritSourceCategory): string {
+  switch (cat) {
+    case "taxes":
+      return colors.catTaxes;
+    case "charity":
+      return colors.catCharity;
+    case "volunteer":
+      return colors.catVolunteer;
+  }
+}
+
+function earnHref(cat: MeritSourceCategory): string {
+  switch (cat) {
+    case "taxes":
+      return "/(tabs)/earn/receipts";
+    case "charity":
+      return "/(tabs)/earn/charity";
+    case "volunteer":
+      return "/(tabs)/earn/volunteer";
+  }
+}
+
+function periodLabel(period: MeritSpotlightPeriod): string {
+  return t(`spotlight.period_${period}`);
+}
+
+function isEndpointLive(data: MeritSpotlightData | null): boolean {
+  return data != null && data.period_start !== "";
+}
+
+function isThinPeriod(data: MeritSpotlightData): boolean {
+  return data.active_earners < 2 || data.leads.length === 0;
+}
+
+function shouldShowGap(
+  yourMe: number,
+  leadMe: number,
+): number | null {
+  const gap = leadMe - yourMe;
+  if (gap <= 0) return null;
+  const relCap = Math.max(yourMe, 1) * GAP_REL_MAX;
+  if (gap > GAP_ABS_MAX && gap > relCap) return null;
+  return gap;
+}
+
+export function MeritSpotlight({ variant }: Props) {
+  const { status } = useAuth();
+  const { locale } = useLocale();
+  const signedIn = status === "signedIn";
+  const [period, setPeriod] = useState<MeritSpotlightPeriod>("week");
+  const [data, setData] = useState<MeritSpotlightData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
+  const [dismissReady, setDismissReady] = useState(variant !== "home");
+
+  useEffect(() => {
+    if (variant !== "home") {
+      setDismissReady(true);
+      setDismissed(false);
+      return;
+    }
+    let cancelled = false;
+    void isSpotlightDismissedToday().then((v) => {
+      if (!cancelled) {
+        setDismissed(v);
+        setDismissReady(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [variant]);
+
+  const load = useCallback(async () => {
+    if (status === "loading") return;
+    setLoading(true);
+    try {
+      const page = await fetchMeritSpotlight({
+        period,
+        country_iso2: DEFAULT_COUNTRY,
+        lang: getLocale(),
+      });
+      setData(page);
+    } catch {
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [period, status, locale]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function onDismiss() {
+    setDismissed(true);
+    await dismissSpotlightForToday();
+  }
+
+  // Home: wait for dismiss flag; hide after dismiss or if already earning today.
+  if (variant === "home") {
+    if (!dismissReady) return null;
+    if (dismissed) return null;
+    if (data?.you && data.you.earned_today_me > 0) return null;
+  }
+
+  // Stay hidden until Rovas returns a real period window (empty 404 payload → hide).
+  if (!isEndpointLive(data)) return null;
+
+  const thin = isThinPeriod(data!);
+  const you = data?.you;
+  const leadCategories = new Set(you?.is_lead_for ?? []);
+
+  return (
+    <View style={[styles.card, variant === "impact" && styles.cardImpact]}>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>{t("spotlight.title")}</Text>
+        {variant === "home" ? (
+          <Pressable
+            onPress={() => void onDismiss()}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t("spotlight.dismiss")}
+          >
+            <Text style={styles.dismiss}>×</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      <Text style={styles.subtitle}>{t("spotlight.subtitle")}</Text>
+
+      <View style={styles.periodRow}>
+        {PERIODS.map((p) => {
+          const active = p === period;
+          return (
+            <Pressable
+              key={p}
+              style={[styles.periodChip, active && styles.periodChipActive]}
+              onPress={() => setPeriod(p)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+            >
+              <Text
+                style={[
+                  styles.periodChipText,
+                  active && styles.periodChipTextActive,
+                ]}
+              >
+                {periodLabel(p)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {loading ? (
+        <ActivityIndicator color={colors.brand} style={styles.loader} />
+      ) : null}
+
+      {!loading && data && thin ? (
+        <Text style={styles.thinMsg}>
+          {interpolate(t("spotlight.thin_period"), {
+            me: formatMe(data.community_earned_me, locale),
+            period: periodLabel(period),
+          })}
+        </Text>
+      ) : null}
+
+      {!loading && data && !thin
+        ? CATEGORY_ORDER.map((cat) => {
+            const lead = data.leads.find((l) => l.category === cat);
+            if (!lead) return null;
+            return (
+              <LeadRow
+                key={cat}
+                lead={lead}
+                locale={locale}
+                signedIn={signedIn}
+                isYouLead={leadCategories.has(cat)}
+                period={period}
+              />
+            );
+          })
+        : null}
+
+      {!loading && you && !thin ? (
+        <ViewerAnchor
+          you={you}
+          data={data!}
+          locale={locale}
+          period={period}
+        />
+      ) : null}
+
+      {variant === "home" ? (
+        <Link href="/(tabs)/impact" asChild>
+          <Pressable style={styles.meRankLink}>
+            <Text style={styles.meRankLinkText}>
+              {t("spotlight.open_merank")}
+            </Text>
+          </Pressable>
+        </Link>
+      ) : null}
+    </View>
+  );
+}
+
+function LeadRow({
+  lead,
+  locale,
+  signedIn,
+  isYouLead,
+  period,
+}: {
+  lead: MeritSpotlightLead;
+  locale: Locale;
+  signedIn: boolean;
+  isYouLead: boolean;
+  period: MeritSpotlightPeriod;
+}) {
+  const color = categoryColor(lead.category);
+
+  function openEarn() {
+    router.push(earnHref(lead.category) as never);
+  }
+
+  function openProfile() {
+    if (!signedIn) return;
+    router.push(
+      `/(tabs)/community/${encodeURIComponent(lead.username)}` as never,
+    );
+  }
+
+  return (
+    <View style={styles.leadRow}>
+      <View style={[styles.areaDot, { backgroundColor: color }]} />
+      <View style={styles.leadMain}>
+        <Text style={styles.areaLabel}>{categoryLabel(lead.category)}</Text>
+        <View style={styles.leadMeta}>
+          <Pressable
+            onPress={openProfile}
+            disabled={!signedIn}
+            accessibilityRole={signedIn ? "link" : "text"}
+          >
+            <Text style={signedIn ? styles.usernameLink : styles.username}>
+              @{lead.username}
+            </Text>
+          </Pressable>
+          <Text style={styles.leadMe}>
+            {formatMe(lead.earned_me, locale)} {t("common.me")}
+          </Text>
+        </View>
+        {isYouLead ? (
+          <Text style={styles.youLead}>
+            {interpolate(t("spotlight.you_are_lead"), {
+              period: periodLabel(period),
+              area: categoryLabel(lead.category),
+            })}
+          </Text>
+        ) : null}
+      </View>
+      <Pressable
+        style={[styles.earnBtn, { borderColor: color }]}
+        onPress={openEarn}
+        accessibilityRole="button"
+        accessibilityLabel={interpolate(t("spotlight.earn_cta_a11y"), {
+          area: categoryLabel(lead.category),
+        })}
+      >
+        <Text style={[styles.earnBtnText, { color }]}>
+          {t("spotlight.earn_cta")}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function ViewerAnchor({
+  you,
+  data,
+  locale,
+  period,
+}: {
+  you: NonNullable<MeritSpotlightData["you"]>;
+  data: MeritSpotlightData;
+  locale: Locale;
+  period: MeritSpotlightPeriod;
+}) {
+  if (you.is_lead_for.length > 0) {
+    // Recognition already shown on lead rows.
+    return (
+      <Text style={styles.yourMe}>
+        {interpolate(t("spotlight.your_merits"), {
+          me: formatMe(you.earned_me, locale),
+          period: periodLabel(period),
+        })}
+      </Text>
+    );
+  }
+
+  // Prefer a single gap line for the closest actionable category.
+  let best: { cat: MeritSourceCategory; gap: number } | null = null;
+  for (const cat of CATEGORY_ORDER) {
+    const lead = data.leads.find((l) => l.category === cat);
+    if (!lead) continue;
+    const gap = shouldShowGap(you.by_category[cat] ?? 0, lead.earned_me);
+    if (gap == null) continue;
+    if (!best || gap < best.gap) best = { cat, gap };
+  }
+
+  return (
+    <View style={styles.anchorBlock}>
+      <Text style={styles.yourMe}>
+        {interpolate(t("spotlight.your_merits"), {
+          me: formatMe(you.earned_me, locale),
+          period: periodLabel(period),
+        })}
+      </Text>
+      {best ? (
+        <Text style={styles.gapHint}>
+          {interpolate(t("spotlight.gap"), {
+            me: formatMe(best.gap, locale),
+            period: periodLabel(period),
+            area: categoryLabel(best.cat),
+          })}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    alignSelf: "stretch",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+  },
+  cardImpact: {
+    marginBottom: 4,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  dismiss: {
+    fontSize: 22,
+    lineHeight: 24,
+    color: colors.muted,
+    paddingHorizontal: 4,
+  },
+  subtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.muted,
+  },
+  periodRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  periodChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  periodChipActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brand,
+  },
+  periodChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.ink,
+  },
+  periodChipTextActive: {
+    color: "#FFFFFF",
+  },
+  loader: { marginVertical: 8 },
+  thinMsg: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.ink,
+  },
+  leadRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  areaDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  leadMain: {
+    flex: 1,
+    minWidth: 120,
+    gap: 2,
+  },
+  areaLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.muted,
+  },
+  leadMeta: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "baseline",
+    gap: 8,
+  },
+  username: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.ink,
+  },
+  usernameLink: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.brand,
+  },
+  leadMe: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.ink,
+    fontVariant: ["tabular-nums"],
+  },
+  youLead: {
+    fontSize: 12,
+    color: colors.you,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  earnBtn: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  earnBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  gapHint: {
+    width: "100%",
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.muted,
+  },
+  anchorBlock: {
+    gap: 4,
+    paddingTop: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  yourMe: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.you,
+  },
+  meRankLink: {
+    alignSelf: "flex-start",
+    paddingTop: 2,
+  },
+  meRankLinkText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.brand,
+  },
+});

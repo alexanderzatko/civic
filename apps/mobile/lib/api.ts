@@ -21,6 +21,8 @@ import type {
   MeritIndexCountry,
   MeritIndexFilters,
   MeritIndexPage,
+  MeritSpotlight,
+  MeritSpotlightFilters,
   VolunteerProjectRow,
   NaceNode,
   ClassifyNaceBody,
@@ -267,6 +269,21 @@ export function fetchMeritIndexCountries(): Promise<{
 }> {
   const params = new URLSearchParams({ lang: getLocale() });
   return apiFetch(`/rank/index/countries?${params}`, { auth: "optional" });
+}
+
+export function fetchMeritSpotlight(
+  filters: MeritSpotlightFilters,
+): Promise<MeritSpotlight> {
+  const params = new URLSearchParams({
+    lang: getLocale(),
+    period: filters.period,
+  });
+  if (filters.country_iso2) {
+    params.set("country_iso2", filters.country_iso2);
+  }
+  return apiFetch<MeritSpotlight>(`/rank/spotlight?${params}`, {
+    auth: "optional",
+  });
 }
 
 export function fetchProject(projectNid: string): Promise<ProjectDetail> {

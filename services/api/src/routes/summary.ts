@@ -1,5 +1,11 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
-import type { ContributionsSummary, MeritIndexFilters, RankDistribution } from "@civic/shared";
+import type {
+  ContributionsSummary,
+  MeritIndexFilters,
+  MeritSpotlightFilters,
+  MeritSpotlightPeriod,
+  RankDistribution,
+} from "@civic/shared";
 import { optionalAuth, requireAuth } from "../auth.js";
 import { resolveCivicContentLang } from "../content-lang.js";
 import { CURATED_PROJECTS } from "../projects.js";
@@ -192,6 +198,34 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       };
       try {
         return await ctx.rovas.fetchMeritIndex(
+          req.authUser?.accessToken,
+          filters,
+        );
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
+
+  app.get(
+    "/rank/spotlight",
+    { preHandler: [optionalAuth(ctx)] },
+    async (req, reply) => {
+      const q = req.query as Record<string, string | undefined>;
+      const period = (q.period ?? "week") as MeritSpotlightPeriod;
+      if (period !== "day" && period !== "week" && period !== "month") {
+        return reply.code(400).send({
+          error: "invalid_period",
+          message: "period must be day, week, or month",
+        });
+      }
+      const filters: MeritSpotlightFilters = {
+        period,
+        country_iso2: q.country_iso2,
+        lang: q.lang,
+      };
+      try {
+        return await ctx.rovas.fetchMeritSpotlight(
           req.authUser?.accessToken,
           filters,
         );

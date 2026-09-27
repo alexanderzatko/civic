@@ -455,5 +455,18 @@
   "impact.chip_since": "Od",
   "impact.chip_me_range": "Rozsah ME",
   "impact.chip_eur_range": "Rozsah €",
-  "impact.sources_empty": "Bez rozdelenia zdrojov"
+  "impact.sources_empty": "Bez rozdelenia zdrojov",
+  "spotlight.title": "Meritové svetlo",
+  "spotlight.subtitle": "Najviac meritov získaných nedávno — podľa oblasti. Ťuknite na Získať a nasledujte ich cestu.",
+  "spotlight.period_day": "Včera",
+  "spotlight.period_week": "Minulý týždeň",
+  "spotlight.period_month": "Minulý mesiac",
+  "spotlight.dismiss": "Skryť",
+  "spotlight.open_merank": "Viac na ME•rang",
+  "spotlight.earn_cta": "Získať",
+  "spotlight.earn_cta_a11y": "Získať merity cez {{area}}",
+  "spotlight.your_merits": "Vaše merity {{period}}: {{me}} ME",
+  "spotlight.gap": "Chýba vám {{me}} ME do vedenia v oblasti {{area}} ({{period}})",
+  "spotlight.you_are_lead": "Ste na čele v oblasti {{area}} ({{period}})",
+  "spotlight.thin_period": "Za obdobie „{{period}}“ bolo získaných {{me}} ME — buďte medzi prvými, kto prispeje."
 }
