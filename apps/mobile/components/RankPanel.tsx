@@ -253,17 +253,21 @@ function RankLadder({
 
 function RankDistributionDetail({
   distribution,
-  highlightIndex,
-  userBucketIndex,
+  highlightIndex = -1,
+  userBucketIndex = -1,
 }: {
   distribution: RankDistribution;
-  highlightIndex: number;
+  /** Bucket to emphasize; `-1` leaves all bars unaccented. */
+  highlightIndex?: number;
   /** When the highlighted bar is the signed-in user's band, use the "you" accent. */
-  userBucketIndex: number;
+  userBucketIndex?: number;
 }) {
   const maxCount = Math.max(...distribution.buckets.map((b) => b.count), 1);
   const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
-  const bucketLabel = spelledBucketLabel(distribution, highlightIndex, locale);
+  const bucketLabel =
+    highlightIndex >= 0
+      ? spelledBucketLabel(distribution, highlightIndex, locale)
+      : null;
 
   return (
     <View style={styles.detail}>
@@ -299,6 +303,25 @@ function RankDistributionDetail({
       {bucketLabel ? (
         <Text style={styles.bucketHint}>{bucketLabel}</Text>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * Always-visible Merit histogram (no ladder). Used on the anonymous Home
+ * screen to show community distribution without a personal highlight.
+ */
+export function RankDistributionChart({
+  distribution,
+  caption,
+}: {
+  distribution: RankDistribution;
+  caption?: string;
+}) {
+  return (
+    <View style={styles.card}>
+      {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+      <RankDistributionDetail distribution={distribution} />
     </View>
   );
 }

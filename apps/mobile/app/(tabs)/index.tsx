@@ -17,7 +17,7 @@ import {
 } from "@civic/shared";
 import { ContributionBreakdown } from "@/components/ContributionBreakdown";
 import { MeLogo } from "@/components/MeLogo";
-import { RankPanel } from "@/components/RankPanel";
+import { RankDistributionChart, RankPanel } from "@/components/RankPanel";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import {
@@ -88,15 +88,16 @@ export default function HomeScreen() {
           setProfile(null);
         }
       } else {
-        // Mockup logged-out home: community total only (no ladder).
-        const [summary, rate] = await Promise.all([
+        // Logged-out home: community total + distribution chart (no ladder).
+        const [summary, distribution, rate] = await Promise.all([
           fetchCommunitySummary(),
+          fetchRankDistribution(),
           fetchMeritRate(),
         ]);
         setUsername(null);
         setPersonalMe(0);
         setCommunityMe(summary.total_me);
-        setRank(null);
+        setRank(distribution);
         setMeritRate(rate);
         setProfile(null);
       }
@@ -222,6 +223,14 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.communityLabel}>{t("home.community_total_label")}</Text>
+
+      {!loading && rank ? (
+        <RankDistributionChart
+          distribution={rank}
+          caption={t("home.rank_guest_caption")}
+        />
+      ) : null}
+
       <Text style={styles.authPrompt}>{t("home.auth_prompt")}</Text>
 
       <View style={styles.authRow}>
