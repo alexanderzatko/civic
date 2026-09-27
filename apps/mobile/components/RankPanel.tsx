@@ -467,6 +467,7 @@ export function RankPanel({
               distribution={distribution}
               highlightIndex={probeBucketIndex}
               userBucketIndex={userBucketIndex}
+              emphasizeBucketLabel
             />
           </View>
         ) : null}
