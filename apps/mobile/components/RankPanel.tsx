@@ -14,7 +14,7 @@ import {
   spelledBucketLabel,
   type RankDistribution,
 } from "@civic/shared";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { colors } from "@/constants/theme";
 import { getLocale, t } from "@/lib/i18n";
 
@@ -262,6 +262,7 @@ function RankDistributionDetail({
   highlightIndex = -1,
   userBucketIndex = -1,
   onBarPress,
+  emphasizeBucketLabel = false,
 }: {
   distribution: RankDistribution;
   /** Bucket to emphasize; `-1` leaves all bars unaccented. */
@@ -270,6 +271,8 @@ function RankDistributionDetail({
   userBucketIndex?: number;
   /** When set, bars are tappable (guest chart / exploratory probe). */
   onBarPress?: (index: number) => void;
+  /** Guest chart: interval label matches the people-count weight. */
+  emphasizeBucketLabel?: boolean;
 }) {
   const maxCount = Math.max(...distribution.buckets.map((b) => b.count), 1);
   const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
@@ -277,6 +280,7 @@ function RankDistributionDetail({
     highlightIndex >= 0
       ? spelledBucketLabel(distribution, highlightIndex, locale)
       : null;
+  const reserveBucketSlot = Boolean(onBarPress) || emphasizeBucketLabel;
 
   return (
     <View style={styles.detail}>
@@ -326,9 +330,12 @@ function RankDistributionDetail({
           );
         })}
       </View>
-      {bucketLabel || onBarPress ? (
+      {bucketLabel || reserveBucketSlot ? (
         <Text
-          style={[styles.bucketHint, !bucketLabel ? styles.bucketHintHidden : null]}
+          style={[
+            emphasizeBucketLabel ? styles.bucketLabelEmph : styles.bucketHint,
+            !bucketLabel ? styles.bucketLabelHidden : null,
+          ]}
         >
           {bucketLabel ?? " "}
         </Text>
@@ -337,14 +344,9 @@ function RankDistributionDetail({
   );
 }
 
-const SWEEP_START_MS = 450;
-const SWEEP_STEP_MS = 160;
-const SWEEP_HOLD_MS = 380;
-
 /**
  * Always-visible Merit histogram (no ladder). Used on the anonymous Home
- * screen: tap a bar for its count; on focus, a short sweep hints at the
- * interaction.
+ * screen — tap a bar to see that band's count and Merit interval.
  */
 export function RankDistributionChart({
   distribution,
@@ -354,55 +356,11 @@ export function RankDistributionChart({
   caption?: string;
 }) {
   const [highlightIndex, setHighlightIndex] = useState(-1);
-  const cancelSweepRef = useRef<(() => void) | null>(null);
   const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
-  const bucketCount = distribution.buckets.length;
 
-  const stopSweep = useCallback(() => {
-    cancelSweepRef.current?.();
-    cancelSweepRef.current = null;
+  const onBarPress = useCallback((index: number) => {
+    setHighlightIndex(index);
   }, []);
-
-  const startSweep = useCallback(() => {
-    stopSweep();
-    if (bucketCount <= 0) return;
-
-    let cancelled = false;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const schedule = (fn: () => void, ms: number) => {
-      timers.push(setTimeout(fn, ms));
-    };
-
-    cancelSweepRef.current = () => {
-      cancelled = true;
-      for (const id of timers) clearTimeout(id);
-    };
-
-    setHighlightIndex(-1);
-    for (let i = 0; i < bucketCount; i++) {
-      schedule(() => {
-        if (!cancelled) setHighlightIndex(i);
-      }, SWEEP_START_MS + i * SWEEP_STEP_MS);
-    }
-    schedule(() => {
-      if (!cancelled) setHighlightIndex(-1);
-    }, SWEEP_START_MS + bucketCount * SWEEP_STEP_MS + SWEEP_HOLD_MS);
-  }, [bucketCount, stopSweep]);
-
-  useFocusEffect(
-    useCallback(() => {
-      startSweep();
-      return () => stopSweep();
-    }, [startSweep, stopSweep]),
-  );
-
-  const onBarPress = useCallback(
-    (index: number) => {
-      stopSweep();
-      setHighlightIndex(index);
-    },
-    [stopSweep],
-  );
 
   const probeCount =
     highlightIndex >= 0
@@ -426,6 +384,7 @@ export function RankDistributionChart({
         distribution={distribution}
         highlightIndex={highlightIndex}
         onBarPress={onBarPress}
+        emphasizeBucketLabel
       />
       <Text style={styles.tapHint}>{t("home.rank_guest_tap_hint")}</Text>
     </View>
@@ -667,7 +626,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     minHeight: 16,
   },
-  bucketHintHidden: {
+  bucketLabelEmph: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.ink,
+    textAlign: "center",
+    minHeight: 26,
+  },
+  bucketLabelHidden: {
     opacity: 0,
   },
   tapHint: {
