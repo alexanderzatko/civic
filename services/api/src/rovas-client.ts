@@ -43,7 +43,7 @@ import type {
   CharityProject,
   CharityProjectsResponse,
 } from "@civic/shared";
-import { resolveContributionCategories } from "@civic/shared";
+import { resolveContributionCategories, displayMerits } from "@civic/shared";
 import {
   appendLangParam,
   type CivicContentLang,
@@ -1533,7 +1533,8 @@ function normalizeSpotlightLead(raw: unknown): MeritSpotlightLead | null {
   const username = typeof r.username === "string" ? r.username.trim() : "";
   if (!username) return null;
   const earned = Number(r.earned_me);
-  if (!Number.isFinite(earned) || earned <= 0) return null;
+  // Round the same way the UI displays ME — drop sub-0.5 amounts that show as "0 ME".
+  if (!Number.isFinite(earned) || displayMerits(earned) <= 0) return null;
   return {
     category: r.category as MeritSourceCategory,
     earned_me: earned,

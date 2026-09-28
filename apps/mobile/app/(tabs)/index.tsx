@@ -141,8 +141,6 @@ export default function HomeScreen() {
       >
         <Text style={styles.title}>{t("home.title")}</Text>
 
-        <MeritSpotlight variant="home" />
-
         <View style={styles.personalBlock}>
           <MeLogo size={56} />
           {loading ? (
@@ -167,6 +165,8 @@ export default function HomeScreen() {
             </>
           )}
         </View>
+
+        <MeritSpotlight variant="home" />
 
         {!loading && rank ? (
           <RankPanel
@@ -206,8 +206,6 @@ export default function HomeScreen() {
         {t("home.intro_end")}
       </Text>
 
-      <MeritSpotlight variant="home" />
-
       <View style={styles.personalBlock}>
         <MeLogo size={48} />
       </View>
@@ -228,6 +226,8 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.communityLabel}>{t("home.community_total_label")}</Text>
+
+      <MeritSpotlight variant="home" />
 
       {!loading && rank ? (
         <RankDistributionChart

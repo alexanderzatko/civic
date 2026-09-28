@@ -94,8 +94,13 @@ function isEndpointLive(data: MeritSpotlightData | null): boolean {
   return data != null && data.period_start !== "";
 }
 
-function isThinPeriod(data: MeritSpotlightData): boolean {
-  return data.active_earners < 2 || data.leads.length === 0;
+function isThinPeriod(leads: MeritSpotlightLead[]): boolean {
+  return leads.length === 0;
+}
+
+/** Leads that display as a real positive ME amount (not rounded to 0). */
+function visibleLeads(data: MeritSpotlightData): MeritSpotlightLead[] {
+  return data.leads.filter((l) => displayMerits(l.earned_me) > 0);
 }
 
 function shouldShowGap(
@@ -173,7 +178,8 @@ export function MeritSpotlight({ variant }: Props) {
   // Stay hidden until Rovas returns a real period window (empty 404 payload → hide).
   if (!isEndpointLive(data)) return null;
 
-  const thin = isThinPeriod(data!);
+  const leads = visibleLeads(data!);
+  const thin = isThinPeriod(leads);
   const you = data?.you;
   const leadCategories = new Set(you?.is_lead_for ?? []);
 
@@ -192,8 +198,6 @@ export function MeritSpotlight({ variant }: Props) {
           </Pressable>
         ) : null}
       </View>
-
-      <Text style={styles.subtitle}>{t("spotlight.subtitle")}</Text>
 
       <View style={styles.periodRow}>
         {PERIODS.map((p) => {
@@ -234,7 +238,7 @@ export function MeritSpotlight({ variant }: Props) {
 
       {!loading && data && !thin
         ? CATEGORY_ORDER.map((cat) => {
-            const lead = data.leads.find((l) => l.category === cat);
+            const lead = leads.find((l) => l.category === cat);
             if (!lead) return null;
             return (
               <LeadRow
@@ -252,7 +256,7 @@ export function MeritSpotlight({ variant }: Props) {
       {!loading && you && !thin ? (
         <ViewerAnchor
           you={you}
-          data={data!}
+          leads={leads}
           locale={locale}
           period={period}
         />
@@ -343,12 +347,12 @@ function LeadRow({
 
 function ViewerAnchor({
   you,
-  data,
+  leads,
   locale,
   period,
 }: {
   you: NonNullable<MeritSpotlightData["you"]>;
-  data: MeritSpotlightData;
+  leads: MeritSpotlightLead[];
   locale: Locale;
   period: MeritSpotlightPeriod;
 }) {
@@ -367,7 +371,7 @@ function ViewerAnchor({
   // Prefer a single gap line for the closest actionable category.
   let best: { cat: MeritSourceCategory; gap: number } | null = null;
   for (const cat of CATEGORY_ORDER) {
-    const lead = data.leads.find((l) => l.category === cat);
+    const lead = leads.find((l) => l.category === cat);
     if (!lead) continue;
     const gap = shouldShowGap(you.by_category[cat] ?? 0, lead.earned_me);
     if (gap == null) continue;
@@ -423,11 +427,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: colors.muted,
     paddingHorizontal: 4,
-  },
-  subtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.muted,
   },
   periodRow: {
     flexDirection: "row",
