@@ -194,8 +194,20 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         nace_section_tid:
           q.nace_section_tid != null ? Number(q.nace_section_tid) : undefined,
         source_category: q.source_category as MeritIndexFilters["source_category"],
+        period: q.period as MeritIndexFilters["period"],
         lang: q.lang,
       };
+      if (
+        filters.period != null &&
+        filters.period !== "day" &&
+        filters.period !== "week" &&
+        filters.period !== "month"
+      ) {
+        return reply.code(400).send({
+          error: "invalid_period",
+          message: "period must be day, week, or month",
+        });
+      }
       try {
         return await ctx.rovas.fetchMeritIndex(
           req.authUser?.accessToken,

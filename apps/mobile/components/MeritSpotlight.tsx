@@ -37,7 +37,7 @@ const GAP_ABS_MAX = 50;
 const GAP_REL_MAX = 3;
 
 type Props = {
-  /** Home: dismissible daily card. ME•rank: permanent header. */
+  /** Home: dismissible daily card. */
   variant: "home" | "impact";
 };
 
@@ -118,7 +118,7 @@ export function MeritSpotlight({ variant }: Props) {
   const { status } = useAuth();
   const { locale } = useLocale();
   const signedIn = status === "signedIn";
-  const [period, setPeriod] = useState<MeritSpotlightPeriod>("week");
+  const [period, setPeriod] = useState<MeritSpotlightPeriod>("day");
   const [data, setData] = useState<MeritSpotlightData | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(false);

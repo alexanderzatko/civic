@@ -259,6 +259,9 @@ export function fetchMeritIndex(
   if (filters.source_category) {
     params.set("source_category", filters.source_category);
   }
+  if (filters.period) {
+    params.set("period", filters.period);
+  }
   return apiFetch<MeritIndexPage>(`/rank/index?${params}`, {
     auth: "optional",
   });

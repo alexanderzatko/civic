@@ -347,8 +347,9 @@ export class RovasClient {
   }
 
   /**
-   * Merit Index leaderboard for Civic Prínos tab.
-   * `GET /rovas/civic_merit_index?…`
+   * Merit Index leaderboard for Civic Prínos / ME•ter tab.
+   * Lifetime: `GET /rovas/civic_merit_index?…`
+   * Period: `GET /rovas/civic_merit_period_index?period=…` when `filters.period` set.
    */
   async fetchMeritIndex(
     accessToken?: string | null,
@@ -356,6 +357,22 @@ export class RovasClient {
   ): Promise<MeritIndexPage> {
     const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
     const offset = Math.max(filters.offset ?? 0, 0);
+    const period =
+      filters.period === "day" ||
+      filters.period === "week" ||
+      filters.period === "month"
+        ? filters.period
+        : undefined;
+
+    if (period) {
+      return this.fetchMeritPeriodIndex(accessToken, {
+        ...filters,
+        period,
+        limit,
+        offset,
+      });
+    }
+
     const params = new URLSearchParams({
       limit: String(limit),
       offset: String(offset),
@@ -392,6 +409,45 @@ export class RovasClient {
       accessToken ?? undefined,
     );
     return normalizeMeritIndexPage(body, limit, offset);
+  }
+
+  /**
+   * Period Merit leaderboard (ME earned in window).
+   * `GET /rovas/civic_merit_period_index?period=&…`
+   * Empty page on 404 until Rovas ships the resource.
+   */
+  async fetchMeritPeriodIndex(
+    accessToken: string | null | undefined,
+    filters: MeritIndexFilters & { period: MeritSpotlightPeriod },
+  ): Promise<MeritIndexPage> {
+    const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
+    const offset = Math.max(filters.offset ?? 0, 0);
+    const params = new URLSearchParams({
+      period: filters.period,
+      limit: String(limit),
+      offset: String(offset),
+    });
+    if (filters.sort) params.set("sort", filters.sort);
+    if (filters.order) params.set("order", filters.order);
+    if (filters.country_iso2?.trim()) {
+      params.set("country_iso2", filters.country_iso2.trim().toUpperCase());
+    }
+    if (filters.source_category) {
+      params.set("source_category", filters.source_category);
+    }
+    appendLangParam(params, filters.lang as CivicContentLang | undefined);
+    try {
+      const body = await this.getJson<Partial<MeritIndexPage>>(
+        `/rovas/civic_merit_period_index?${params}`,
+        accessToken ?? undefined,
+      );
+      return normalizeMeritIndexPage(body, limit, offset, filters.period);
+    } catch (err) {
+      if (err instanceof RovasClientError && err.status === 404) {
+        return emptyMeritIndexPage(limit, offset, filters.period);
+      }
+      throw err;
+    }
   }
 
   /**
@@ -1606,10 +1662,29 @@ function normalizeMeritSpotlight(
   };
 }
 
+function emptyMeritIndexPage(
+  limit: number,
+  offset: number,
+  period?: MeritSpotlightPeriod,
+): MeritIndexPage {
+  return {
+    total: 0,
+    limit,
+    offset,
+    sort: "total_me",
+    order: "desc",
+    items: [],
+    ...(period
+      ? { period, period_start: "", period_end: "" }
+      : {}),
+  };
+}
+
 function normalizeMeritIndexPage(
   raw: Partial<MeritIndexPage> | undefined,
   fallbackLimit: number,
   fallbackOffset: number,
+  periodFallback?: MeritSpotlightPeriod,
 ): MeritIndexPage {
   if (!Array.isArray(raw?.items) || typeof raw?.total !== "number") {
     throw new RovasClientError(
@@ -1626,7 +1701,12 @@ function normalizeMeritIndexPage(
   const order: MeritIndexOrder = raw.order === "asc" ? "asc" : "desc";
   const items = raw.items
     .map(normalizeMeritIndexRow)
-    .filter((x): x is MeritIndexRow => x != null);
+    .filter((x): x is MeritIndexRow => x != null)
+    .filter((row) => displayMerits(row.total_me) > 0);
+  const period =
+    raw.period === "day" || raw.period === "week" || raw.period === "month"
+      ? raw.period
+      : periodFallback;
   return {
     total: raw.total,
     limit: typeof raw.limit === "number" ? raw.limit : fallbackLimit,
@@ -1634,6 +1714,15 @@ function normalizeMeritIndexPage(
     sort,
     order,
     items,
+    ...(period
+      ? {
+          period,
+          period_start:
+            typeof raw.period_start === "string" ? raw.period_start : undefined,
+          period_end:
+            typeof raw.period_end === "string" ? raw.period_end : undefined,
+        }
+      : {}),
   };
 }
 

@@ -18,7 +18,6 @@ import {
   type ImpactFilters,
 } from "@/components/ImpactFilterBar";
 import { MeritSourceBar } from "@/components/MeritSourceBar";
-import { MeritSpotlight } from "@/components/MeritSpotlight";
 import { NaceExpertiseIcons } from "@/components/NaceExpertiseIcons";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
@@ -31,6 +30,7 @@ const PAGE_SIZE = 50;
 const DEFAULT_FILTERS: ImpactFilters = {
   sort: "total_me",
   order: "desc",
+  period: null,
 };
 
 function formatMe(n: number, locale: Locale): string {
@@ -53,7 +53,7 @@ function filteredMeForRow(
     const v = row.by_category[filters.source_category];
     return typeof v === "number" ? v : null;
   }
-  if (filters.nace_section_tid != null) {
+  if (filters.nace_section_tid != null && !filters.period) {
     const section = row.nace_expertise.find(
       (s) => Number(s.section_tid) === filters.nace_section_tid,
     );
@@ -63,15 +63,17 @@ function filteredMeForRow(
 }
 
 function filtersToQuery(f: ImpactFilters, offset: number): MeritIndexFilters {
+  const period = f.period ?? undefined;
   return {
     limit: PAGE_SIZE,
     offset,
     sort: f.sort,
     order: f.order,
-    min_me: 1,
+    min_me: period ? undefined : 1,
     country_iso2: f.country_iso2?.trim() || undefined,
-    nace_section_tid: f.nace_section_tid,
+    nace_section_tid: period ? undefined : f.nace_section_tid,
     source_category: f.source_category,
+    period,
     lang: getLocale(),
   };
 }
@@ -148,8 +150,6 @@ export default function ImpactScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.intro}>{t("impact.intro_base")}</Text>
-
-      <MeritSpotlight variant="impact" />
 
       <ImpactFilterBar filters={filters} onChange={setFilters} />
 

@@ -14,6 +14,7 @@ import type {
   MeritIndexOrder,
   MeritIndexSort,
   MeritSourceCategory,
+  MeritSpotlightPeriod,
   NaceNode,
 } from "@civic/shared";
 import { colors } from "@/constants/theme";
@@ -21,6 +22,9 @@ import { fetchMeritIndexCountries, fetchNaceTree } from "@/lib/api";
 import { naceLetterSections } from "@/lib/nace-sections";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
+
+/** Time dimension for ME•ter. `null` = all-time (lifetime Merit Index). */
+export type ImpactTimePeriod = MeritSpotlightPeriod | null;
 
 export type ImpactFilters = {
   sort: MeritIndexSort;
@@ -30,6 +34,8 @@ export type ImpactFilters = {
   nace_section_tid?: number;
   nace_section_label?: string;
   source_category?: MeritSourceCategory;
+  /** null / omitted = all time; day|week|month = period earners. */
+  period?: ImpactTimePeriod;
 };
 
 type Props = {
@@ -62,6 +68,16 @@ const SOURCE_OPTIONS: Array<{
     color: colors.catVolunteer,
     background: colors.catVolunteerSoft,
   },
+];
+
+const PERIOD_OPTIONS: Array<{
+  id: ImpactTimePeriod;
+  labelKey: string;
+}> = [
+  { id: null, labelKey: "impact.period_all" },
+  { id: "day", labelKey: "spotlight.period_day" },
+  { id: "week", labelKey: "spotlight.period_week" },
+  { id: "month", labelKey: "spotlight.period_month" },
 ];
 
 function Chip({
@@ -198,6 +214,32 @@ export function ImpactFilterBar({ filters, onChange }: Props) {
 
   return (
     <View style={styles.wrap}>
+      <Text style={styles.sectionLabel}>{t("impact.filter_period")}</Text>
+      <View style={styles.chipRow}>
+        {PERIOD_OPTIONS.map((opt) => {
+          const active = (filters.period ?? null) === opt.id;
+          return (
+            <Chip
+              key={opt.labelKey}
+              label={t(opt.labelKey)}
+              active={active}
+              onPress={() =>
+                patch({
+                  period: opt.id,
+                  // NACE is lifetime-only on the period index (v1).
+                  ...(opt.id
+                    ? {
+                        nace_section_tid: undefined,
+                        nace_section_label: undefined,
+                      }
+                    : {}),
+                })
+              }
+            />
+          );
+        })}
+      </View>
+
       <FilterPicker
         label={t("impact.filter_country")}
         value={countryLabel}
@@ -229,11 +271,13 @@ export function ImpactFilterBar({ filters, onChange }: Props) {
         })}
       </View>
 
-      <FilterPicker
-        label={t("impact.filter_nace")}
-        value={naceLabel}
-        onPress={() => setNaceOpen(true)}
-      />
+      {!filters.period ? (
+        <FilterPicker
+          label={t("impact.filter_nace")}
+          value={naceLabel}
+          onPress={() => setNaceOpen(true)}
+        />
+      ) : null}
 
       <Modal
         visible={countryOpen}

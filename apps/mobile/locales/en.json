@@ -421,6 +421,8 @@
   "common.eur": "€",
   "impact.title": "Impact",
   "impact.intro_base": "A ranking of top contributors by economic value donated to society.",
+  "impact.filter_period": "Period",
+  "impact.period_all": "All time",
   "impact.sign_in_hint": "Sign in to view the community Merit Index.",
   "impact.load_error": "Could not load the ranking. Try again later.",
   "impact.empty": "No rows match the selected filters.",

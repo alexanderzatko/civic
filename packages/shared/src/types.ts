@@ -321,6 +321,9 @@ export type MeritIndexOrder = "asc" | "desc";
 
 export type MeritSourceCategory = "taxes" | "charity" | "volunteer";
 
+/** Time window for period Merit ranking / spotlight. */
+export type MeritSpotlightPeriod = "day" | "week" | "month";
+
 /** Country with Merit Index users (`GET /rank/index/countries`). */
 export interface MeritIndexCountry {
   iso2: string;
@@ -328,7 +331,8 @@ export interface MeritIndexCountry {
   user_count: number;
 }
 
-/** Query params for `GET /rank/index` → Rovas `civic_merit_index`. */
+/** Query params for `GET /rank/index` → Rovas `civic_merit_index`
+ *  (or `civic_merit_period_index` when `period` is set). */
 export interface MeritIndexFilters {
   limit?: number;
   offset?: number;
@@ -342,6 +346,11 @@ export interface MeritIndexFilters {
   max_value_eur?: number;
   nace_section_tid?: number;
   source_category?: MeritSourceCategory;
+  /**
+   * When set (`day` \| `week` \| `month`), Civic proxies Rovas
+   * `civic_merit_period_index` (Merits earned in window). Omit for lifetime.
+   */
+  period?: MeritSpotlightPeriod;
   lang?: string;
 }
 
@@ -372,10 +381,11 @@ export interface MeritIndexPage {
   sort: MeritIndexSort;
   order: MeritIndexOrder;
   items: MeritIndexRow[];
+  /** Present when response came from the period index. */
+  period?: MeritSpotlightPeriod;
+  period_start?: string;
+  period_end?: string;
 }
-
-/** Time window for Merit spotlight (`GET /rank/spotlight`). */
-export type MeritSpotlightPeriod = "day" | "week" | "month";
 
 /** One area lead in a Merit spotlight period. */
 export interface MeritSpotlightLead {
