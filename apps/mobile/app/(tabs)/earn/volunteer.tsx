@@ -140,6 +140,8 @@ export default function VolunteerScreen() {
   const [nace, setNace] = useState<NaceNode | null>(null);
   const [naceAiSuggested, setNaceAiSuggested] = useState(false);
   const [naceClassifying, setNaceClassifying] = useState(false);
+  /** Classify feedback shown next to the AI button (not only at form foot). */
+  const [naceAiError, setNaceAiError] = useState<string | null>(null);
   const [webUrl, setWebUrl] = useState("");
   const [photos, setPhotos] = useState<VolunteerPhotoDraft[]>([]);
   const [mapLocation, setMapLocation] = useState<WorkReportGeoJsonGeometry | null>(
@@ -213,6 +215,7 @@ export default function VolunteerScreen() {
     setTitle("");
     setNace(null);
     setNaceAiSuggested(false);
+    setNaceAiError(null);
     setWebUrl("");
     setPhotos([]);
     setMapLocation(null);
@@ -293,9 +296,10 @@ export default function VolunteerScreen() {
 
   const onClassifyNace = async () => {
     setFormError(null);
+    setNaceAiError(null);
     const desc = description.trim();
     if (!desc) {
-      setFormError(t("volunteer.nace_ai_need_description"));
+      setNaceAiError(t("volunteer.nace_ai_need_description"));
       return;
     }
     setNaceClassifying(true);
@@ -315,22 +319,25 @@ export default function VolunteerScreen() {
           },
         );
         setNaceAiSuggested(true);
+        if (res.title?.trim()) {
+          setTitle(res.title.trim());
+        }
         return;
       }
       setNaceAiSuggested(false);
       if (res.status === "need_more_info") {
-        setFormError(
+        setNaceAiError(
           res.clarifying_question || t("volunteer.nace_ai_need_more"),
         );
         return;
       }
       if (res.status === "unavailable") {
-        setFormError(t("volunteer.nace_ai_unavailable"));
+        setNaceAiError(t("volunteer.nace_ai_unavailable"));
         return;
       }
-      setFormError(res.error || t("volunteer.nace_ai_error"));
+      setNaceAiError(res.error || t("volunteer.nace_ai_error"));
     } catch {
-      setFormError(t("volunteer.nace_ai_error"));
+      setNaceAiError(t("volunteer.nace_ai_error"));
     } finally {
       setNaceClassifying(false);
     }
@@ -633,6 +640,7 @@ export default function VolunteerScreen() {
             </Text>
           )}
         </Pressable>
+        {naceAiError ? <Text style={styles.error}>{naceAiError}</Text> : null}
 
         <Text style={styles.label}>{t("volunteer.nace")}</Text>
         {signedIn && naceTree.length === 0 && !mineLoading ? (
