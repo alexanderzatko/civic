@@ -34,6 +34,9 @@ rule `.cursor/rules/rovas-integration-docs.mdc`.
 - Env: `EXPO_PUBLIC_POSTHOG_API_KEY` + `EXPO_PUBLIC_POSTHOG_HOST` (default
   `https://eu.i.posthog.com`). Documented in `.env.example`; set the same on
   EAS for preview/production.
+- Do **not** add the `posthog-react-native/expo` config plugin unless you are
+  setting up error tracking / source-map upload (it requires `posthog-cli` and
+  fails release APK builds without it). Analytics works without that plugin.
 - Capture is **disabled in `__DEV__`** and when the API key is empty. To smoke-
   test Live events, use a preview/production build or temporarily remove
   `disabled: __DEV__` in `app/_layout.tsx`.
