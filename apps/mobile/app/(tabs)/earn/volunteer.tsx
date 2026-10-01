@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -142,6 +143,7 @@ export default function VolunteerScreen() {
   const [naceClassifying, setNaceClassifying] = useState(false);
   /** Classify feedback shown next to the AI button (not only at form foot). */
   const [naceAiError, setNaceAiError] = useState<string | null>(null);
+  const [naceTipsOpen, setNaceTipsOpen] = useState(false);
   const [webUrl, setWebUrl] = useState("");
   const [photos, setPhotos] = useState<VolunteerPhotoDraft[]>([]);
   const [mapLocation, setMapLocation] = useState<WorkReportGeoJsonGeometry | null>(
@@ -624,22 +626,33 @@ export default function VolunteerScreen() {
           editable={signedIn}
         />
 
-        <Pressable
-          style={[
-            styles.secondary,
-            (!signedIn || naceClassifying) && styles.btnDisabled,
-          ]}
-          onPress={() => void onClassifyNace()}
-          disabled={!signedIn || naceClassifying}
-        >
-          {naceClassifying ? (
-            <ActivityIndicator color={colors.brand} />
-          ) : (
-            <Text style={styles.secondaryText}>
-              {t("volunteer.nace_ai_button")}
-            </Text>
-          )}
-        </Pressable>
+        <View style={styles.naceAiRow}>
+          <Pressable
+            style={styles.naceAiHelp}
+            onPress={() => setNaceTipsOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t("volunteer.nace_ai_help")}
+          >
+            <Text style={styles.naceAiHelpText}>?</Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.secondary,
+              styles.naceAiButton,
+              (!signedIn || naceClassifying) && styles.btnDisabled,
+            ]}
+            onPress={() => void onClassifyNace()}
+            disabled={!signedIn || naceClassifying}
+          >
+            {naceClassifying ? (
+              <ActivityIndicator color={colors.brand} />
+            ) : (
+              <Text style={styles.secondaryText}>
+                {t("volunteer.nace_ai_button")}
+              </Text>
+            )}
+          </Pressable>
+        </View>
         {naceAiError ? <Text style={styles.error}>{naceAiError}</Text> : null}
 
         <Text style={styles.label}>{t("volunteer.nace")}</Text>
@@ -786,6 +799,54 @@ export default function VolunteerScreen() {
           {t("volunteer.api_hint_after")}
         </Text>
       </ScrollView>
+
+      <Modal
+        visible={naceTipsOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNaceTipsOpen(false)}
+      >
+        <Pressable
+          style={styles.tipsBackdrop}
+          onPress={() => setNaceTipsOpen(false)}
+        >
+          <Pressable
+            style={styles.tipsCard}
+            onPress={() => {}}
+            accessibilityViewIsModal
+          >
+            <Text style={styles.tipsTitle}>
+              {t("volunteer.nace_ai_tips_title")}
+            </Text>
+            <ScrollView
+              style={styles.tipsScroll}
+              contentContainerStyle={styles.tipsScrollContent}
+            >
+              {(
+                [
+                  "volunteer.nace_ai_tip_1",
+                  "volunteer.nace_ai_tip_2",
+                  "volunteer.nace_ai_tip_3",
+                  "volunteer.nace_ai_tip_4",
+                  "volunteer.nace_ai_tip_5",
+                ] as const
+              ).map((key) => (
+                <View key={key} style={styles.tipRow}>
+                  <Text style={styles.tipBullet}>•</Text>
+                  <Text style={styles.tipText}>{t(key)}</Text>
+                </View>
+              ))}
+            </ScrollView>
+            <Pressable
+              style={styles.tipsClose}
+              onPress={() => setNaceTipsOpen(false)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.tipsCloseText}>{t("common.close")}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -901,7 +962,63 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
   },
-  secondaryText: { color: colors.brand, fontWeight: "700" },
+  secondaryText: { color: colors.brand, fontWeight: "700", textAlign: "center" },
+  naceAiRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 8,
+  },
+  naceAiHelp: {
+    width: 44,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  naceAiHelpText: {
+    color: colors.brand,
+    fontWeight: "700",
+    fontSize: 18,
+  },
+  naceAiButton: {
+    flex: 1,
+    paddingHorizontal: 10,
+  },
+  tipsBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  tipsCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    width: "100%",
+    maxWidth: 420,
+    maxHeight: "80%",
+    gap: 14,
+  },
+  tipsTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  tipsScroll: { flexGrow: 0 },
+  tipsScrollContent: { gap: 12, paddingBottom: 4 },
+  tipRow: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  tipBullet: { color: colors.brand, fontSize: 15, lineHeight: 22, fontWeight: "700" },
+  tipText: { flex: 1, color: colors.ink, fontSize: 15, lineHeight: 22 },
+  tipsClose: {
+    borderWidth: 1,
+    borderColor: colors.brand,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  tipsCloseText: { color: colors.brand, fontWeight: "700" },
   checkboxRow: {
     flexDirection: "row",
     alignItems: "center",
