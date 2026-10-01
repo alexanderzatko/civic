@@ -35,6 +35,7 @@ import {
   fetchNaceTree,
   fetchWorkReportFeeInfo,
 } from "@/lib/api";
+import { capture } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
@@ -397,6 +398,7 @@ export default function VolunteerScreen() {
         setFormError(errorCopy(res.error));
         return;
       }
+      capture("volunteer_report_submitted", { success: true });
       setSuccess(true);
     } catch {
       setFormError(t("volunteer.error_generic"));

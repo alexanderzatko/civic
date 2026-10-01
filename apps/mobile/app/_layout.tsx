@@ -1,6 +1,14 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { PostHogProvider } from "posthog-react-native";
+import { AnalyticsBridge } from "@/components/AnalyticsBridge";
+import { AnalyticsIdentify } from "@/components/AnalyticsIdentify";
 import { colors } from "@/constants/theme";
+import {
+  getPostHogApiKey,
+  getPostHogHost,
+  isPostHogConfigured,
+} from "@/lib/analytics";
 import { AuthProvider } from "@/lib/auth";
 import { LocaleProvider, useLocale } from "@/lib/locale";
 import { t } from "@/lib/i18n";
@@ -57,11 +65,28 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  const apiKey = getPostHogApiKey();
+  const host = getPostHogHost();
+  const disabled = __DEV__ || !isPostHogConfigured();
+
   return (
-    <AuthProvider>
-      <LocaleProvider>
-        <RootNavigator />
-      </LocaleProvider>
-    </AuthProvider>
+    <PostHogProvider
+      apiKey={apiKey || "phc_disabled"}
+      options={{
+        host,
+        enableSessionReplay: false,
+        disabled,
+        captureAppLifecycleEvents: !disabled,
+      }}
+      autocapture={false}
+    >
+      <AuthProvider>
+        <LocaleProvider>
+          <AnalyticsBridge />
+          <AnalyticsIdentify />
+          <RootNavigator />
+        </LocaleProvider>
+      </AuthProvider>
+    </PostHogProvider>
   );
 }

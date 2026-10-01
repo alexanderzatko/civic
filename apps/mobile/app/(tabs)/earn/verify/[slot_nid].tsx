@@ -23,6 +23,7 @@ import type {
 import { WorkReportProofView } from "@/components/WorkReportProofView";
 import { colors } from "@/constants/theme";
 import { fetchWorkReportDetail, submitVerification } from "@/lib/api";
+import { capture } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
@@ -121,6 +122,7 @@ export default function VerifyWorkReportScreen() {
           setActionError(verifyErrorCopy(res.error));
           return;
         }
+        capture("verification_submitted", { success: true });
         markVerificationCompleted(slotNid);
         void refreshPendingVerifications();
         Alert.alert(t("verify.success_title"), t("verify.success_body"), [

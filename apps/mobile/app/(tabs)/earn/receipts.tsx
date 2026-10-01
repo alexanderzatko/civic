@@ -29,6 +29,7 @@ import { ReceiptDetailModal } from "@/components/ReceiptDetailModal";
 import { ShareEditor } from "@/components/ShareEditor";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
+import { capture } from "@/lib/analytics";
 import { claimReceipt, fetchMe, fetchReceiptHistory, verifyReceipt } from "@/lib/api";
 import { notifyMeritsChanged } from "@/lib/merits-refresh";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
@@ -293,6 +294,7 @@ export default function ReceiptsScreen() {
       const result = await claimReceipt(preview.receipt_uid, shares);
       setClaimResult(result);
       if (result.claimed) {
+        capture("receipt_claimed", { success: true });
         notifyMeritsChanged();
         const nonScanner = recipients.filter((r) => !r.isScanner);
         if (nonScanner.length > 0) {

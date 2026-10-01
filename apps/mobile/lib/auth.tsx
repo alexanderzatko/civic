@@ -44,6 +44,7 @@ import {
   clearPendingVerificationsState,
   refreshPendingVerifications,
 } from "@/lib/pending-verifications";
+import { capture, resetAnalytics } from "@/lib/analytics";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -196,6 +197,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearTokens();
     setTokens(null);
     setStatus("signedOut");
+    capture("auth_signed_out");
+    resetAnalytics();
   }, []);
 
   const persist = useCallback(async (next: StoredTokens | null) => {
@@ -224,6 +227,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
         await clearPendingOAuth();
         await persist(toStored(token));
+        capture("auth_signed_in");
         return true;
       } catch {
         await clearPendingOAuth();
@@ -365,6 +369,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         discovery,
       );
       await persist(toStored(token));
+      capture("auth_signed_in");
       return true;
     },
     [persist],
@@ -397,6 +402,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           discovery,
         );
         await persist(toStored(token));
+        capture("auth_signed_in");
         return true;
       } finally {
         await clearPendingOAuth();

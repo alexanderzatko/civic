@@ -27,3 +27,14 @@ rules) must be written for the Rovas agent in
 `~/Documents/homeProjects/rovas/docs/integration/civic.md` — not left only in
 chat. Civic-side companion: `docs/rovas-integration.md`. See also the Cursor
 rule `.cursor/rules/rovas-integration-docs.mdc`.
+
+## Product analytics (PostHog Cloud EU)
+
+- SDK: `posthog-react-native` (see `lib/analytics.ts`, root `PostHogProvider`).
+- Env: `EXPO_PUBLIC_POSTHOG_API_KEY` + `EXPO_PUBLIC_POSTHOG_HOST` (default
+  `https://eu.i.posthog.com`). Documented in `.env.example`; set the same on
+  EAS for preview/production.
+- Capture is **disabled in `__DEV__`** and when the API key is empty. To smoke-
+  test Live events, use a preview/production build or temporarily remove
+  `disabled: __DEV__` in `app/_layout.tsx`.
+- No session replay. Privacy disclosure: `~/Documents/Business/NeoFund_NP/privacy-policy.md`.
