@@ -77,7 +77,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
       ) : (
         <View style={styles.disclosure}>
           <Text style={styles.disclosureBody}>
-            {t("auth.register_rovas_disclosure")}
+            {t("auth.register_rovas_disclosure_before")}
+            <Text style={styles.disclosureBold}>
+              {t("auth.register_rovas_disclosure_name")}
+            </Text>
+            {t("auth.register_rovas_disclosure_after")}
           </Text>
           <LegalAgreeLine preface={t("auth.legal_register")} />
         </View>
@@ -162,6 +166,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: "center",
   },
+  disclosureBold: { fontWeight: "700", color: colors.ink },
   primaryBtn: {
     backgroundColor: colors.brand,
     borderRadius: 12,
@@ -192,7 +197,7 @@ const styles = StyleSheet.create({
   legal: {
     textAlign: "center",
     color: colors.muted,
-    fontSize: 12,
+    fontSize: 13,
     lineHeight: 18,
   },
   legalLink: { color: colors.brandSoft, fontWeight: "600" },
