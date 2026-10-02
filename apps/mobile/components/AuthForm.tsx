@@ -15,6 +15,27 @@ import { t } from "@/lib/i18n";
 
 type Mode = "login" | "register";
 
+function LegalAgreeLine({ preface }: { preface: string }) {
+  return (
+    <Text style={styles.legal}>
+      {preface}{" "}
+      <Text
+        style={styles.legalLink}
+        onPress={() => router.push("/(auth)/terms")}
+      >
+        {t("auth.terms")}
+      </Text>
+      {" · "}
+      <Text
+        style={styles.legalLink}
+        onPress={() => router.push("/(auth)/privacy")}
+      >
+        {t("auth.privacy")}
+      </Text>
+    </Text>
+  );
+}
+
 export function AuthForm({ mode }: { mode: Mode }) {
   const { signIn } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -41,8 +62,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   const title =
     mode === "login" ? t("auth.login_title") : t("auth.register_title");
-  const subtitle =
-    mode === "login" ? t("auth.login_subtitle") : t("auth.register_subtitle");
   const ctaLabel =
     mode === "login" ? t("auth.sign_in") : t("auth.create_account");
 
@@ -53,29 +72,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <Text style={styles.title}>{title}</Text>
       </View>
 
-      <Text style={styles.subtitle}>{subtitle}</Text>
-
-      {mode === "register" ? (
-        <View style={styles.callout}>
-          <Text style={styles.calloutBody}>
-            {t("auth.register_rovas_disclosure_before")}
-            <Text
-              style={styles.calloutLink}
-              onPress={() => router.push("/(auth)/terms")}
-            >
-              {t("auth.terms_link")}
-            </Text>
-            {t("auth.register_rovas_disclosure_mid")}
-            <Text
-              style={styles.calloutLink}
-              onPress={() => router.push("/(auth)/privacy")}
-            >
-              {t("auth.privacy_link")}
-            </Text>
-            {t("auth.register_rovas_disclosure_after")}
+      {mode === "login" ? (
+        <Text style={styles.subtitle}>{t("auth.login_subtitle")}</Text>
+      ) : (
+        <View style={styles.disclosure}>
+          <Text style={styles.disclosureBody}>
+            {t("auth.register_rovas_disclosure")}
           </Text>
+          <LegalAgreeLine preface={t("auth.legal_register")} />
         </View>
-      ) : null}
+      )}
 
       <Pressable
         style={[styles.primaryBtn, busy && styles.disabled]}
@@ -122,22 +128,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </Text>
       )}
 
-      <Text style={styles.legal}>
-        {mode === "login" ? t("auth.legal_login") : t("auth.legal_register")}{" "}
-        <Text
-          style={styles.legalLink}
-          onPress={() => router.push("/(auth)/terms")}
-        >
-          {t("auth.terms")}
-        </Text>
-        {" · "}
-        <Text
-          style={styles.legalLink}
-          onPress={() => router.push("/(auth)/privacy")}
-        >
-          {t("auth.privacy")}
-        </Text>
-      </Text>
+      {mode === "login" ? (
+        <LegalAgreeLine preface={t("auth.legal_login")} />
+      ) : null}
     </ScrollView>
   );
 }
@@ -162,6 +155,13 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: "center",
   },
+  disclosure: { gap: 16 },
+  disclosureBody: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
+  },
   primaryBtn: {
     backgroundColor: colors.brand,
     borderRadius: 12,
@@ -184,16 +184,6 @@ const styles = StyleSheet.create({
   },
   busyText: { color: colors.muted, fontSize: 13 },
   error: { color: colors.danger, fontWeight: "600", textAlign: "center" },
-  callout: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 12,
-    gap: 4,
-  },
-  calloutBody: { color: colors.muted, fontSize: 13, lineHeight: 18 },
-  calloutLink: { color: colors.brandSoft, fontWeight: "600" },
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   divider: { flex: 1, height: 1, backgroundColor: colors.border },
   or: { color: colors.muted, fontSize: 12 },
