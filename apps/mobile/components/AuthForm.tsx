@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -56,6 +55,28 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
       <Text style={styles.subtitle}>{subtitle}</Text>
 
+      {mode === "register" ? (
+        <View style={styles.callout}>
+          <Text style={styles.calloutBody}>
+            {t("auth.register_rovas_disclosure_before")}
+            <Text
+              style={styles.calloutLink}
+              onPress={() => router.push("/(auth)/terms")}
+            >
+              {t("auth.terms_link")}
+            </Text>
+            {t("auth.register_rovas_disclosure_mid")}
+            <Text
+              style={styles.calloutLink}
+              onPress={() => router.push("/(auth)/privacy")}
+            >
+              {t("auth.privacy_link")}
+            </Text>
+            {t("auth.register_rovas_disclosure_after")}
+          </Text>
+        </View>
+      ) : null}
+
       <Pressable
         style={[styles.primaryBtn, busy && styles.disabled]}
         disabled={busy}
@@ -72,12 +93,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
       ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {mode === "login" ? (
-        <View style={styles.callout}>
-          <Text style={styles.calloutBody}>{t("auth.pkce_hint")}</Text>
-        </View>
-      ) : null}
 
       <View style={styles.dividerRow}>
         <View style={styles.divider} />
@@ -111,14 +126,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
         {mode === "login" ? t("auth.legal_login") : t("auth.legal_register")}{" "}
         <Text
           style={styles.legalLink}
-          onPress={() => void Linking.openURL("https://rovas.app")}
+          onPress={() => router.push("/(auth)/terms")}
         >
           {t("auth.terms")}
         </Text>
         {" · "}
         <Text
           style={styles.legalLink}
-          onPress={() => void Linking.openURL("https://rovas.app")}
+          onPress={() => router.push("/(auth)/privacy")}
         >
           {t("auth.privacy")}
         </Text>
@@ -178,6 +193,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   calloutBody: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  calloutLink: { color: colors.brandSoft, fontWeight: "600" },
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   divider: { flex: 1, height: 1, backgroundColor: colors.border },
   or: { color: colors.muted, fontSize: 12 },

@@ -53,6 +53,14 @@ function RootNavigator() {
           options={{ title: t("auth.register_nav_title") }}
         />
         <Stack.Screen
+          name="(auth)/terms"
+          options={{ title: t("legal.terms_title") }}
+        />
+        <Stack.Screen
+          name="(auth)/privacy"
+          options={{ title: t("legal.privacy_title") }}
+        />
+        <Stack.Screen
           name="oauth/callback"
           options={{
             headerShown: false,

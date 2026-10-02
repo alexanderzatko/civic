@@ -146,7 +146,6 @@ export default function VolunteerScreen() {
   /** Classify feedback shown next to the AI button (not only at form foot). */
   const [naceAiError, setNaceAiError] = useState<string | null>(null);
   const [naceTipsOpen, setNaceTipsOpen] = useState(false);
-  const [chronHelpOpen, setChronHelpOpen] = useState(false);
   const { allowChrons } = useChronPreference();
   const [webUrl, setWebUrl] = useState("");
   const [photos, setPhotos] = useState<VolunteerPhotoDraft[]>([]);
@@ -746,14 +745,6 @@ export default function VolunteerScreen() {
             <Text style={styles.checkboxLabel}>
               {t("volunteer.reward_chrons_instead")}
             </Text>
-            <Pressable
-              style={styles.chronHelp}
-              onPress={() => setChronHelpOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel={t("volunteer.chron_help_a11y")}
-            >
-              <Text style={styles.chronHelpText}>?</Text>
-            </Pressable>
           </View>
         ) : null}
 
@@ -857,37 +848,6 @@ export default function VolunteerScreen() {
             <Pressable
               style={styles.tipsClose}
               onPress={() => setNaceTipsOpen(false)}
-              accessibilityRole="button"
-            >
-              <Text style={styles.tipsCloseText}>{t("common.close")}</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal
-        visible={chronHelpOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setChronHelpOpen(false)}
-      >
-        <Pressable
-          style={styles.tipsBackdrop}
-          onPress={() => setChronHelpOpen(false)}
-        >
-          <Pressable
-            style={styles.tipsCard}
-            onPress={() => {}}
-            accessibilityViewIsModal
-          >
-            <Text style={styles.tipsTitle}>
-              {t("volunteer.chron_help_title")}
-            </Text>
-            <Text style={styles.tipText}>{t("volunteer.chron_footer_1")}</Text>
-            <Text style={styles.tipText}>{t("volunteer.chron_footer_3")}</Text>
-            <Pressable
-              style={styles.tipsClose}
-              onPress={() => setChronHelpOpen(false)}
               accessibilityRole="button"
             >
               <Text style={styles.tipsCloseText}>{t("common.close")}</Text>
@@ -1074,20 +1034,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   checkboxLabel: { flex: 1, color: colors.ink, fontSize: 15, lineHeight: 20 },
-  chronHelp: {
-    width: 36,
-    height: 36,
-    borderWidth: 1,
-    borderColor: colors.brand,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chronHelpText: {
-    color: colors.brand,
-    fontWeight: "700",
-    fontSize: 16,
-  },
   error: { color: colors.danger, fontSize: 14 },
   actions: {
     flexDirection: "row",

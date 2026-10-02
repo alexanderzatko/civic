@@ -36,6 +36,7 @@ import {
   getRovasDiscovery,
   OAUTH_SCOPES,
 } from "@/lib/oauth";
+import { getLocale } from "@/lib/i18n";
 import {
   registerCivicPushToken,
   unregisterCivicPushToken,
@@ -424,6 +425,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       redirectUri,
       scopes: [...OAUTH_SCOPES],
       usePKCE: true,
+      // Rovas forces anonymous login/register UI language from this
+      // (see Next work: pass Civic locale on OAuth authorize).
+      extraParams: { lang: getLocale() },
     });
     await request.getAuthRequestConfigAsync();
 

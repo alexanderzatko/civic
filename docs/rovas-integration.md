@@ -53,6 +53,12 @@ Rovas **Next work: Civic-branded OAuth login/register** — HybridAuth /
 `/user/register` chrome when authorizing client `civic` (reduces Rovas concept
 load for new Civic users; no PKCE contract change).
 
+Rovas **Next work: pass Civic locale on OAuth authorize** — Expo sends
+`lang=sk|en` on `/oauth2/authorize` so anonymous login/register use the Civic
+UI locale instead of the system browser language. Rovas stashes it for the
+authorize → `/user/login` redirect and forces Drupal interface language in
+Civic authorize context only.
+
 **Dev requirement:** custom scheme `civic://` needs a development build
 (`pnpm --filter @civic/mobile ios:device`), not Expo Go. Day-to-day
 device session steps (API + Metro tunnel) are in the root
