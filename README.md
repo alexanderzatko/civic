@@ -1,40 +1,77 @@
 # Civic
 
-A Slovak-first mobile contribution hub that lets users see and grow their **contribution to society**, expressed in **Merits (ME)** on their [Rovas](https://rovas.app) account.
+A Slovak-first mobile contribution hub that lets users see and grow their
+**contribution to society**, expressed in **Merits (ME)** on their
+[Rovas](https://rovas.app) account.
 
-Three Merit-earning paths are surfaced from day one:
+Three Merit-earning paths:
 
-1. **Tax payment** — VAT verified via eKasa receipt scan (v1)
-2. **Gifts** — gift to a verified public-benefit / nonprofit organisation (or invest in a Rovas-listed project)
-3. **Volunteer work** — report hours against a Rovas project
+1. **Tax payment** — VAT verified via eKasa receipt scan (split claims supported)
+2. **Gifts** — gift to a verified public-benefit / nonprofit organisation (discovery
+   + Rovas donate instructions; in-app payment deferred)
+3. **Volunteer work** — file work reports against Rovas projects (NACE, proof
+   photos/map/URL, in-app verification)
 
 Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**).
+Identity is **Rovas OAuth** (Google, Facebook, or Rovas account) — no separate
+Civic account.
 
-> **NeoFund docs:** When writing product copy or defining Merits, Chrons, funds, or volunteer flows, consult the **NeoFund f.o.** project documentation at [`~/Documents/Business/NeoFund_NP`](../../Business/NeoFund_NP) — especially [`glossary.md`](../../Business/NeoFund_NP/glossary.md), [`about-us.md`](../../Business/NeoFund_NP/about-us.md) / [`about-us-sk.md`](../../Business/NeoFund_NP/about-us-sk.md), and [`neofund-site-rewrite-brief.md`](../../Business/NeoFund_NP/neofund-site-rewrite-brief.md). Those definitions take precedence over older Rovas UI strings.
+> **NeoFund docs:** When writing product copy or defining Merits, Chrons, funds,
+> or volunteer flows, consult the **NeoFund f.o.** project documentation at
+> [`~/Documents/Business/NeoFund_NP`](../../Business/NeoFund_NP) — especially
+> [`glossary.md`](../../Business/NeoFund_NP/glossary.md),
+> [`about-us.md`](../../Business/NeoFund_NP/about-us.md) /
+> [`about-us-sk.md`](../../Business/NeoFund_NP/about-us-sk.md), and
+> [`neofund-site-rewrite-brief.md`](../../Business/NeoFund_NP/neofund-site-rewrite-brief.md).
+> Those definitions take precedence over older Rovas UI strings.
 
 ## Status
 
-Phase 2 in progress: monorepo + verify + OAuth + solo claim wired; split-claim
-UI + `/users/search` proxy landed (Rovas `users_search?query=`).
+**Shipped** (Expo SDK 54 + Civic API on VPS):
 
-Mobile targets **Expo SDK 54**. UI browsing can use Expo Go; **camera + OAuth**
-need a development build (Expo Go cannot claim `civic://`).
+| Area | State |
+|---|---|
+| Receipts | Scan / verify / claim, fraud controls, split claims, history |
+| Gifts | Public nonprofit catalog + invite; no in-app payments |
+| Volunteer | Full work-report form + pending verification flow |
+| Invest | Stub list → opens Rovas project pages |
+| Home / Community / Profile | Contribution dashboard, user lookup, Merit ledger |
+| Prínos (ME•ter) | Merit Index leaderboard + filters |
+| Auth | Rovas OAuth (Authorization Code + PKCE) |
+| API deploy | `https://civic-api.rovas.app` |
+| Mobile builds | Dev client (iOS) + release APK (Android); EAS profiles ready |
 
-The **Civic API** for device testing is hosted on the Rovas VPS at
-**https://civic-api.rovas.app** (Mac not required for the backend).
+Still deferred: in-app gifts/invest flows, GPS location fraud heuristics, income-tax
+Merits / ÚPVS, App Store / Play production release, Postgres.
+
+UI browsing can use Expo Go; **camera + OAuth** need a development build (Expo Go
+cannot claim `civic://`).
 
 ## Repository layout
 
 | Path | Contents |
 |---|---|
-| [`apps/mobile`](apps/mobile) | Expo (Expo Router) client — Slovak primary UI |
-| [`services/api`](services/api) | Fastify API — eKasa verify, claim (Phase 2), stubs |
+| [`apps/mobile`](apps/mobile) | Expo (Expo Router) — Slovak primary UI, EN fallback |
+| [`services/api`](services/api) | Fastify API — eKasa, claims, volunteer, rank proxies |
 | [`packages/shared`](packages/shared) | Types, Merit math, QR/UID parsing, settings defaults |
 | [`deploy/civic-api`](deploy/civic-api) | Docker + nginx deploy of the API to `sano-vps` |
-| [`docs/plan.md`](docs/plan.md) | Full product / architecture plan |
 | [`docs/ekasa-receipt-api.md`](docs/ekasa-receipt-api.md) | FS receipt/find contract |
-| [`docs/rovas-integration.md`](docs/rovas-integration.md) | Civic ↔ Rovas OAuth + API Bearer |
+| [`docs/rovas-integration.md`](docs/rovas-integration.md) | Civic ↔ Rovas OAuth + API routes |
+| [`docs/eu-fiscal-receipt-systems.md`](docs/eu-fiscal-receipt-systems.md) | EU fiscal-receipt systems notes |
 | [`identity/`](identity/) | Logos and brand notes |
+
+Rovas-side contract / Next work:
+[`~/Documents/homeProjects/rovas/docs/integration/civic.md`](../rovas/docs/integration/civic.md).
+
+## Mobile tabs
+
+| Tab | Route | Role |
+|---|---|---|
+| Domov | `/(tabs)` | Contribution summary, rank histogram, Merit spotlight |
+| Prínos | `/(tabs)/impact` | Merit Index (ME•ter) leaderboard |
+| Získať | `/(tabs)/earn` | Hub → receipts, gifts, volunteer, invest |
+| Komunita | `/(tabs)/community` | Public profile lookup by Rovas username |
+| Profil | `/(tabs)/profile` | Account, language, Merit history, sign out |
 
 ## Deploy the Civic API (VPS)
 
@@ -71,9 +108,10 @@ EXPO_PUBLIC_API_URL=https://civic-api.rovas.app
 `EXPO_PUBLIC_*` are baked in at Metro start — restart Metro after changing
 `apps/mobile/.env`.
 
-**Note:** A Expo **dev client** still needs Metro for the JS bundle. The VPS
-hosts only the API. Mac-free *user* testing (no Metro) needs a later EAS
-preview/release build with JS baked into the binary.
+**Note:** An Expo **dev client** still needs Metro for the JS bundle. The VPS
+hosts only the API. Mac-free *user* testing (no Metro) needs an EAS
+preview/release build with JS baked into the binary (Android release APK already
+does this).
 
 ### Production fraud flags
 
@@ -91,8 +129,7 @@ Then recreate/restart the API container (`./deploy/civic-api/deploy.sh` or
 `docker compose up -d`). Always-on rules (3-strike, registration-vs-purchase,
 min VAT, rate limits) do not need these toggles. Rovas must expose
 `created` on `GET /rovas/me` for the registration check — see
-`~/Documents/homeProjects/rovas/docs/integration/civic.md`
-→ **Next work: expose account created on /rovas/me**.
+`~/Documents/homeProjects/rovas/docs/integration/civic.md`.
 
 ### Optional: local API (API development)
 
@@ -302,7 +339,7 @@ Civic API is reached at `EXPO_PUBLIC_API_URL` from `apps/mobile/.env` (default
 | **Storage** | ~**100 MB** free for install |
 | **Network** | Internet (HTTPS to Civic API + Rovas OAuth) |
 | **Camera** | Required for eKasa QR receipt scan |
-| **Location** | Used when registering receipt Merits (coarse/fine) |
+| **Location** | Optional / forward-compat on claim (GPS fraud not enforced in v1) |
 | **Photos** | Optional — volunteer work proof images |
 
 ### Build the APK (Mac)
@@ -335,7 +372,7 @@ the emulator once.
 2. On the phone: **Settings → Security** → allow install from unknown sources
    (wording varies by OEM).
 3. Open the APK file and confirm install.
-4. Grant **Camera** and **Location** when prompted (needed for receipt scan).
+4. Grant **Camera** (and photos if using volunteer proof) when prompted.
 
 Package id: `app.civic.mobile`. This build includes the Expo dev-client shell
 but ships a **release** JS bundle, so the app runs without a Mac/Metro session.
