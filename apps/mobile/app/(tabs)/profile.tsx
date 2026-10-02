@@ -5,6 +5,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -13,6 +14,7 @@ import { MeritHistoryList } from "@/components/MeritHistoryList";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { fetchMe, fetchMeritHistory } from "@/lib/api";
+import { useChronPreference } from "@/lib/chron-preference";
 import { CIVIC_LOCALES, type Locale, t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
@@ -35,6 +37,7 @@ function formatChr(n: number): string {
 export default function ProfileScreen() {
   const { status, signOut } = useAuth();
   const { locale, setAppLocale } = useLocale();
+  const { allowChrons, setAllowChrons } = useChronPreference();
   const [username, setUsername] = useState<string | null>(null);
   const [totalMe, setTotalMe] = useState<number | null>(null);
   const [totalChr, setTotalChr] = useState<number | null>(null);
@@ -180,12 +183,25 @@ export default function ProfileScreen() {
             {formatMe(totalMe)} {t("common.me")}
           </Text>
         ) : null}
-        {totalChr != null ? (
+        {allowChrons && totalChr != null ? (
           <Text style={styles.balanceChr}>
             {formatChr(totalChr)} CHR
           </Text>
         ) : null}
         {languageSwitcher}
+        <View style={styles.prefRow}>
+          <Text style={styles.prefLabel}>{t("profile.allow_chrons")}</Text>
+          <Switch
+            value={allowChrons}
+            onValueChange={(checked) => {
+              void setAllowChrons(checked);
+            }}
+            trackColor={{ false: colors.border, true: colors.brandSoft }}
+            accessibilityRole="switch"
+            accessibilityLabel={t("profile.allow_chrons")}
+          />
+        </View>
+        <Text style={styles.prefHint}>{t("profile.allow_chrons_hint")}</Text>
         <Pressable
           style={styles.btn}
           onPress={() => {
@@ -245,6 +261,13 @@ const styles = StyleSheet.create({
   },
   langBtnText: { color: colors.ink, fontWeight: "600" },
   langBtnTextSelected: { color: "#fff" },
+  prefRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  prefLabel: { flex: 1, color: colors.ink, fontWeight: "600", lineHeight: 20 },
+  prefHint: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: -8 },
   btn: {
     backgroundColor: colors.brand,
     borderRadius: 12,

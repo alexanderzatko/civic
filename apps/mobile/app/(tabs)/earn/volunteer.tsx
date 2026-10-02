@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -37,6 +37,7 @@ import {
 } from "@/lib/api";
 import { capture } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
+import { useChronPreference } from "@/lib/chron-preference";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
 import {
@@ -145,6 +146,8 @@ export default function VolunteerScreen() {
   /** Classify feedback shown next to the AI button (not only at form foot). */
   const [naceAiError, setNaceAiError] = useState<string | null>(null);
   const [naceTipsOpen, setNaceTipsOpen] = useState(false);
+  const [chronHelpOpen, setChronHelpOpen] = useState(false);
+  const { allowChrons } = useChronPreference();
   const [webUrl, setWebUrl] = useState("");
   const [photos, setPhotos] = useState<VolunteerPhotoDraft[]>([]);
   const [mapLocation, setMapLocation] = useState<WorkReportGeoJsonGeometry | null>(
@@ -227,9 +230,16 @@ export default function VolunteerScreen() {
     setSuccess(false);
   }, []);
 
+  useEffect(() => {
+    if (!allowChrons && reward !== "merits") {
+      setReward("merits");
+    }
+  }, [allowChrons, reward]);
+
   const canSubmit = Boolean(signedIn && selected);
 
   const durationHours = parseDurationHours(hours, minutes);
+  const effectiveReward: RewardKind = allowChrons ? reward : "merits";
   const rewardPreview = ((): RewardPreviewModel | null => {
     if (durationHours == null || durationHours <= 0) return null;
     const gross = round2(durationHours * 10);
@@ -237,7 +247,7 @@ export default function VolunteerScreen() {
     const totalFeeRate = civicRate + rovasFeeRate;
     const feeAmount = round2(gross * totalFeeRate);
     const net = round2(gross - feeAmount);
-    const unit = reward === "chrons" ? "CHR" : "ME";
+    const unit = effectiveReward === "chrons" ? "CHR" : "ME";
     const amountValue = `${formatRewardAmount(feeAmount > 0 ? net : gross)} ${unit}`;
     const feeLine =
       feeAmount > 0
@@ -388,7 +398,7 @@ export default function VolunteerScreen() {
         hours: hrs,
         description: desc,
         nace_tid: nace.tid,
-        reward_kind: reward,
+        reward_kind: effectiveReward,
         ...(title.trim() ? { title: title.trim() } : {}),
         ...(url ? { web_url: url } : {}),
         ...(photos.length > 0 ? { photos } : {}),
@@ -723,19 +733,29 @@ export default function VolunteerScreen() {
           onChange={setMapLocation}
         />
 
-        <View style={styles.checkboxRow}>
-          <Switch
-            value={reward === "chrons"}
-            onValueChange={(checked) =>
-              setReward(checked ? "chrons" : "merits")
-            }
-            disabled={!signedIn}
-            trackColor={{ false: colors.border, true: colors.brandSoft }}
-          />
-          <Text style={styles.checkboxLabel}>
-            {t("volunteer.reward_chrons_instead")}
-          </Text>
-        </View>
+        {allowChrons ? (
+          <View style={styles.checkboxRow}>
+            <Switch
+              value={reward === "chrons"}
+              onValueChange={(checked) =>
+                setReward(checked ? "chrons" : "merits")
+              }
+              disabled={!signedIn}
+              trackColor={{ false: colors.border, true: colors.brandSoft }}
+            />
+            <Text style={styles.checkboxLabel}>
+              {t("volunteer.reward_chrons_instead")}
+            </Text>
+            <Pressable
+              style={styles.chronHelp}
+              onPress={() => setChronHelpOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t("volunteer.chron_help_a11y")}
+            >
+              <Text style={styles.chronHelpText}>?</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
@@ -780,11 +800,6 @@ export default function VolunteerScreen() {
         </View>
         </View>
 
-        <Text style={styles.footerMuted}>
-          {t("volunteer.chron_footer_1")}
-          {"\n"}
-          {t("volunteer.chron_footer_3")}
-        </Text>
         {feeEnabled ? (
           <Text style={styles.footerMuted}>
             {feeNoticeCopy(civicFeePct, rovasFeePct)}
@@ -842,6 +857,37 @@ export default function VolunteerScreen() {
             <Pressable
               style={styles.tipsClose}
               onPress={() => setNaceTipsOpen(false)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.tipsCloseText}>{t("common.close")}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={chronHelpOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setChronHelpOpen(false)}
+      >
+        <Pressable
+          style={styles.tipsBackdrop}
+          onPress={() => setChronHelpOpen(false)}
+        >
+          <Pressable
+            style={styles.tipsCard}
+            onPress={() => {}}
+            accessibilityViewIsModal
+          >
+            <Text style={styles.tipsTitle}>
+              {t("volunteer.chron_help_title")}
+            </Text>
+            <Text style={styles.tipText}>{t("volunteer.chron_footer_1")}</Text>
+            <Text style={styles.tipText}>{t("volunteer.chron_footer_3")}</Text>
+            <Pressable
+              style={styles.tipsClose}
+              onPress={() => setChronHelpOpen(false)}
               accessibilityRole="button"
             >
               <Text style={styles.tipsCloseText}>{t("common.close")}</Text>
@@ -1028,6 +1074,20 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   checkboxLabel: { flex: 1, color: colors.ink, fontSize: 15, lineHeight: 20 },
+  chronHelp: {
+    width: 36,
+    height: 36,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chronHelpText: {
+    color: colors.brand,
+    fontWeight: "700",
+    fontSize: 16,
+  },
   error: { color: colors.danger, fontSize: 14 },
   actions: {
     flexDirection: "row",

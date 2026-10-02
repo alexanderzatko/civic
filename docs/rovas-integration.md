@@ -17,6 +17,13 @@ public-benefit / nonprofit orgs). Wire ids stay `charity` / `is_charity` /
 **Next work: broaden Gifts path labels (public-benefit orgs)** in
 [`~/Documents/homeProjects/rovas/docs/integration/civic.md`](../../rovas/docs/integration/civic.md).
 
+**Product copy (Merits-first):** Civic screens emphasize Merits. Rovas is named
+mainly on the login screen (identity acknowledgment); deeper explanation belongs
+on a future About us screen. Chron reward choice is **opt-in** on Profile
+(`civic.prefs.allow_chrons`); volunteer reports default to Merits only. See
+Rovas **Next work: Civic-branded OAuth login/register** for Civic-skinned
+HybridAuth login/register when authorizing client `civic`.
+
 ## Expo client
 
 | Setting | Value |
@@ -41,6 +48,10 @@ Rovas HybridAuth page.
 
 Rovas **Next work: OAuth session persistence (refresh token rotation)** must be
 deployed on `dev.rovas.app` so refresh returns a replacement token.
+
+Rovas **Next work: Civic-branded OAuth login/register** — HybridAuth /
+`/user/register` chrome when authorizing client `civic` (reduces Rovas concept
+load for new Civic users; no PKCE contract change).
 
 **Dev requirement:** custom scheme `civic://` needs a development build
 (`pnpm --filter @civic/mobile ios:device`), not Expo Go. Day-to-day

@@ -10,6 +10,7 @@ import {
   isPostHogConfigured,
 } from "@/lib/analytics";
 import { AuthProvider } from "@/lib/auth";
+import { ChronPreferenceProvider } from "@/lib/chron-preference";
 import { LocaleProvider, useLocale } from "@/lib/locale";
 import { t } from "@/lib/i18n";
 
@@ -82,9 +83,11 @@ export default function RootLayout() {
     >
       <AuthProvider>
         <LocaleProvider>
-          <AnalyticsBridge />
-          <AnalyticsIdentify />
-          <RootNavigator />
+          <ChronPreferenceProvider>
+            <AnalyticsBridge />
+            <AnalyticsIdentify />
+            <RootNavigator />
+          </ChronPreferenceProvider>
         </LocaleProvider>
       </AuthProvider>
     </PostHogProvider>
