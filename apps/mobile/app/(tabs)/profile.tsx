@@ -183,9 +183,9 @@ export default function ProfileScreen() {
             {formatMe(totalMe)} {t("common.me")}
           </Text>
         ) : null}
-        {allowChrons && totalChr != null ? (
+        {totalChr != null && totalChr > 0 ? (
           <Text style={styles.balanceChr}>
-            {formatChr(totalChr)} CHR
+            {t("profile.chrons_balance")}: {formatChr(totalChr)} CHR
           </Text>
         ) : null}
         {languageSwitcher}

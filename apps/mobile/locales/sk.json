@@ -474,6 +474,7 @@
   "spotlight.gap": "Chýba vám {{me}} ME do vedenia v oblasti {{area}} ({{period}})",
   "spotlight.you_are_lead": "Ste na čele v oblasti {{area}} ({{period}})",
   "spotlight.thin_period": "Za obdobie „{{period}}“ bolo získaných {{me}} ME — buďte medzi prvými, kto prispeje.",
+  "profile.chrons_balance": "Váš zostatok chronov",
   "profile.allow_chrons": "Zobraziť možnosť získať chrony namiesto meritov vo výkaze práce",
   "profile.allow_chrons_hint": "Chrony predstavujú časovú jednotku, ktorú možno vymeniť za merity, použiť na odmeňovanie práce iných ľudí a iné účely. 10 chronov = 1 hodina práce.",
   "legal.terms_title": "Podmienky",
