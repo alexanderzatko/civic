@@ -46,6 +46,7 @@ import {
   refreshPendingVerifications,
 } from "@/lib/pending-verifications";
 import { capture, resetAnalytics } from "@/lib/analytics";
+import { resetSpotlightDismiss } from "@/lib/spotlight-dismiss";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -201,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearSession = useCallback(async () => {
     void unregisterCivicPushToken().catch(() => undefined);
     clearPendingVerificationsState();
+    resetSpotlightDismiss();
     await clearPendingOAuth();
     await clearTokens();
     setTokens(null);
@@ -211,6 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const persist = useCallback(async (next: StoredTokens | null) => {
     if (next?.accessToken) {
+      resetSpotlightDismiss();
       await saveTokens(next);
       setTokens(next);
       setStatus("signedIn");

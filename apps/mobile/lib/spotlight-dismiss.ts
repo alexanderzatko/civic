@@ -1,28 +1,17 @@
-import * as SecureStore from "expo-secure-store";
+/**
+ * Session-scoped dismiss for the Home Merit spotlight.
+ * Cleared on sign-in / sign-out so the card shows again each login.
+ */
+let dismissedThisSession = false;
 
-const STORAGE_KEY = "civic.merit_spotlight.dismissed_day";
-
-/** Local calendar day key `YYYY-MM-DD` for dismiss persistence. */
-export function localDayKey(d = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+export function isSpotlightDismissed(): boolean {
+  return dismissedThisSession;
 }
 
-export async function isSpotlightDismissedToday(): Promise<boolean> {
-  try {
-    const raw = await SecureStore.getItemAsync(STORAGE_KEY);
-    return raw === localDayKey();
-  } catch {
-    return false;
-  }
+export function dismissSpotlight(): void {
+  dismissedThisSession = true;
 }
 
-export async function dismissSpotlightForToday(): Promise<void> {
-  try {
-    await SecureStore.setItemAsync(STORAGE_KEY, localDayKey());
-  } catch {
-    // SecureStore unavailable — dismiss lasts for this session only via caller state.
-  }
+export function resetSpotlightDismiss(): void {
+  dismissedThisSession = false;
 }

@@ -22,8 +22,8 @@ import { fetchMeritSpotlight } from "@/lib/api";
 import { getLocale, t, type Locale } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
 import {
-  dismissSpotlightForToday,
-  isSpotlightDismissedToday,
+  dismissSpotlight,
+  isSpotlightDismissed,
 } from "@/lib/spotlight-dismiss";
 
 const DEFAULT_COUNTRY = "SK";
@@ -42,7 +42,7 @@ const GAP_ABS_MAX = 50;
 const GAP_REL_MAX = 3;
 
 type Props = {
-  /** Home: dismissible daily card. */
+  /** Home: dismissible for the current login session. */
   variant: "home" | "impact";
 };
 
@@ -116,25 +116,15 @@ export function MeritSpotlight({ variant }: Props) {
   const [data, setData] = useState<MeritSpotlightData | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(false);
-  const [dismissReady, setDismissReady] = useState(variant !== "home");
 
+  // Re-show after each login (auth clears dismiss); sync local UI state.
   useEffect(() => {
     if (variant !== "home") {
-      setDismissReady(true);
       setDismissed(false);
       return;
     }
-    let cancelled = false;
-    void isSpotlightDismissedToday().then((v) => {
-      if (!cancelled) {
-        setDismissed(v);
-        setDismissReady(true);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [variant]);
+    setDismissed(isSpotlightDismissed());
+  }, [variant, status]);
 
   const load = useCallback(async () => {
     if (status === "loading") return;
@@ -157,16 +147,14 @@ export function MeritSpotlight({ variant }: Props) {
     void load();
   }, [load]);
 
-  async function onDismiss() {
+  function onDismiss() {
     setDismissed(true);
-    await dismissSpotlightForToday();
+    dismissSpotlight();
   }
 
-  // Home: wait for dismiss flag; hide after dismiss or if already earning today.
+  // Home: hide only after the user dismisses this session.
   if (variant === "home") {
-    if (!dismissReady) return null;
     if (dismissed) return null;
-    if (data?.you && data.you.earned_today_me > 0) return null;
   }
 
   // Stay hidden until Rovas returns a real period window (empty 404 payload → hide).
