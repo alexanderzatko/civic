@@ -1,8 +1,12 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Link } from "expo-router";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
+
+const ICON_SIZE = 22;
 
 const PATHS = [
   {
@@ -11,6 +15,8 @@ const PATHS = [
     titleKey: "earn.taxes",
     descKey: "earn.taxes_desc",
     ctaKey: "earn.taxes_cta",
+    color: colors.catTaxes,
+    icon: { set: "mci" as const, name: "bank" as const },
   },
   {
     href: "/(tabs)/earn/charity" as const,
@@ -18,6 +24,8 @@ const PATHS = [
     titleKey: "earn.charity",
     descKey: "earn.charity_desc",
     ctaKey: "earn.charity_cta",
+    color: colors.catCharity,
+    icon: { set: "mci" as const, name: "wallet-giftcard" as const },
   },
   {
     href: "/(tabs)/earn/volunteer" as const,
@@ -25,8 +33,29 @@ const PATHS = [
     titleKey: "earn.volunteer",
     descKey: "earn.volunteer_desc",
     ctaKey: "earn.volunteer_cta",
+    color: colors.catVolunteer,
+    icon: { set: "mi" as const, name: "volunteer-activism" as const },
   },
 ];
+
+function PathIcon({
+  icon,
+  color,
+}: {
+  icon: (typeof PATHS)[number]["icon"];
+  color: string;
+}) {
+  if (icon.set === "mci") {
+    return (
+      <MaterialCommunityIcons
+        name={icon.name}
+        size={ICON_SIZE}
+        color={color}
+      />
+    );
+  }
+  return <MaterialIcons name={icon.name} size={ICON_SIZE} color={color} />;
+}
 
 /** Renders locale strings with optional **bold** segments. */
 function DescText({ text }: { text: string }) {
@@ -55,9 +84,17 @@ export default function EarnHubScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.subtitle}>{t("earn.subtitle")}</Text>
       {PATHS.map((path) => (
-        <View key={path.href} style={styles.card}>
+        <View
+          key={path.href}
+          style={[styles.card, { borderColor: path.color }]}
+        >
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>{t(path.titleKey)}</Text>
+            <View style={styles.titleRow}>
+              <PathIcon icon={path.icon} color={path.color} />
+              <Text style={[styles.cardTitle, { color: path.color }]}>
+                {t(path.titleKey)}
+              </Text>
+            </View>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{path.n}</Text>
             </View>
@@ -92,6 +129,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
+  },
+  titleRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   badge: {
     minWidth: 28,
