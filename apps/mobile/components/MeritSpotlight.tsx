@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -14,6 +15,7 @@ import {
   type MeritSpotlightLead,
   type MeritSpotlightPeriod,
 } from "@civic/shared";
+import { MeLogo } from "@/components/MeLogo";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { fetchMeritSpotlight } from "@/lib/api";
@@ -31,6 +33,9 @@ const CATEGORY_ORDER: MeritSourceCategory[] = [
   "charity",
   "volunteer",
 ];
+
+/** Purple accent for “you lead this category” ME mark. */
+const LEAD_BADGE = "#6B3FA0";
 
 /** Show gap nudge only when the lead is within reach. */
 const GAP_ABS_MAX = 50;
@@ -72,17 +77,6 @@ function categoryColor(cat: MeritSourceCategory): string {
       return colors.catCharity;
     case "volunteer":
       return colors.catVolunteer;
-  }
-}
-
-function earnHref(cat: MeritSourceCategory): string {
-  switch (cat) {
-    case "taxes":
-      return "/(tabs)/earn/receipts";
-    case "charity":
-      return "/(tabs)/earn/charity";
-    case "volunteer":
-      return "/(tabs)/earn/volunteer";
   }
 }
 
@@ -289,10 +283,11 @@ function LeadRow({
   period: MeritSpotlightPeriod;
 }) {
   const color = categoryColor(lead.category);
-
-  function openEarn() {
-    router.push(earnHref(lead.category) as never);
-  }
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const leadMsg = interpolate(t("spotlight.you_are_lead"), {
+    period: periodLabel(period),
+    area: categoryLabel(lead.category),
+  });
 
   function openProfile() {
     if (!signedIn) return;
@@ -320,27 +315,45 @@ function LeadRow({
             {formatMe(lead.earned_me, locale)} {t("common.me")}
           </Text>
         </View>
-        {isYouLead ? (
-          <Text style={styles.youLead}>
-            {interpolate(t("spotlight.you_are_lead"), {
-              period: periodLabel(period),
-              area: categoryLabel(lead.category),
-            })}
-          </Text>
-        ) : null}
       </View>
-      <Pressable
-        style={[styles.earnBtn, { borderColor: color }]}
-        onPress={openEarn}
-        accessibilityRole="button"
-        accessibilityLabel={interpolate(t("spotlight.earn_cta_a11y"), {
-          area: categoryLabel(lead.category),
-        })}
-      >
-        <Text style={[styles.earnBtnText, { color }]}>
-          {t("spotlight.earn_cta")}
-        </Text>
-      </Pressable>
+      {isYouLead ? (
+        <>
+          <Pressable
+            onPress={() => setLeadModalOpen(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={leadMsg}
+            style={styles.leadBadgeBtn}
+          >
+            <MeLogo size={28} style={{ tintColor: LEAD_BADGE }} />
+          </Pressable>
+          <Modal
+            visible={leadModalOpen}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setLeadModalOpen(false)}
+          >
+            <Pressable
+              style={styles.leadModalBackdrop}
+              onPress={() => setLeadModalOpen(false)}
+            >
+              <Pressable style={styles.leadModalCard} onPress={() => {}}>
+                <MeLogo size={40} style={{ tintColor: LEAD_BADGE }} />
+                <Text style={styles.leadModalText}>{leadMsg}</Text>
+                <Pressable
+                  style={styles.leadModalClose}
+                  onPress={() => setLeadModalOpen(false)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.leadModalCloseText}>
+                    {t("common.close")}
+                  </Text>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          </Modal>
+        </>
+      ) : null}
     </View>
   );
 }
@@ -357,15 +370,8 @@ function ViewerAnchor({
   period: MeritSpotlightPeriod;
 }) {
   if (you.is_lead_for.length > 0) {
-    // Recognition already shown on lead rows.
-    return (
-      <Text style={styles.yourMe}>
-        {interpolate(t("spotlight.your_merits"), {
-          me: formatMe(you.earned_me, locale),
-          period: periodLabel(period),
-        })}
-      </Text>
-    );
+    // Recognition is the purple ME mark on lead rows.
+    return null;
   }
 
   // Prefer a single gap line for the closest actionable category.
@@ -378,23 +384,17 @@ function ViewerAnchor({
     if (!best || gap < best.gap) best = { cat, gap };
   }
 
+  if (!best) return null;
+
   return (
     <View style={styles.anchorBlock}>
-      <Text style={styles.yourMe}>
-        {interpolate(t("spotlight.your_merits"), {
-          me: formatMe(you.earned_me, locale),
+      <Text style={styles.gapHint}>
+        {interpolate(t("spotlight.gap"), {
+          me: formatMe(best.gap, locale),
           period: periodLabel(period),
+          area: categoryLabel(best.cat),
         })}
       </Text>
-      {best ? (
-        <Text style={styles.gapHint}>
-          {interpolate(t("spotlight.gap"), {
-            me: formatMe(best.gap, locale),
-            period: periodLabel(period),
-            area: categoryLabel(best.cat),
-          })}
-        </Text>
-      ) : null}
     </View>
   );
 }
@@ -505,21 +505,40 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontVariant: ["tabular-nums"],
   },
-  youLead: {
-    fontSize: 12,
-    color: colors.you,
+  leadBadgeBtn: {
+    padding: 2,
+  },
+  leadModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  leadModalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    minWidth: 260,
+    maxWidth: "100%",
+    gap: 12,
+    alignItems: "center",
+  },
+  leadModalText: {
+    fontSize: 15,
+    lineHeight: 22,
     fontWeight: "600",
-    marginTop: 2,
+    color: colors.ink,
+    textAlign: "center",
   },
-  earnBtn: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+  leadModalClose: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
-  earnBtnText: {
-    fontSize: 13,
+  leadModalCloseText: {
+    fontSize: 15,
     fontWeight: "700",
+    color: colors.brand,
   },
   gapHint: {
     width: "100%",
@@ -532,11 +551,6 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-  },
-  yourMe: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.you,
   },
   meRankLink: {
     alignSelf: "flex-start",
