@@ -45,7 +45,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setError(null);
     setBusy(true);
     try {
-      const ok = await signIn();
+      const ok = await signIn(mode);
       if (ok) {
         router.replace("/");
       }

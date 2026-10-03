@@ -51,11 +51,18 @@ WebBrowser.maybeCompleteAuthSession();
 
 type AuthStatus = "loading" | "signedOut" | "signedIn";
 
+/** Which anonymous form Rovas should present first after authorize. */
+export type OAuthIntent = "login" | "register";
+
 type AuthContextValue = {
   status: AuthStatus;
   accessToken: string | null;
-  /** Start Rovas Authorization Code + PKCE in the system browser. */
-  signIn: () => Promise<boolean>;
+  /**
+   * Start Rovas Authorization Code + PKCE in the system browser.
+   * `intent` is sent as `?intent=` so Rovas can open login vs register
+   * (see Rovas task oauth-authorize-intent).
+   */
+  signIn: (intent?: OAuthIntent) => Promise<boolean>;
   signOut: () => Promise<void>;
   /** Fresh access token (refreshes when needed). */
   getAccessToken: () => Promise<string | null>;
@@ -412,30 +419,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
-  const signIn = useCallback(async (): Promise<boolean> => {
-    if (Platform.OS === "ios") {
-      await WebBrowser.dismissBrowser().catch(() => undefined);
-    }
-    WebBrowser.maybeCompleteAuthSession();
+  const signIn = useCallback(
+    async (intent: OAuthIntent = "login"): Promise<boolean> => {
+      if (Platform.OS === "ios") {
+        await WebBrowser.dismissBrowser().catch(() => undefined);
+      }
+      WebBrowser.maybeCompleteAuthSession();
 
-    const discovery = getRovasDiscovery();
-    const redirectUri = getOAuthRedirectUri();
-    const request = new AuthRequest({
-      clientId: getOAuthClientId(),
-      redirectUri,
-      scopes: [...OAUTH_SCOPES],
-      usePKCE: true,
-      // Rovas forces anonymous login/register UI language from this
-      // (see Next work: pass Civic locale on OAuth authorize).
-      extraParams: { lang: getLocale() },
-    });
-    await request.getAuthRequestConfigAsync();
+      const discovery = getRovasDiscovery();
+      const redirectUri = getOAuthRedirectUri();
+      const request = new AuthRequest({
+        clientId: getOAuthClientId(),
+        redirectUri,
+        scopes: [...OAUTH_SCOPES],
+        usePKCE: true,
+        // Rovas: `lang` forces anonymous UI locale; `intent` chooses
+        // login vs register landing (oauth-authorize-intent).
+        extraParams: { lang: getLocale(), intent },
+      });
+      await request.getAuthRequestConfigAsync();
 
-    if (Platform.OS === "android") {
-      return signInOnAndroid(request, discovery);
-    }
-    return signInWithPrompt(request, discovery);
-  }, [signInOnAndroid, signInWithPrompt]);
+      if (Platform.OS === "android") {
+        return signInOnAndroid(request, discovery);
+      }
+      return signInWithPrompt(request, discovery);
+    },
+    [signInOnAndroid, signInWithPrompt],
+  );
 
   const signOut = useCallback(async () => {
     const discovery = getRovasDiscovery();
