@@ -471,7 +471,6 @@
   "spotlight.earn_cta": "Získať",
   "spotlight.earn_cta_a11y": "Získať merity cez {{area}}",
   "spotlight.your_merits": "Vaše merity {{period}}: {{me}} ME",
-  "spotlight.gap": "Chýba vám {{me}} ME do vedenia v oblasti {{area}} ({{period}})",
   "spotlight.you_are_lead": "Ste na čele v oblasti {{area}} ({{period}})",
   "spotlight.thin_period": "Za obdobie „{{period}}“ bolo získaných {{me}} ME — buďte medzi prvými, kto prispeje.",
   "profile.chrons_balance": "Váš zostatok chronov",

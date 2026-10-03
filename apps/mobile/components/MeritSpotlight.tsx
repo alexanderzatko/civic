@@ -37,10 +37,6 @@ const CATEGORY_ORDER: MeritSourceCategory[] = [
 /** Purple accent for “you lead this category” ME mark. */
 const LEAD_BADGE = "#6B3FA0";
 
-/** Show gap nudge only when the lead is within reach. */
-const GAP_ABS_MAX = 50;
-const GAP_REL_MAX = 3;
-
 type Props = {
   /** Home: dismissible for the current login session. */
   variant: "home" | "impact";
@@ -97,17 +93,6 @@ function visibleLeads(data: MeritSpotlightData): MeritSpotlightLead[] {
   return data.leads.filter((l) => displayMerits(l.earned_me) > 0);
 }
 
-function shouldShowGap(
-  yourMe: number,
-  leadMe: number,
-): number | null {
-  const gap = leadMe - yourMe;
-  if (gap <= 0) return null;
-  const relCap = Math.max(yourMe, 1) * GAP_REL_MAX;
-  if (gap > GAP_ABS_MAX && gap > relCap) return null;
-  return gap;
-}
-
 export function MeritSpotlight({ variant }: Props) {
   const { status } = useAuth();
   const { locale } = useLocale();
@@ -162,8 +147,7 @@ export function MeritSpotlight({ variant }: Props) {
 
   const leads = visibleLeads(data!);
   const thin = isThinPeriod(leads);
-  const you = data?.you;
-  const leadCategories = new Set(you?.is_lead_for ?? []);
+  const leadCategories = new Set(data?.you?.is_lead_for ?? []);
 
   return (
     <View style={[styles.card, variant === "impact" && styles.cardImpact]}>
@@ -234,15 +218,6 @@ export function MeritSpotlight({ variant }: Props) {
             );
           })
         : null}
-
-      {!loading && you && !thin ? (
-        <ViewerAnchor
-          you={you}
-          leads={leads}
-          locale={locale}
-          period={period}
-        />
-      ) : null}
 
       {variant === "home" ? (
         <Link href="/(tabs)/impact" asChild>
@@ -345,47 +320,6 @@ function LeadRow({
           </Pressable>
         </Modal>
       ) : null}
-    </View>
-  );
-}
-
-function ViewerAnchor({
-  you,
-  leads,
-  locale,
-  period,
-}: {
-  you: NonNullable<MeritSpotlightData["you"]>;
-  leads: MeritSpotlightLead[];
-  locale: Locale;
-  period: MeritSpotlightPeriod;
-}) {
-  if (you.is_lead_for.length > 0) {
-    // Recognition is the purple ME mark on lead rows.
-    return null;
-  }
-
-  // Prefer a single gap line for the closest actionable category.
-  let best: { cat: MeritSourceCategory; gap: number } | null = null;
-  for (const cat of CATEGORY_ORDER) {
-    const lead = leads.find((l) => l.category === cat);
-    if (!lead) continue;
-    const gap = shouldShowGap(you.by_category[cat] ?? 0, lead.earned_me);
-    if (gap == null) continue;
-    if (!best || gap < best.gap) best = { cat, gap };
-  }
-
-  if (!best) return null;
-
-  return (
-    <View style={styles.anchorBlock}>
-      <Text style={styles.gapHint}>
-        {interpolate(t("spotlight.gap"), {
-          me: formatMe(best.gap, locale),
-          period: periodLabel(period),
-          area: categoryLabel(best.cat),
-        })}
-      </Text>
     </View>
   );
 }
@@ -530,18 +464,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     color: colors.brand,
-  },
-  gapHint: {
-    width: "100%",
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.muted,
-  },
-  anchorBlock: {
-    gap: 4,
-    paddingTop: 4,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
   },
   meRankLink: {
     alignSelf: "flex-start",
