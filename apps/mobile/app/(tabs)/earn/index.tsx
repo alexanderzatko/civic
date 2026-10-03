@@ -6,7 +6,7 @@ import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
 
-const ICON_SIZE = 22;
+const ICON_SIZE = 26;
 
 const PATHS = [
   {
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  cardTitle: { flex: 1, fontSize: 17, fontWeight: "700", color: colors.ink },
+  cardTitle: { flex: 1, fontSize: 20, fontWeight: "700", color: colors.ink },
   cardDesc: { fontSize: 14, color: colors.muted, lineHeight: 20 },
   cardDescBold: { fontWeight: "700", color: colors.ink },
   ctaRow: { flexDirection: "row", justifyContent: "flex-end" },
