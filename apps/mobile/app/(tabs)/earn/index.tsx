@@ -11,7 +11,6 @@ const ICON_SIZE = 22;
 const PATHS = [
   {
     href: "/(tabs)/earn/receipts" as const,
-    n: "1",
     titleKey: "earn.taxes",
     descKey: "earn.taxes_desc",
     ctaKey: "earn.taxes_cta",
@@ -20,7 +19,6 @@ const PATHS = [
   },
   {
     href: "/(tabs)/earn/charity" as const,
-    n: "2",
     titleKey: "earn.charity",
     descKey: "earn.charity_desc",
     ctaKey: "earn.charity_cta",
@@ -29,7 +27,6 @@ const PATHS = [
   },
   {
     href: "/(tabs)/earn/volunteer" as const,
-    n: "3",
     titleKey: "earn.volunteer",
     descKey: "earn.volunteer_desc",
     ctaKey: "earn.volunteer_cta",
@@ -88,16 +85,11 @@ export default function EarnHubScreen() {
           key={path.href}
           style={[styles.card, { borderColor: path.color }]}
         >
-          <View style={styles.cardHeader}>
-            <View style={styles.titleRow}>
-              <PathIcon icon={path.icon} color={path.color} />
-              <Text style={[styles.cardTitle, { color: path.color }]}>
-                {t(path.titleKey)}
-              </Text>
-            </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{path.n}</Text>
-            </View>
+          <View style={styles.titleRow}>
+            <PathIcon icon={path.icon} color={path.color} />
+            <Text style={[styles.cardTitle, { color: path.color }]}>
+              {t(path.titleKey)}
+            </Text>
           </View>
           <DescText text={t(path.descKey)} />
           <View style={styles.ctaRow}>
@@ -124,28 +116,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     gap: 10,
   },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
   titleRow: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
-  badge: {
-    minWidth: 28,
-    height: 28,
-    borderRadius: 14,
-    paddingHorizontal: 8,
-    backgroundColor: colors.brand,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   cardTitle: { flex: 1, fontSize: 17, fontWeight: "700", color: colors.ink },
   cardDesc: { fontSize: 14, color: colors.muted, lineHeight: 20 },
   cardDescBold: { fontWeight: "700", color: colors.ink },
