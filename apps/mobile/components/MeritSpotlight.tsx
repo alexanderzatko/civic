@@ -301,23 +301,24 @@ function LeadRow({
       <View style={[styles.areaDot, { backgroundColor: color }]} />
       <View style={styles.leadMain}>
         <Text style={styles.areaLabel}>{categoryLabel(lead.category)}</Text>
-        <View style={styles.leadMeta}>
-          <Pressable
-            onPress={openProfile}
-            disabled={!signedIn}
-            accessibilityRole={signedIn ? "link" : "text"}
+        <Pressable
+          onPress={openProfile}
+          disabled={!signedIn}
+          accessibilityRole={signedIn ? "link" : "text"}
+        >
+          <Text
+            style={signedIn ? styles.usernameLink : styles.username}
+            numberOfLines={1}
           >
-            <Text style={signedIn ? styles.usernameLink : styles.username}>
-              @{lead.username}
-            </Text>
-          </Pressable>
-          <Text style={styles.leadMe}>
-            {formatMe(lead.earned_me, locale)} {t("common.me")}
+            @{lead.username}
           </Text>
-        </View>
+        </Pressable>
       </View>
-      {isYouLead ? (
-        <>
+      <Text style={styles.leadMe}>
+        {formatMe(lead.earned_me, locale)} {t("common.me")}
+      </Text>
+      <View style={styles.leadBadgeSlot}>
+        {isYouLead ? (
           <Pressable
             onPress={() => setLeadModalOpen(true)}
             hitSlop={8}
@@ -327,32 +328,34 @@ function LeadRow({
           >
             <MeLogo size={28} style={{ tintColor: LEAD_BADGE }} />
           </Pressable>
-          <Modal
-            visible={leadModalOpen}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setLeadModalOpen(false)}
+        ) : null}
+      </View>
+      {isYouLead ? (
+        <Modal
+          visible={leadModalOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setLeadModalOpen(false)}
+        >
+          <Pressable
+            style={styles.leadModalBackdrop}
+            onPress={() => setLeadModalOpen(false)}
           >
-            <Pressable
-              style={styles.leadModalBackdrop}
-              onPress={() => setLeadModalOpen(false)}
-            >
-              <Pressable style={styles.leadModalCard} onPress={() => {}}>
-                <MeLogo size={40} style={{ tintColor: LEAD_BADGE }} />
-                <Text style={styles.leadModalText}>{leadMsg}</Text>
-                <Pressable
-                  style={styles.leadModalClose}
-                  onPress={() => setLeadModalOpen(false)}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.leadModalCloseText}>
-                    {t("common.close")}
-                  </Text>
-                </Pressable>
+            <Pressable style={styles.leadModalCard} onPress={() => {}}>
+              <MeLogo size={40} style={{ tintColor: LEAD_BADGE }} />
+              <Text style={styles.leadModalText}>{leadMsg}</Text>
+              <Pressable
+                style={styles.leadModalClose}
+                onPress={() => setLeadModalOpen(false)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.leadModalCloseText}>
+                  {t("common.close")}
+                </Text>
               </Pressable>
             </Pressable>
-          </Modal>
-        </>
+          </Pressable>
+        </Modal>
       ) : null}
     </View>
   );
@@ -461,7 +464,6 @@ const styles = StyleSheet.create({
   },
   leadRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     alignItems: "center",
     gap: 8,
     paddingVertical: 6,
@@ -475,19 +477,13 @@ const styles = StyleSheet.create({
   },
   leadMain: {
     flex: 1,
-    minWidth: 120,
+    minWidth: 0,
     gap: 2,
   },
   areaLabel: {
     fontSize: 12,
     fontWeight: "600",
     color: colors.muted,
-  },
-  leadMeta: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "baseline",
-    gap: 8,
   },
   username: {
     fontSize: 15,
@@ -504,6 +500,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.ink,
     fontVariant: ["tabular-nums"],
+    textAlign: "right",
+  },
+  /** Always reserve room so ME counts align; logo only when you lead. */
+  leadBadgeSlot: {
+    width: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
   leadBadgeBtn: {
     padding: 2,
