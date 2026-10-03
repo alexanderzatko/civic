@@ -475,7 +475,7 @@
   "spotlight.you_are_lead": "You're this {{period}}'s {{area}} lead",
   "spotlight.thin_period": "{{me}} ME earned {{period}} — be among the first to contribute.",
   "profile.allow_chrons": "Show the option to earn Chrons instead of Merits on work reports",
-  "profile.allow_chrons_hint": "When enabled, the volunteer work report form includes a Chron reward choice.",
+  "profile.allow_chrons_hint": "Chrons are a unit of time that can be exchanged for Merits, used to reward others’ work, and for other purposes. 10 Chrons = 1 hour of work.",
   "legal.terms_title": "Terms",
   "legal.privacy_title": "Privacy",
   "legal.terms_stub": "Civic terms of use will be published here.",

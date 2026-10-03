@@ -475,7 +475,7 @@
   "spotlight.you_are_lead": "Ste na čele v oblasti {{area}} ({{period}})",
   "spotlight.thin_period": "Za obdobie „{{period}}“ bolo získaných {{me}} ME — buďte medzi prvými, kto prispeje.",
   "profile.allow_chrons": "Zobraziť možnosť získať chrony namiesto meritov vo výkaze práce",
-  "profile.allow_chrons_hint": "Po zapnutí sa vo formulári dobrovoľníckeho výkazu zobrazí voliteľná voľba odmeny v chronoch.",
+  "profile.allow_chrons_hint": "Chrony predstavujú časovú jednotku, ktorú možno vymeniť za merity, použiť na odmeňovanie práce iných ľudí a iné účely. 10 chronov = 1 hodina práce.",
   "legal.terms_title": "Podmienky",
   "legal.privacy_title": "Ochrana údajov",
   "legal.terms_stub": "Podmienky používania Civic budú zverejnené tu.",
