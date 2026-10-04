@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +14,7 @@ import {
   View,
   Linking,
 } from "react-native";
+import { useHeaderHeight } from "@react-navigation/elements";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Link } from "expo-router";
 import {
@@ -77,6 +81,8 @@ export default function CharityScreen() {
   const { locale } = useLocale();
   const { status: authStatus } = useAuth();
   const signedIn = authStatus === "signedIn";
+  const headerHeight = useHeaderHeight();
+  const scrollRef = useRef<ScrollView>(null);
 
   const [projects, setProjects] = useState<CharityProject[]>([]);
   const [total, setTotal] = useState(0);
@@ -104,9 +110,46 @@ export default function CharityScreen() {
   const [addError, setAddError] = useState<string | null>(null);
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const countries = useMemo(() => listCountries(locale), [locale]);
   const addCountryLabel = countryLabel(addCountry, locale);
+
+  const addLowerFieldFocused = useRef(false);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+      addLowerFieldFocused.current = false;
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (keyboardHeight <= 0 || !addLowerFieldFocused.current) return;
+    const id = setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 50);
+    return () => clearTimeout(id);
+  }, [keyboardHeight]);
+
+  function scrollAddFormIntoView() {
+    addLowerFieldFocused.current = true;
+    // Wait for keyboard animation + spacer growth, then reveal the lower fields.
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 280);
+  }
 
   const showSearch = total >= SEARCH_MIN_TOTAL;
   const donorRate = mePerEur(meritRate);
@@ -304,9 +347,16 @@ export default function CharityScreen() {
 
   return (
     <>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={headerHeight}
+      >
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         <Text style={styles.intro}>{t("charity.intro")}</Text>
 
@@ -470,6 +520,7 @@ export default function CharityScreen() {
                     autoCapitalize="characters"
                     autoCorrect={false}
                     style={styles.input}
+                    onFocus={scrollAddFormIntoView}
                   />
 
                   <Text style={styles.label}>{t("charity.add_iban")}</Text>
@@ -481,15 +532,21 @@ export default function CharityScreen() {
                     autoCapitalize="characters"
                     autoCorrect={false}
                     style={styles.input}
+                    onFocus={scrollAddFormIntoView}
                   />
 
                   {addError ? (
                     <Text style={styles.error}>{addError}</Text>
                   ) : null}
+                  {/* Extra scroll room above submit while the keyboard is up. */}
+                  <View
+                    style={{
+                      height: keyboardHeight > 0 ? Math.max(220, keyboardHeight * 0.55) : 20,
+                    }}
+                  />
                   <Pressable
                     style={[
                       styles.primaryBtn,
-                      styles.addSubmitBtn,
                       addSubmitting && styles.primaryBtnDisabled,
                     ]}
                     disabled={addSubmitting}
@@ -563,6 +620,7 @@ export default function CharityScreen() {
           ) : null}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <ProjectDetailModal
         projectNid={projectNid}
@@ -652,6 +710,7 @@ export default function CharityScreen() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   container: { padding: 20, gap: 12, paddingBottom: 40 },
   intro: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   hint: { color: colors.muted, fontSize: 14, lineHeight: 20 },
@@ -734,8 +793,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.brand,
   },
-  /** Extra room so IBAN stays scrollable above the keyboard on shorter phones. */
-  addSubmitBtn: { marginTop: 20 },
   primaryBtnDisabled: { opacity: 0.6 },
   primaryText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   modalBackdrop: {
