@@ -116,6 +116,13 @@ export default function EarnHubScreen() {
             <Text style={[styles.cardTitle, { color: path.color }]}>
               {t(path.titleKey)}
             </Text>
+          </View>
+          <RichText
+            text={t(path.descKey)}
+            style={styles.cardDesc}
+            boldStyle={styles.cardDescBold}
+          />
+          <View style={styles.ctaRow}>
             <Pressable
               style={styles.helpBtn}
               onPress={() => setHelpId(path.id)}
@@ -128,13 +135,6 @@ export default function EarnHubScreen() {
             >
               <Text style={styles.helpBtnText}>?</Text>
             </Pressable>
-          </View>
-          <RichText
-            text={t(path.descKey)}
-            style={styles.cardDesc}
-            boldStyle={styles.cardDescBold}
-          />
-          <View style={styles.ctaRow}>
             <Link href={path.href} asChild>
               <Pressable style={styles.secondaryBtn}>
                 <Text style={styles.secondaryText}>{t(path.ctaKey)}</Text>
@@ -208,23 +208,27 @@ const styles = StyleSheet.create({
   },
   cardTitle: { flex: 1, fontSize: 20, fontWeight: "700", color: colors.ink },
   helpBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 21,
+    height: 21,
+    borderRadius: 10.5,
     borderWidth: 1.5,
     borderColor: colors.muted,
     alignItems: "center",
     justifyContent: "center",
   },
   helpBtnText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "700",
-    lineHeight: 18,
+    lineHeight: 13.5,
     color: colors.muted,
   },
   cardDesc: { fontSize: 14, color: colors.muted, lineHeight: 20 },
   cardDescBold: { fontWeight: "700", color: colors.ink },
-  ctaRow: { flexDirection: "row", justifyContent: "flex-end" },
+  ctaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   secondaryBtn: {
     borderRadius: 12,
     paddingVertical: 10,
