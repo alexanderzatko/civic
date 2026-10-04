@@ -291,6 +291,38 @@ export interface CharityProjectsResponse {
   total: number;
 }
 
+/** Body for donor-add public-benefit org (`POST /charities/organizations`). */
+export interface CreateCharityOrgBody {
+  name: string;
+  /** ISO 3166-1 alpha-2 (e.g. `SK`). */
+  country: string;
+  website_url: string;
+  contact_email: string;
+  /** IČO / registration number; uniqueness key with `country`. */
+  org_id: string;
+  iban: string;
+}
+
+export interface CreateCharityOrgSuccess {
+  ok: true;
+  status: "approved" | "pending";
+  created: boolean;
+  organization_nid: string;
+  project_nid: string;
+  organization: string;
+  ownership: "custodial" | "submitter";
+}
+
+export interface CreateCharityOrgError {
+  ok: false;
+  error: "invalid_input" | "unauthorized" | "rovas_error";
+  message: string;
+}
+
+export type CreateCharityOrgResponse =
+  | CreateCharityOrgSuccess
+  | CreateCharityOrgError;
+
 export interface RankBucket {
   label: string;
   count: number;

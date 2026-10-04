@@ -35,6 +35,8 @@ import type {
   NaceNode,
   ClassifyNaceResponse,
   AiNaceStatus,
+  CreateCharityOrgBody,
+  CreateCharityOrgSuccess,
   CreateProjectBody,
   CreateWorkReportBody,
   CreateWorkReportErrorCode,
@@ -700,6 +702,61 @@ export class RovasClient {
       );
     }
     return { project_nid: nid };
+  }
+
+  /**
+   * Donor-add public-benefit / nonprofit organisation + linked project.
+   * `POST /rovas/civic_create_charity_org`
+   */
+  async createCharityOrg(
+    accessToken: string,
+    payload: CreateCharityOrgBody,
+  ): Promise<CreateCharityOrgSuccess> {
+    const body = await this.postJson<Partial<CreateCharityOrgSuccess>>(
+      "/rovas/civic_create_charity_org",
+      accessToken,
+      payload,
+    );
+    const orgNid =
+      body.organization_nid != null
+        ? String(body.organization_nid).trim()
+        : "";
+    const projectNid =
+      body.project_nid != null ? String(body.project_nid).trim() : "";
+    const status =
+      body.status === "approved" || body.status === "pending"
+        ? body.status
+        : null;
+    const ownership =
+      body.ownership === "custodial" || body.ownership === "submitter"
+        ? body.ownership
+        : null;
+    const organization =
+      typeof body.organization === "string" ? body.organization.trim() : "";
+    if (
+      !/^\d+$/.test(orgNid) ||
+      orgNid === "0" ||
+      !/^\d+$/.test(projectNid) ||
+      projectNid === "0" ||
+      !status ||
+      !ownership ||
+      !organization
+    ) {
+      throw new RovasClientError(
+        "Rovas create_charity_org missing required fields",
+        502,
+        body,
+      );
+    }
+    return {
+      ok: true,
+      status,
+      created: Boolean(body.created),
+      organization_nid: orgNid,
+      project_nid: projectNid,
+      organization,
+      ownership,
+    };
   }
 
   /**

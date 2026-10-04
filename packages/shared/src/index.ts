@@ -44,6 +44,10 @@ export {
 export type {
   CharityProject,
   CharityProjectsResponse,
+  CreateCharityOrgBody,
+  CreateCharityOrgSuccess,
+  CreateCharityOrgError,
+  CreateCharityOrgResponse,
   ClaimReceiptError,
   ClaimReceiptErrorCode,
   ClaimReceiptResponse,

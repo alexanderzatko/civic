@@ -28,6 +28,8 @@ import type {
   ClassifyNaceBody,
   ClassifyNaceResponse,
   CreateProjectResponse,
+  CreateCharityOrgBody,
+  CreateCharityOrgResponse,
   CreateWorkReportBody,
   CreateWorkReportResponse,
   PendingVerificationsPage,
@@ -382,6 +384,23 @@ export function createProject(body: {
     }
     throw err;
   });
+}
+
+export function createCharityOrg(
+  body: CreateCharityOrgBody,
+): Promise<CreateCharityOrgResponse> {
+  return apiFetch<CreateCharityOrgResponse>("/charities/organizations", {
+    method: "POST",
+    auth: "required",
+    body: JSON.stringify(body),
+  }).catch(
+    (err: Error & { body?: CreateCharityOrgResponse; status?: number }) => {
+      if (err.body && typeof err.body === "object" && "ok" in err.body) {
+        return err.body;
+      }
+      throw err;
+    },
+  );
 }
 
 export function fetchNaceTree(): Promise<{ tree: NaceNode[] }> {

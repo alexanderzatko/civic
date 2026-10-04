@@ -1,6 +1,8 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
+import { z } from "zod";
 import type {
   ContributionsSummary,
+  CreateCharityOrgResponse,
   MeritIndexFilters,
   MeritSpotlightFilters,
   MeritSpotlightPeriod,
@@ -18,6 +20,33 @@ type MeSummaryResponse = ContributionsSummary & {
   display_name?: string;
   scope?: string;
 };
+
+const createCharityOrgBodySchema = z.object({
+  name: z.string().trim().min(1).max(255),
+  country: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z]{2}$/, "country must be ISO alpha-2")
+    .transform((v) => v.toUpperCase()),
+  website_url: z
+    .string()
+    .trim()
+    .url()
+    .refine(
+      (u) => /^https?:\/\//i.test(u),
+      "website_url must be http(s)",
+    ),
+  contact_email: z.string().trim().email().max(254),
+  org_id: z.string().trim().min(1).max(64),
+  iban: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/\s+/g, "").toUpperCase())
+    .refine(
+      (v) => /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(v),
+      "iban format invalid",
+    ),
+});
 
 function sendRovasError(reply: FastifyReply, err: unknown) {
   if (err instanceof RovasClientError) {
@@ -138,6 +167,57 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       return sendRovasError(reply, err);
     }
   });
+
+  /**
+   * Donor-add public-benefit / nonprofit organisation.
+   * Proxies Rovas `POST /rovas/civic_create_charity_org`.
+   */
+  app.post(
+    "/charities/organizations",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const parsed = createCharityOrgBodySchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        const res: CreateCharityOrgResponse = {
+          ok: false,
+          error: "invalid_input",
+          message: parsed.error.issues[0]?.message ?? "Invalid input.",
+        };
+        return reply.code(400).send(res);
+      }
+      try {
+        const created = await ctx.rovas.createCharityOrg(
+          user.accessToken,
+          parsed.data,
+        );
+        return created;
+      } catch (err) {
+        if (err instanceof RovasClientError) {
+          const res: CreateCharityOrgResponse = {
+            ok: false,
+            error:
+              err.status === 401
+                ? "unauthorized"
+                : err.status === 400
+                  ? "invalid_input"
+                  : "rovas_error",
+            message: err.message,
+          };
+          return reply
+            .code(
+              err.status === 401
+                ? 401
+                : err.status === 400
+                  ? 400
+                  : 502,
+            )
+            .send(res);
+        }
+        throw err;
+      }
+    },
+  );
 
   app.get(
     "/rank/distribution",

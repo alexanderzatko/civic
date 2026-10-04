@@ -46,6 +46,8 @@ async function main() {
       "GET /projects/mine",
       "GET /projects/search",
       "POST /projects",
+      "GET /charities/projects",
+      "POST /charities/organizations",
       "GET /nace",
       "POST /nace/classify",
       "POST /work-reports",

@@ -108,6 +108,7 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `POST /verifications/:slot_nid` | Submit verdict — proxies Rovas `POST /rovas/civic_submit_verification` (`verdict`, optional `verified_hours`, `note`). |
 | `POST /push-tokens` | Register Expo push token for OS notifications (Phase 4). Body: `expo_push_token`, `platform` (`ios` \| `android`). |
 | `DELETE /push-tokens` | Remove push token(s) on logout. Optional body `expo_push_token`; omit to clear all for user. |
+| `POST /charities/organizations` | Bearer — donor adds a public-benefit / nonprofit org. Proxies Rovas `POST /rovas/civic_create_charity_org` (`name`, `country`, `website_url`, `contact_email`, `org_id`, `iban`). Response `{ ok, status: approved\|pending, created, organization_nid, project_nid, organization, ownership }`. See Rovas **[donor-add-charity-org](../../rovas/docs/integration/civic_tasks/active/donor-add-charity-org.md)**. |
 
 `POST /receipts/verify` sends optional Bearer; when present, Civic checks
 `GET /rovas/civic_claims?receipt_uid=` and returns `already_claimed` so the
@@ -133,6 +134,14 @@ Public:
 | `GET /community/contributions/summary` | Proxies Rovas `/rovas/contributions/aggregate` |
 | `GET /merit-rate` | National hourly wage for ME↔€ / claim preview — proxies Rovas `GET /rovas/civic_national_hourly_rate` (falls back to `HOURLY_WAGE_EUR` if unreachable) |
 | `GET /charities/projects` | Gifts / nonprofit catalog — proxies Rovas `GET /rovas/civic_charity_projects` when `type=charity` (`query`, `limit`, `lang`). Envelope `{ total, projects[] }`. Invest stubs remain static (`type=invest`). Wire path/type stay `charities` / `charity`. See Rovas **Next work: charitable projects (Civic catalog)** and **Next work: broaden Gifts path labels (public-benefit orgs)**. |
+
+**Smoke (after Rovas [donor-add-charity-org](../../rovas/docs/integration/civic_tasks/active/donor-add-charity-org.md) is live on rovdev):**
+
+1. Signed-in Civic user submits Add organisation with a known SK IČO from the nonprofit register → `status: approved`, org appears in `GET /charities/projects`, project modal opens.
+2. Non-SK country (or unknown IČO) → `status: pending`; under-review alert; org absent from catalog until staff approve.
+3. Resubmit same `(country, org_id)` → `created: false`, same nids; approved duplicate opens in list; pending duplicate shows under-review again.
+4. Contact email matching the Bearer user’s Drupal mail → `ownership: "submitter"`; otherwise `ownership: "custodial"`.
+5. Verify button next to contact email → stub modal only (no API yet).
 
 `ROVAS_BASE_URL` is read from the API `.env` (default `https://dev.rovas.app`).
 
