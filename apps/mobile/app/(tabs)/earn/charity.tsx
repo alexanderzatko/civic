@@ -13,7 +13,6 @@ import {
   View,
   Linking,
 } from "react-native";
-import { useHeaderHeight } from "@react-navigation/elements";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Link } from "expo-router";
 import {
@@ -38,6 +37,8 @@ import { getRovasBaseUrl } from "@/lib/oauth";
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MIN_TOTAL = 6;
 const DEFAULT_MERITS_PER_HOUR = 10;
+/** Keep a little air under the focused field when scrolling above the keyboard. */
+const FOCUS_SCROLL_PAD = 16;
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -80,8 +81,11 @@ export default function CharityScreen() {
   const { locale } = useLocale();
   const { status: authStatus } = useAuth();
   const signedIn = authStatus === "signedIn";
-  const headerHeight = useHeaderHeight();
   const scrollRef = useRef<ScrollView>(null);
+  const scrollHostRef = useRef<View>(null);
+  const scrollYRef = useRef(0);
+  const addOrgIdRef = useRef<TextInput>(null);
+  const addIbanRef = useRef<TextInput>(null);
 
   const [projects, setProjects] = useState<CharityProject[]>([]);
   const [total, setTotal] = useState(0);
@@ -113,10 +117,22 @@ export default function CharityScreen() {
   const countries = useMemo(() => listCountries(locale), [locale]);
   const addCountryLabel = countryLabel(addCountry, locale);
 
-  function scrollAddFormIntoView() {
-    // Wait for KeyboardAvoidingView to settle, then reveal the lower fields.
+  function scrollFieldIntoView(field: TextInput | null) {
+    // Wait for KeyboardAvoidingView padding, then nudge only as far as needed.
     setTimeout(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
+      if (!field || !scrollRef.current || !scrollHostRef.current) return;
+      field.measureInWindow((_x, y, _w, h) => {
+        scrollHostRef.current?.measureInWindow((_sx, sy, _sw, sh) => {
+          const fieldBottom = y + h + FOCUS_SCROLL_PAD;
+          const visibleBottom = sy + sh;
+          const overlap = fieldBottom - visibleBottom;
+          if (overlap <= 0) return;
+          scrollRef.current?.scrollTo({
+            y: Math.max(0, scrollYRef.current + overlap),
+            animated: true,
+          });
+        });
+      });
     }, 280);
   }
 
@@ -319,13 +335,17 @@ export default function CharityScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={headerHeight}
       >
+      <View ref={scrollHostRef} style={styles.flex}>
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
+        onScroll={(e) => {
+          scrollYRef.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
       >
         <Text style={styles.intro}>{t("charity.intro")}</Text>
 
@@ -482,6 +502,7 @@ export default function CharityScreen() {
 
                   <Text style={styles.label}>{t("charity.add_org_id")}</Text>
                   <TextInput
+                    ref={addOrgIdRef}
                     value={addOrgId}
                     onChangeText={setAddOrgId}
                     placeholder={t("charity.add_org_id_placeholder")}
@@ -489,11 +510,12 @@ export default function CharityScreen() {
                     autoCapitalize="characters"
                     autoCorrect={false}
                     style={styles.input}
-                    onFocus={scrollAddFormIntoView}
+                    onFocus={() => scrollFieldIntoView(addOrgIdRef.current)}
                   />
 
                   <Text style={styles.label}>{t("charity.add_iban")}</Text>
                   <TextInput
+                    ref={addIbanRef}
                     value={addIban}
                     onChangeText={setAddIban}
                     placeholder={t("charity.add_iban_placeholder")}
@@ -501,7 +523,7 @@ export default function CharityScreen() {
                     autoCapitalize="characters"
                     autoCorrect={false}
                     style={styles.input}
-                    onFocus={scrollAddFormIntoView}
+                    onFocus={() => scrollFieldIntoView(addIbanRef.current)}
                   />
 
                   {addError ? (
@@ -583,6 +605,7 @@ export default function CharityScreen() {
           ) : null}
         </View>
       </ScrollView>
+      </View>
       </KeyboardAvoidingView>
 
       <ProjectDetailModal
