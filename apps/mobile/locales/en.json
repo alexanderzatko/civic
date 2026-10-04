@@ -159,7 +159,7 @@
   "charity.invite_subject": "Enroll your nonprofit on Civic",
   "charity.invite_default_body": "I'm inviting your organisation to enroll as a verified public-benefit (nonprofit) project so donors can earn Merits for verified gifts.\n\nEnrollment guide:",
   "charity.add": "Add an organisation",
-  "charity.add_body": "Enter the organisation’s details below. We verify public-benefit status (for Slovak organisations, via the nonprofit register) and may list it immediately. Otherwise NeoFund reviews the submission and will contact you when verification is finished. The organisation is emailed an invitation to claim and complete its project profile.",
+  "charity.add_body": "Enter the organisation’s details. If we can verify its public-benefit status after you submit the form, you’ll find it in the list right away. If you don’t see it there, we’ll contact you when we finish the verification process.",
   "charity.add_name": "Legal name",
   "charity.add_name_placeholder": "Organisation legal name",
   "charity.add_country": "Country of registration",

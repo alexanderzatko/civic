@@ -159,7 +159,7 @@
   "charity.invite_subject": "Zapíšte svoju neziskovú organizáciu v Civic",
   "charity.invite_default_body": "Pozývam vašu organizáciu na zápis ako overená verejnoprospešná (nezisková) organizácia, aby darcovia mohli získavať merity za overené dary.\n\nNávod na zápis:",
   "charity.add": "Pridať organizáciu",
-  "charity.add_body": "Vyplňte údaje o organizácii. Ak sa nám teraz podarí overiť jej verejnoprospešný status, pridáme ju hneď do zoznamu. Ak sa nám to nepodarí hneď po overení vás budeme kontaktovať.",
+  "charity.add_body": "Vyplňte údaje o organizácii. Ak sa nám po odoslaní formulára podarí overiť jej verejnoprospešný status, nájdete ju hneď v zozname. Ak ju v zozname neuvidíte, budeme vás kontaktovať keď dokončíme overovací proces.",
   "charity.add_name": "Úradný názov",
   "charity.add_name_placeholder": "Úradný názov organizácie",
   "charity.add_country": "Krajina registrácie",
