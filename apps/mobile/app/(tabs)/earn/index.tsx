@@ -215,6 +215,8 @@ const styles = StyleSheet.create({
     borderColor: colors.muted,
     alignItems: "center",
     justifyContent: "center",
+    // Nudge into the lower-left corner (¾ of the 21px circle).
+    transform: [{ translateY: 15.75 }],
   },
   helpBtnText: {
     fontSize: 12,
