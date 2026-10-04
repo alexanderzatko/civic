@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,11 @@ import { ProjectDetailModal } from "@/components/ProjectDetailModal";
 import { colors } from "@/constants/theme";
 import { createCharityOrg, fetchMeritRate, fetchProjects } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import {
+  countryLabel,
+  isCountryIso2,
+  listCountries,
+} from "@/lib/countries";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
 import { getRovasBaseUrl } from "@/lib/oauth";
@@ -69,7 +74,7 @@ function charityEnrollmentUrl(): string {
 }
 
 export default function CharityScreen() {
-  useLocale();
+  const { locale } = useLocale();
   const { status: authStatus } = useAuth();
   const signedIn = authStatus === "signedIn";
 
@@ -91,6 +96,7 @@ export default function CharityScreen() {
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState("");
   const [addCountry, setAddCountry] = useState("SK");
+  const [addCountryOpen, setAddCountryOpen] = useState(false);
   const [addWebsite, setAddWebsite] = useState("");
   const [addEmail, setAddEmail] = useState("");
   const [addOrgId, setAddOrgId] = useState("");
@@ -98,6 +104,9 @@ export default function CharityScreen() {
   const [addError, setAddError] = useState<string | null>(null);
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
+
+  const countries = useMemo(() => listCountries(locale), [locale]);
+  const addCountryLabel = countryLabel(addCountry, locale);
 
   const showSearch = total >= SEARCH_MIN_TOTAL;
   const donorRate = mePerEur(meritRate);
@@ -213,7 +222,7 @@ export default function CharityScreen() {
       setAddError(t("charity.add_invalid_name"));
       return;
     }
-    if (!/^[A-Z]{2}$/.test(country)) {
+    if (!isCountryIso2(country)) {
       setAddError(t("charity.add_invalid_country"));
       return;
     }
@@ -402,21 +411,20 @@ export default function CharityScreen() {
                   />
 
                   <Text style={styles.label}>{t("charity.add_country")}</Text>
-                  <TextInput
-                    value={addCountry}
-                    onChangeText={(v) =>
-                      setAddCountry(v.replace(/[^A-Za-z]/g, "").slice(0, 2))
-                    }
-                    placeholder={t("charity.add_country_placeholder")}
-                    placeholderTextColor={colors.muted}
-                    autoCapitalize="characters"
-                    autoCorrect={false}
-                    maxLength={2}
-                    style={styles.input}
-                  />
-                  <Text style={styles.fieldHint}>
-                    {t("charity.add_country_hint")}
-                  </Text>
+                  <Pressable
+                    style={styles.select}
+                    onPress={() => setAddCountryOpen(true)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.selectText} numberOfLines={1}>
+                      {addCountryLabel}
+                    </Text>
+                    <MaterialIcons
+                      name="expand-more"
+                      size={22}
+                      color={colors.muted}
+                    />
+                  </Pressable>
 
                   <Text style={styles.label}>{t("charity.add_website")}</Text>
                   <TextInput
@@ -481,6 +489,7 @@ export default function CharityScreen() {
                   <Pressable
                     style={[
                       styles.primaryBtn,
+                      styles.addSubmitBtn,
                       addSubmitting && styles.primaryBtnDisabled,
                     ]}
                     disabled={addSubmitting}
@@ -565,6 +574,50 @@ export default function CharityScreen() {
       />
 
       <Modal
+        visible={addCountryOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAddCountryOpen(false)}
+      >
+        <Pressable
+          style={styles.sheetBackdrop}
+          onPress={() => setAddCountryOpen(false)}
+        />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>{t("charity.add_country")}</Text>
+            <Pressable onPress={() => setAddCountryOpen(false)} hitSlop={12}>
+              <MaterialIcons name="close" size={24} color={colors.muted} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.sheetBody}>
+            {countries.map((country) => {
+              const active = addCountry === country.iso2;
+              return (
+                <Pressable
+                  key={country.iso2}
+                  style={[styles.optionRow, active && styles.optionRowActive]}
+                  onPress={() => {
+                    setAddCountry(country.iso2);
+                    setAddCountryOpen(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      active && styles.optionTextActive,
+                    ]}
+                  >
+                    {country.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
         visible={verifyOpen}
         transparent
         animationType="fade"
@@ -602,7 +655,6 @@ const styles = StyleSheet.create({
   container: { padding: 20, gap: 12, paddingBottom: 40 },
   intro: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   hint: { color: colors.muted, fontSize: 14, lineHeight: 20 },
-  fieldHint: { color: colors.muted, fontSize: 12, marginTop: -4 },
   error: { color: colors.danger, fontSize: 14 },
   searchBlock: { gap: 6 },
   input: {
@@ -615,6 +667,18 @@ const styles = StyleSheet.create({
     color: colors.ink,
     backgroundColor: colors.surface,
   },
+  select: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+  },
+  selectText: { flex: 1, fontSize: 15, color: colors.ink, marginRight: 8 },
   textArea: { minHeight: 72, textAlignVertical: "top" },
   card: {
     backgroundColor: colors.surface,
@@ -670,6 +734,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.brand,
   },
+  /** Extra room so IBAN stays scrollable above the keyboard on shorter phones. */
+  addSubmitBtn: { marginTop: 20 },
   primaryBtnDisabled: { opacity: 0.6 },
   primaryText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   modalBackdrop: {
@@ -687,4 +753,39 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 17, fontWeight: "700", color: colors.ink },
   modalBody: { fontSize: 14, lineHeight: 20, color: colors.ink },
   modalHint: { fontSize: 13, color: colors.muted, fontWeight: "600" },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  sheet: {
+    maxHeight: "60%",
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 24,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  sheetTitle: { fontSize: 16, fontWeight: "700", color: colors.ink, flex: 1 },
+  sheetBody: { padding: 16, gap: 8 },
+  optionRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  optionRowActive: {
+    borderColor: colors.brand,
+    backgroundColor: "#EEF2EF",
+  },
+  optionText: { fontSize: 15, color: colors.ink },
+  optionTextActive: { fontWeight: "600", color: colors.brandSoft },
 });
