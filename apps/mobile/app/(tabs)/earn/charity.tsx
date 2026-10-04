@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -110,42 +109,12 @@ export default function CharityScreen() {
   const [addError, setAddError] = useState<string | null>(null);
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const countries = useMemo(() => listCountries(locale), [locale]);
   const addCountryLabel = countryLabel(addCountry, locale);
 
-  const addLowerFieldFocused = useRef(false);
-
-  useEffect(() => {
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const showSub = Keyboard.addListener(showEvent, (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-    });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-      addLowerFieldFocused.current = false;
-    });
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (keyboardHeight <= 0 || !addLowerFieldFocused.current) return;
-    const id = setTimeout(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    }, 50);
-    return () => clearTimeout(id);
-  }, [keyboardHeight]);
-
   function scrollAddFormIntoView() {
-    addLowerFieldFocused.current = true;
-    // Wait for keyboard animation + spacer growth, then reveal the lower fields.
+    // Wait for KeyboardAvoidingView to settle, then reveal the lower fields.
     setTimeout(() => {
       scrollRef.current?.scrollToEnd({ animated: true });
     }, 280);
@@ -538,12 +507,6 @@ export default function CharityScreen() {
                   {addError ? (
                     <Text style={styles.error}>{addError}</Text>
                   ) : null}
-                  {/* Extra scroll room above submit while the keyboard is up. */}
-                  <View
-                    style={{
-                      height: keyboardHeight > 0 ? Math.max(220, keyboardHeight * 0.55) : 20,
-                    }}
-                  />
                   <Pressable
                     style={[
                       styles.primaryBtn,
