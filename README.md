@@ -347,7 +347,9 @@ for closed / mixed-device testers for now.
 6. Copy the Android **App ID** from Project settings (`1:…:android:…`).
 
 Also once on Expo: from `apps/mobile`, link the project (`npx eas-cli init` if needed)
-and run one interactive Android build so credentials exist for non-interactive CI:
+and run one interactive Android build so credentials exist for non-interactive CI.
+EAS builds use **Node 22.14+** (required by `pnpm@11`; the default EAS image Node 20
+fails with `ERR_UNKNOWN_BUILTIN_MODULE: node:sqlite`).
 
 ```bash
 cd apps/mobile
