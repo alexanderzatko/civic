@@ -18,6 +18,7 @@
     "android:prebuild": "expo prebuild --platform android",
     "android:apk": "bash scripts/build-android-apk.sh",
     "android:apk:clean": "expo prebuild --clean --platform android && bash scripts/build-android-apk.sh",
+    "android:distribute:firebase": "bash scripts/distribute-android-firebase.sh",
     "prebuild:clean": "expo prebuild --clean --platform android --no-install && expo prebuild --clean --platform ios --no-install && bash scripts/ios-pod-install.sh",
     "generate:brand-images": "bash scripts/generate-brand-images.sh",
     "web": "expo start --web",

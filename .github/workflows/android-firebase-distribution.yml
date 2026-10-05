@@ -1,0 +1,158 @@
+name: Android Firebase Distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: Optional release notes for testers
+        required: false
+        type: string
+        default: ""
+  push:
+    tags:
+      - "android-preview-*"
+
+concurrency:
+  group: android-firebase-distribution
+  cancel-in-progress: false
+
+jobs:
+  build-and-distribute:
+    name: EAS preview APK → Firebase App Distribution
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: apps/mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android APK on EAS
+        id: eas_build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          build_json="$(eas build --platform android --profile preview --non-interactive --wait --json)"
+          printf '%s\n' "$build_json" > "${RUNNER_TEMP}/eas-build.json"
+
+          build_id="$(jq -r 'if type == "array" then .[0].id // empty else .id // empty end' "${RUNNER_TEMP}/eas-build.json")"
+          build_status="$(jq -r 'if type == "array" then .[0].status // empty else .status // empty end' "${RUNNER_TEMP}/eas-build.json")"
+
+          if [[ -z "$build_id" ]]; then
+            echo "Failed to determine EAS build ID."
+            cat "${RUNNER_TEMP}/eas-build.json"
+            exit 1
+          fi
+
+          if [[ "$build_status" != "FINISHED" && "$build_status" != "finished" ]]; then
+            echo "EAS build did not finish successfully (status=${build_status})."
+            cat "${RUNNER_TEMP}/eas-build.json"
+            exit 1
+          fi
+
+          echo "build_id=${build_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Download APK artifact
+        id: download
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          view_json="$(eas build:view "${{ steps.eas_build.outputs.build_id }}" --json)"
+          printf '%s\n' "$view_json" > "${RUNNER_TEMP}/eas-build-view.json"
+
+          artifact_url="$(jq -r '.artifacts.buildUrl // .artifacts.applicationArchiveUrl // empty' "${RUNNER_TEMP}/eas-build-view.json")"
+          if [[ -z "$artifact_url" ]]; then
+            echo "Failed to determine APK artifact URL."
+            cat "${RUNNER_TEMP}/eas-build-view.json"
+            exit 1
+          fi
+
+          apk_path="${RUNNER_TEMP}/civic-preview.apk"
+          curl --fail --location --retry 3 --output "$apk_path" "$artifact_url"
+
+          if ! unzip -t "$apk_path" >/dev/null 2>&1; then
+            echo "Downloaded file is not a valid APK (artifact likely expired or HTML error page)."
+            exit 1
+          fi
+
+          echo "apk_path=${apk_path}" >> "$GITHUB_OUTPUT"
+          ls -lh "$apk_path"
+
+      - name: Write Firebase service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${FIREBASE_SERVICE_ACCOUNT}" ]]; then
+            echo "Missing FIREBASE_SERVICE_ACCOUNT secret."
+            exit 1
+          fi
+          printf '%s\n' "$FIREBASE_SERVICE_ACCOUNT" > "${RUNNER_TEMP}/firebase-sa.json"
+
+      - name: Compose release notes
+        id: notes
+        run: |
+          set -euo pipefail
+          notes="${{ github.event.inputs.release_notes }}"
+          if [[ -z "$notes" ]]; then
+            short_sha="${GITHUB_SHA:0:7}"
+            if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+              notes="Civic Android preview ${GITHUB_REF_NAME} (${short_sha})"
+            else
+              notes="Civic Android preview ${short_sha} (run ${GITHUB_RUN_NUMBER})"
+            fi
+          fi
+          {
+            echo "text<<EOF"
+            echo "$notes"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload to Firebase App Distribution
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_TESTER_GROUPS: ${{ secrets.FIREBASE_TESTER_GROUPS }}
+          APK_PATH: ${{ steps.download.outputs.apk_path }}
+          RELEASE_NOTES: ${{ steps.notes.outputs.text }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${FIREBASE_APP_ID}" ]]; then
+            echo "Missing FIREBASE_APP_ID secret."
+            exit 1
+          fi
+          groups="${FIREBASE_TESTER_GROUPS:-civic-testers}"
+          npx --yes firebase-tools@latest appdistribution:distribute "$APK_PATH" \
+            --app "$FIREBASE_APP_ID" \
+            --groups "$groups" \
+            --release-notes "$RELEASE_NOTES"
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f "${RUNNER_TEMP}/firebase-sa.json"

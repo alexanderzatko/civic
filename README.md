@@ -39,7 +39,7 @@ Civic account.
 | Prínos (ME•ter) | Merit Index leaderboard + filters |
 | Auth | Rovas OAuth (Authorization Code + PKCE) |
 | API deploy | `https://civic-api.rovas.app` |
-| Mobile builds | Dev client (iOS) + release APK (Android); EAS profiles ready |
+| Mobile builds | Dev client (iOS) + release APK (Android); EAS + Firebase App Distribution |
 
 Still deferred: in-app gifts/invest flows, GPS location fraud heuristics, income-tax
 Merits / ÚPVS, App Store / Play production release, Postgres.
@@ -324,13 +324,92 @@ servers found”, “error loading app”.
 
 OAuth details: [`docs/rovas-integration.md`](docs/rovas-integration.md).
 
-## Physical Android (APK install)
+## Android testing (Firebase App Distribution)
 
-Release APK with the JS bundle embedded (no Metro required on the phone). The
-Civic API is reached at `EXPO_PUBLIC_API_URL` from `apps/mobile/.env` (default
-`https://civic-api.rovas.app`).
+Preferred path for selected testers: EAS builds an **APK** (`preview` profile),
+then GitHub Actions uploads it to **Firebase App Distribution**. Testers install
+via email invite. This works on stock Android and on **/e/OS (Murena)** when they
+use the **web** download (not the Firebase App Tester companion app).
 
-### System requirements (device)
+Google Play testing tracks come later (needs a Play listing + AAB). Keep Firebase
+for closed / mixed-device testers for now.
+
+### One-time Firebase setup
+
+1. Create a Firebase project (e.g. `civic-mobile`).
+2. Add an **Android** app with package id `app.civic.mobile`.
+3. Skip `google-services.json` for now — App Distribution upload does not need
+   an in-app Firebase SDK.
+4. **App Distribution → Testers & groups** → create group `civic-testers` → add
+   tester emails.
+5. In Google Cloud for that project: create a service account with role
+   **Firebase App Distribution Admin**, download the JSON key.
+6. Copy the Android **App ID** from Project settings (`1:…:android:…`).
+
+Also once on Expo: from `apps/mobile`, link the project (`npx eas init` if needed)
+and run one interactive Android build so credentials exist for non-interactive CI:
+
+```bash
+cd apps/mobile
+npx eas build -p android --profile preview
+```
+
+### GitHub Actions secrets
+
+| Secret | Value |
+|---|---|
+| `EXPO_TOKEN` | [Expo access token](https://expo.dev/settings/access-tokens) |
+| `FIREBASE_APP_ID` | Android App ID (`1:…:android:…`) |
+| `FIREBASE_SERVICE_ACCOUNT` | Full service-account JSON |
+| `FIREBASE_TESTER_GROUPS` | Optional; defaults to `civic-testers` if unset |
+
+### Ship a build to testers
+
+1. Actions → **Android Firebase Distribution** → **Run workflow** (optional
+   release notes), **or** push a tag `android-preview-*`.
+2. Wait for EAS + upload (~15–40 min).
+3. Testers get an email. Prefer: open the invite in a **browser** → download APK
+   → allow install from that source → install.
+
+**/e/OS (Murena):** do **not** rely on the Firebase App Tester app (needs Google
+Play Services). Use the invite web page / APK download, then sideload.
+
+Firebase App Tester remains optional on phones with Play Store / GMS.
+
+### Version numbering
+
+Two numbers (Expo / EAS model):
+
+| Kind | Field | Who bumps | When |
+|---|---|---|---|
+| User-facing | `expo.version` in [`apps/mobile/app.json`](apps/mobile/app.json) (keep [`apps/mobile/package.json`](apps/mobile/package.json) `version` in sync) | You | Meaningful tester/store cuts (`0.1.0` → `0.2.0`) |
+| Build | Android `versionCode` (remote on EAS) | EAS `autoIncrement` on `preview` / `production` | Every EAS build |
+
+Day-to-day tester builds: run the Action without bumping semver. Milestone cuts:
+bump `0.x.y` in one PR, then ship. While pre-1.0: `0.MINOR.0` = feature
+milestone, `0.MINOR.PATCH` = hotfix. Never reset remote `versionCode` (Play will
+need the same continuum later).
+
+Local ↔ EAS parity if needed: `cd apps/mobile && npx eas build:version:sync`.
+
+### One-off upload (local helper)
+
+With `FIREBASE_APP_ID`, `GOOGLE_APPLICATION_CREDENTIALS`, and optional
+`FIREBASE_TESTER_GROUPS`:
+
+```bash
+# After a local APK build, or with a downloaded EAS APK:
+pnpm --filter @civic/mobile android:distribute:firebase path/to.apk "Optional notes"
+# Or latest dist/civic-*-android-release.apk:
+pnpm --filter @civic/mobile android:distribute:firebase
+```
+
+### Local APK (fallback / emergency sideload)
+
+Release APK with the JS bundle embedded (no Metro). Civic API URL comes from
+`EXPO_PUBLIC_API_URL` in `apps/mobile/.env` (default `https://civic-api.rovas.app`).
+
+#### System requirements (device)
 
 | Requirement | Detail |
 |---|---|
@@ -342,7 +421,7 @@ Civic API is reached at `EXPO_PUBLIC_API_URL` from `apps/mobile/.env` (default
 | **Location** | Optional / forward-compat on claim (GPS fraud not enforced in v1) |
 | **Photos** | Optional — volunteer work proof images |
 
-### Build the APK (Mac)
+#### Build the APK (Mac)
 
 One-time: [Android SDK](https://developer.android.com/studio) (or Android Studio)
 with `ANDROID_HOME` pointing at the SDK, plus **JDK 17+** (JDK 21 works).
@@ -355,23 +434,21 @@ pnpm --filter @civic/mobile android:apk
 
 Output: `apps/mobile/dist/civic-0.1.0-android-release.apk` (~100 MB).
 
-Subsequent builds are much faster (~2–5 min) once Gradle caches exist.
+Prefer EAS for Firebase so signing and remote `versionCode` stay consistent.
+Local APKs are fine for USB install or the distribute script above.
 
 **After changing app icon or splash assets**, update PNGs in
 `apps/mobile/assets/images/`, then run prebuild and rebuild — see
 [Regenerate native projects (prebuild)](#regenerate-native-projects-prebuild).
-Metro reload is not enough. If the launcher still shows a cached icon, cold-boot
-the emulator once.
 
-**Cloud alternative:** `eas.json` is configured — from `apps/mobile`, run
+**Cloud build only:** from `apps/mobile`,
 `npx eas build -p android --profile preview` (Expo account required).
 
-### Install on a phone
+#### Install without Firebase
 
-1. Copy the APK to the device (USB, AirDrop alternative, cloud drive, etc.).
-2. On the phone: **Settings → Security** → allow install from unknown sources
-   (wording varies by OEM).
-3. Open the APK file and confirm install.
+1. Copy the APK to the device (USB, cloud drive, etc.).
+2. Allow install from unknown sources / that file source.
+3. Open the APK and confirm install.
 4. Grant **Camera** (and photos if using volunteer proof) when prompted.
 
 Package id: `app.civic.mobile`. This build includes the Expo dev-client shell
