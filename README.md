@@ -346,12 +346,12 @@ for closed / mixed-device testers for now.
    **Firebase App Distribution Admin**, download the JSON key.
 6. Copy the Android **App ID** from Project settings (`1:…:android:…`).
 
-Also once on Expo: from `apps/mobile`, link the project (`npx eas init` if needed)
+Also once on Expo: from `apps/mobile`, link the project (`npx eas-cli init` if needed)
 and run one interactive Android build so credentials exist for non-interactive CI:
 
 ```bash
 cd apps/mobile
-npx eas build -p android --profile preview
+npx eas-cli build -p android --profile preview
 ```
 
 ### GitHub Actions secrets
@@ -390,7 +390,7 @@ bump `0.x.y` in one PR, then ship. While pre-1.0: `0.MINOR.0` = feature
 milestone, `0.MINOR.PATCH` = hotfix. Never reset remote `versionCode` (Play will
 need the same continuum later).
 
-Local ↔ EAS parity if needed: `cd apps/mobile && npx eas build:version:sync`.
+Local ↔ EAS parity if needed: `cd apps/mobile && npx eas-cli build:version:sync`.
 
 ### One-off upload (local helper)
 
@@ -442,7 +442,7 @@ Local APKs are fine for USB install or the distribute script above.
 [Regenerate native projects (prebuild)](#regenerate-native-projects-prebuild).
 
 **Cloud build only:** from `apps/mobile`,
-`npx eas build -p android --profile preview` (Expo account required).
+`npx eas-cli build -p android --profile preview` (Expo account required).
 
 #### Install without Firebase
 
