@@ -28,14 +28,16 @@ the repo README.
 ## About + Status
 
 - Header (tab roots only): `information-box-outline` in
-  `components/CivicScreenHeader.tsx` → `/about` (no 6th tab).
-- `/about`: operator blurb, Merit framing, legal links, link to `/status`,
+  `components/CivicScreenHeader.tsx` → `/(tabs)/about` (hidden tab —
+  tab bar stays visible; not a 6th menu item).
+- `/(tabs)/about`: operator blurb, legal links, link to `/status`,
   app version (`lib/app-version.ts` via `expo-application`).
 - `/status`: session + `GET /health` (Civic API + Rovas probe). Client:
   `fetchHealth()` in `lib/api.ts`.
 - Legal URLs: `lib/legal-urls.ts` — override with `EXPO_PUBLIC_LEGAL_*` and
-  optional `EXPO_PUBLIC_ROVAS_SITE_URL` (see `.env.example`). Do not point
-  legal links at `EXPO_PUBLIC_ROVAS_BASE_URL` (may be `dev.rovas.app`).
+  optional `EXPO_PUBLIC_ROVAS_SITE_URL` / `EXPO_PUBLIC_NEOFUND_SITE_URL`
+  (see `.env.example`). Do not point legal links at
+  `EXPO_PUBLIC_ROVAS_BASE_URL` (may be `dev.rovas.app`).
 - Auth terms/privacy screens open the same URLs in the system browser.
 
 ## Rovas integration

@@ -15,6 +15,7 @@ import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { fetchMe, fetchMeritHistory } from "@/lib/api";
 import { useChronPreference } from "@/lib/chron-preference";
+import { visibleDisplayName } from "@/lib/format-member-handle";
 import { CIVIC_LOCALES, type Locale, t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
@@ -39,6 +40,7 @@ export default function ProfileScreen() {
   const { locale, setAppLocale } = useLocale();
   const { allowChrons, setAllowChrons } = useChronPreference();
   const [username, setUsername] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [totalMe, setTotalMe] = useState<number | null>(null);
   const [totalChr, setTotalChr] = useState<number | null>(null);
   const [items, setItems] = useState<MeritHistoryItem[]>([]);
@@ -67,6 +69,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (status !== "signedIn") {
       setUsername(null);
+      setDisplayName(null);
       setTotalMe(null);
       setTotalChr(null);
       setItems([]);
@@ -78,13 +81,16 @@ export default function ProfileScreen() {
     fetchMe()
       .then((me) => {
         if (cancelled) return;
-        setUsername(me.username ?? me.rovas_uid);
+        const name = me.username ?? me.rovas_uid;
+        setUsername(name);
+        setDisplayName(me.display_name ?? null);
         setTotalMe(typeof me.total_me === "number" ? me.total_me : null);
         setTotalChr(typeof me.total_chr === "number" ? me.total_chr : null);
       })
       .catch(() => {
         if (!cancelled) {
           setUsername(null);
+          setDisplayName(null);
           setTotalMe(null);
           setTotalChr(null);
         }
@@ -169,39 +175,47 @@ export default function ProfileScreen() {
   }
 
   if (status === "signedIn") {
+    const shownName =
+      username != null
+        ? visibleDisplayName({ username, displayName })
+        : null;
+
     return (
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.brand}>Civic</Text>
-        <Text style={styles.body}>{t("profile.signed_in")}</Text>
-        {username ? (
-          <Text style={styles.meta}>
-            {t("profile.username")}: @{username}
-          </Text>
-        ) : null}
+        <Text style={styles.userLine}>
+          {t("profile.username")}
+          {username ? `: @${username}` : ""} ({t("profile.signed_in")})
+        </Text>
+        {shownName ? <Text style={styles.displayName}>{shownName}</Text> : null}
         {totalMe != null ? (
           <Text style={styles.balance}>
             {formatMe(totalMe)} {t("common.me")}
           </Text>
         ) : null}
-        {totalChr != null && totalChr > 0 ? (
-          <Text style={styles.balanceChr}>
-            {t("profile.chrons_balance")}: {formatChr(totalChr)} CHR
-          </Text>
-        ) : null}
-        {languageSwitcher}
-        <View style={styles.prefRow}>
-          <Text style={styles.prefLabel}>{t("profile.allow_chrons")}</Text>
-          <Switch
-            value={allowChrons}
-            onValueChange={(checked) => {
-              void setAllowChrons(checked);
-            }}
-            trackColor={{ false: colors.border, true: colors.brandSoft }}
-            accessibilityRole="switch"
-            accessibilityLabel={t("profile.allow_chrons")}
-          />
+
+        <View style={styles.pillbox}>
+          <Text style={styles.pillLabel}>{t("profile.chrons_section")}</Text>
+          {totalChr != null ? (
+            <Text style={styles.balanceChr}>
+              {t("profile.chrons_balance")}: {formatChr(totalChr)} CHR
+            </Text>
+          ) : null}
+          <View style={styles.prefRow}>
+            <Text style={styles.prefLabel}>{t("profile.allow_chrons")}</Text>
+            <Switch
+              value={allowChrons}
+              onValueChange={(checked) => {
+                void setAllowChrons(checked);
+              }}
+              trackColor={{ false: colors.border, true: colors.brandSoft }}
+              accessibilityRole="switch"
+              accessibilityLabel={t("profile.allow_chrons")}
+            />
+          </View>
+          <Text style={styles.prefHint}>{t("profile.allow_chrons_hint")}</Text>
         </View>
-        <Text style={styles.prefHint}>{t("profile.allow_chrons_hint")}</Text>
+
+        {languageSwitcher}
         <Pressable
           style={styles.btn}
           onPress={() => {
@@ -224,7 +238,6 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.brand}>Civic</Text>
       <Text style={styles.body}>{t("profile.signed_out")}</Text>
       {languageSwitcher}
       <Link href="/(auth)/login" asChild>
@@ -239,11 +252,18 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   centered: { flex: 1, padding: 24, justifyContent: "center" },
   container: { padding: 24, gap: 16, paddingBottom: 48 },
-  brand: { fontSize: 24, fontWeight: "700", color: colors.brand },
+  userLine: { color: colors.ink, fontWeight: "600", fontSize: 16, lineHeight: 22 },
+  displayName: { color: colors.ink, fontSize: 18, fontWeight: "700", marginTop: -4 },
   body: { color: colors.muted, lineHeight: 22 },
-  meta: { color: colors.ink, fontWeight: "600" },
   balance: { fontSize: 22, fontWeight: "700", color: colors.ink },
-  balanceChr: { fontSize: 18, fontWeight: "600", color: colors.muted },
+  balanceChr: { fontSize: 18, fontWeight: "600", color: colors.ink },
+  pillbox: {
+    backgroundColor: "#E8EFEA",
+    borderRadius: 14,
+    padding: 16,
+    gap: 12,
+  },
+  pillLabel: { fontWeight: "700", color: colors.ink, fontSize: 15 },
   langBlock: { gap: 8 },
   langLabel: { color: colors.ink, fontWeight: "600" },
   langRow: { flexDirection: "row", gap: 8 },
@@ -267,7 +287,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   prefLabel: { flex: 1, color: colors.ink, fontWeight: "600", lineHeight: 20 },
-  prefHint: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: -8 },
+  prefHint: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   btn: {
     backgroundColor: colors.brand,
     borderRadius: 12,

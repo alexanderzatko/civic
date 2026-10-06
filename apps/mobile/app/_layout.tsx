@@ -62,13 +62,6 @@ function RootNavigator() {
           options={{ title: t("legal.privacy_title") }}
         />
         <Stack.Screen
-          name="about"
-          options={{
-            ...civicStackScreenOptions,
-            title: t("about.title"),
-          }}
-        />
-        <Stack.Screen
           name="status"
           options={{
             ...civicStackScreenOptions,

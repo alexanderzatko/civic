@@ -87,6 +87,13 @@ export default function TabLayout() {
             ),
           }}
         />
+        <Tabs.Screen
+          name="about"
+          options={{
+            href: null,
+            title: t("about.title"),
+          }}
+        />
       </Tabs>
     </PendingVerificationsHost>
   );

@@ -3,6 +3,25 @@ import { t } from "@/lib/i18n";
 const PLACEHOLDER_DISPLAY_NAME = "nomen omen";
 
 /**
+ * Full name for Home / Community / Profile when it is meaningful —
+ * not empty, not the Rovas placeholder "nomen omen", and not equal to username.
+ */
+export function visibleDisplayName(opts: {
+  username: string;
+  displayName?: string | null;
+}): string | null {
+  const display = opts.displayName?.trim() ?? "";
+  if (
+    !display ||
+    display.toLowerCase() === PLACEHOLDER_DISPLAY_NAME ||
+    display.toLowerCase() === opts.username.toLowerCase()
+  ) {
+    return null;
+  }
+  return display;
+}
+
+/**
  * `@username · Full Name · since YYYY` for Home / Community profile.
  * Omits the display name when it equals the username or the Rovas
  * placeholder "nomen omen".
@@ -13,12 +32,11 @@ export function formatMemberHandle(opts: {
   memberSinceYear?: number | null;
 }): string {
   const parts = [`@${opts.username}`];
-  const display = opts.displayName?.trim() ?? "";
-  if (
-    display &&
-    display.toLowerCase() !== PLACEHOLDER_DISPLAY_NAME &&
-    display.toLowerCase() !== opts.username.toLowerCase()
-  ) {
+  const display = visibleDisplayName({
+    username: opts.username,
+    displayName: opts.displayName,
+  });
+  if (display) {
     parts.push(display);
   }
   if (opts.memberSinceYear != null && opts.memberSinceYear > 0) {

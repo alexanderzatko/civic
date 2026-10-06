@@ -19,14 +19,17 @@ function headerTitleText(options: {
 export function CivicScreenHeader({
   navigation,
   options,
+  route,
   back,
 }: {
   navigation: { goBack: () => void };
   options: { title?: string; headerTitle?: unknown };
+  route?: { name?: string };
   back?: unknown;
 }) {
   const title = headerTitleText(options);
-  const showAbout = !back;
+  const onAbout = route?.name === "about";
+  const showAbout = !back && !onAbout;
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safe}>
@@ -50,7 +53,7 @@ export function CivicScreenHeader({
         {showAbout ? (
           <Pressable
             onPress={() => {
-              router.push("/about");
+              router.push("/(tabs)/about");
             }}
             hitSlop={8}
             accessibilityRole="button"
