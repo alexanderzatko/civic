@@ -474,6 +474,10 @@ v1 uses **net** wage basis.
 
 - **Civic** — from Latin *civicus* ("of or pertaining to a citizen"); cousin of *city*, *civil*, *civilization*. See [`identity/civic-linguistics.txt`](identity/civic-linguistics.txt).
 - **ME** — the Merit unit, displayed alongside the Civic mark in product surfaces.
+- **Rovas / Rováš** — EN UI and English docs: **Rovas**. SK UI: always accented
+  **Rováš**, locative **v Rováši** (not *Na Rováši*). Wire names stay ASCII
+  (`rovas.app`, `ROVAS_*`). Policy: [`.cursor/rules/civic-terminology.mdc`](.cursor/rules/civic-terminology.mdc)
+  and [`apps/mobile/AGENTS.md`](apps/mobile/AGENTS.md).
 
 ## License
 

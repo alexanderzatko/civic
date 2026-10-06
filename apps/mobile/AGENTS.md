@@ -12,10 +12,15 @@ use *zásluha*, *credit*, *odmena*). Use the established forms in locale files:
 |--------|---------|-------------------|
 | Merit unit | Merit, Merits, ME | Merit, merity, meritov, ME (sentence case) |
 | Time token | Chron, Chrons | Chron, chrony (sentence case) |
+| Platform | Rovas | **Rováš** / **v Rováši** (never *Na Rováši*; never unaccented *Rovas* in SK UI) |
 
-Slovak copy uses **sentence case** for these terms: lowercase mid-sentence
+Slovak copy uses **sentence case** for Merit/Chron: lowercase mid-sentence
 (`získať merity`), capital only at sentence start or as a standalone label
 (`Merity`). English keeps the capitalized *terminus technicus*.
+
+**Rováš:** SK user-facing strings always use the accented form and normal
+inflection (`v Rováši`). EN may use ASCII **Rovas**. Hostnames / env / API ids
+remain `rovas`.
 
 See `.cursor/rules/civic-terminology.mdc` and the NeoFund glossary linked from
 the repo README.
