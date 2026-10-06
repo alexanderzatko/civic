@@ -193,6 +193,8 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
 
+        {languageSwitcher}
+
         <View style={styles.pillbox}>
           <Text style={styles.pillLabel}>{t("profile.chrons_section")}</Text>
           {totalChr != null ? (
@@ -215,7 +217,6 @@ export default function ProfileScreen() {
           <Text style={styles.prefHint}>{t("profile.allow_chrons_hint")}</Text>
         </View>
 
-        {languageSwitcher}
         <Pressable
           style={styles.btn}
           onPress={() => {
