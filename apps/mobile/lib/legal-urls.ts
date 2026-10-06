@@ -9,6 +9,7 @@ const DEFAULT_TERMS = "https://rovas.app/rules";
 const DEFAULT_GLOSSARY = "https://rovas.app/rules";
 /** Public product site for operator links on About (not OAuth). */
 const DEFAULT_ROVAS_SITE = "https://rovas.app";
+const DEFAULT_NEOFUND_SITE = "https://neofund.sk";
 
 function trimUrl(value: string | undefined, fallback: string): string {
   const v = value?.trim();
@@ -29,4 +30,8 @@ export function getGlossaryUrl(): string {
 
 export function getRovasSiteUrl(): string {
   return trimUrl(process.env.EXPO_PUBLIC_ROVAS_SITE_URL, DEFAULT_ROVAS_SITE);
+}
+
+export function getNeofundSiteUrl(): string {
+  return trimUrl(process.env.EXPO_PUBLIC_NEOFUND_SITE_URL, DEFAULT_NEOFUND_SITE);
 }
