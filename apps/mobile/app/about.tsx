@@ -30,18 +30,18 @@ export default function AboutScreen() {
       <Text style={styles.brand}>Civic</Text>
 
       <Text style={styles.sectionTitle}>{t("about.operator_title")}</Text>
-      <Text style={styles.body}>{t("about.operator_body")}</Text>
-      <Pressable
-        onPress={openRovas}
-        accessibilityRole="link"
-        accessibilityLabel={t("about.open_rovas_a11y")}
-      >
-        <Text style={styles.link}>{t("about.open_rovas")} →</Text>
-      </Pressable>
-
-      <Text style={styles.sectionTitle}>{t("about.merit_title")}</Text>
-      <Text style={styles.body}>{t("about.merit_summary")}</Text>
-      <Text style={styles.bodyMuted}>{t("about.chron_note")}</Text>
+      <Text style={styles.body}>
+        {t("about.operator_body_before")}
+        <Text
+          style={styles.link}
+          onPress={openRovas}
+          accessibilityRole="link"
+          accessibilityLabel={t("about.open_rovas_a11y")}
+        >
+          {t("about.operator_rovas")}
+        </Text>
+        {t("about.operator_body_after")}
+      </Text>
 
       <Text style={styles.sectionTitle}>{t("about.legal_title")}</Text>
       <Pressable
@@ -96,7 +96,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   body: { color: colors.ink, fontSize: 15, lineHeight: 22 },
-  bodyMuted: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   link: { color: colors.brand, fontWeight: "600", fontSize: 15 },
   row: {
     flexDirection: "row",
