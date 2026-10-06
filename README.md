@@ -21,7 +21,10 @@ Civic account.
 > [`~/Documents/Business/NeoFund_NP`](../../Business/NeoFund_NP) — especially
 > [`glossary.md`](../../Business/NeoFund_NP/glossary.md),
 > [`about-us.md`](../../Business/NeoFund_NP/about-us.md) /
-> [`about-us-sk.md`](../../Business/NeoFund_NP/about-us-sk.md), and
+> [`about-us-sk.md`](../../Business/NeoFund_NP/about-us-sk.md),
+> [`privacy-policy.md`](../../Business/NeoFund_NP/privacy-policy.md) (draft —
+> publish to replace live `rovas.app` legal pages, then flip
+> `EXPO_PUBLIC_LEGAL_*` in the mobile app), and
 > [`neofund-site-rewrite-brief.md`](../../Business/NeoFund_NP/neofund-site-rewrite-brief.md).
 > Those definitions take precedence over older Rovas UI strings.
 
@@ -393,6 +396,10 @@ milestone, `0.MINOR.PATCH` = hotfix. Never reset remote `versionCode` (Play will
 need the same continuum later).
 
 Local ↔ EAS parity if needed: `cd apps/mobile && npx eas-cli build:version:sync`.
+
+Testers can confirm the installed build on **About** (header info icon → About):
+`Version x.y.z (build N)` from `expo-application`. **Service status** (About →
+Status) checks session, Civic API `GET /health`, and Rovas reachability.
 
 ### One-off upload (local helper)
 

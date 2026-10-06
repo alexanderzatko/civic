@@ -17,13 +17,24 @@ public-benefit / nonprofit orgs). Wire ids stay `charity` / `is_charity` /
 **Next work: broaden Gifts path labels (public-benefit orgs)** in
 [`~/Documents/homeProjects/rovas/docs/integration/civic.md`](../../rovas/docs/integration/civic.md).
 
-**Product copy (Merits-first):** Civic screens emphasize Merits. Rovas is named
-mainly on the login screen (identity acknowledgment); deeper explanation belongs
-on a future About us screen. Chron reward choice is **opt-in** on Profile
+**Product copy (Merits-first):** Civic screens emphasize Merits as a
+non-transferable record of contribution (About screen, Earn explainers). Rovas
+is named on login and About. Chron reward choice is **opt-in** on Profile
 (`civic.prefs.allow_chrons`); volunteer reports default to Merits only. See
 Rovas **Next work: Civic-branded OAuth login/register** for Civic-skinned
 HybridAuth login/register when authorizing client `civic`.
 
+**Legal / glossary URLs (mobile):** `apps/mobile/lib/legal-urls.ts` defaults to
+`https://rovas.app/privacy` and `https://rovas.app/rules`. Overrides:
+`EXPO_PUBLIC_LEGAL_PRIVACY_URL`, `EXPO_PUBLIC_LEGAL_TERMS_URL`,
+`EXPO_PUBLIC_LEGAL_GLOSSARY_URL`. NeoFund drafts to publish and then flip those
+URLs: `~/Documents/Business/NeoFund_NP/privacy-policy.md`,
+`glossary.md`, `about-us.md`. Until then, live Rovas pages remain the interim
+source.
+
+**Service status:** About → Status calls Civic `GET /health`, which probes Rovas
+(`civic_national_hourly_rate`) and returns `{ civic_api, rovas }` for the Status
+screen.
 ## Expo client
 
 | Setting | Value |

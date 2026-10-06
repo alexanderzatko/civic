@@ -11,6 +11,7 @@ import {
 } from "@/lib/analytics";
 import { AuthProvider } from "@/lib/auth";
 import { ChronPreferenceProvider } from "@/lib/chron-preference";
+import { civicStackScreenOptions } from "@/lib/civic-screen-options";
 import { LocaleProvider, useLocale } from "@/lib/locale";
 import { t } from "@/lib/i18n";
 
@@ -59,6 +60,20 @@ function RootNavigator() {
         <Stack.Screen
           name="(auth)/privacy"
           options={{ title: t("legal.privacy_title") }}
+        />
+        <Stack.Screen
+          name="about"
+          options={{
+            ...civicStackScreenOptions,
+            title: t("about.title"),
+          }}
+        />
+        <Stack.Screen
+          name="status"
+          options={{
+            ...civicStackScreenOptions,
+            title: t("status.title"),
+          }}
         />
         <Stack.Screen
           name="oauth/callback"

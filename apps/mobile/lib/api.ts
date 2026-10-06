@@ -51,6 +51,73 @@ export function getApiBaseUrl(): string {
   );
 }
 
+/** Hostname only for Status UI (no secrets). */
+export function getApiHostLabel(): string {
+  try {
+    return new URL(getApiBaseUrl()).host;
+  } catch {
+    return getApiBaseUrl();
+  }
+}
+
+export type HealthResponse = {
+  ok: boolean;
+  civic_api: { ok: boolean };
+  rovas: {
+    ok: boolean;
+    base_url?: string;
+    error?: string;
+  };
+  formula_version?: number;
+  wage_basis?: string;
+  hourly_wage_eur?: number;
+  merit_rate_source?: string;
+  rovas_base_url?: string;
+};
+
+const HEALTH_TIMEOUT_MS = 12_000;
+
+/**
+ * Public Civic API health + Rovas probe. Transport failure ⇒ Civic unreachable.
+ */
+export async function fetchHealth(): Promise<{
+  data: HealthResponse | null;
+  latencyMs: number;
+  error: string | null;
+}> {
+  const started = Date.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/health`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    const latencyMs = Date.now() - started;
+    if (!res.ok) {
+      return {
+        data: null,
+        latencyMs,
+        error: `HTTP ${res.status}`,
+      };
+    }
+    const data = (await res.json()) as HealthResponse;
+    return { data, latencyMs, error: null };
+  } catch (err) {
+    const latencyMs = Date.now() - started;
+    const message =
+      err instanceof Error && err.name === "AbortError"
+        ? "timeout"
+        : err instanceof Error
+          ? err.message.slice(0, 120)
+          : "unreachable";
+    return { data: null, latencyMs, error: message };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export type MeIdentity = {
   rovas_uid: string;
   username?: string;

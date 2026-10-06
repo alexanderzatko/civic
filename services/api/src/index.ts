@@ -63,8 +63,28 @@ async function main() {
 
   app.get("/health", async () => {
     const rate = await resolveMeritRate(rovas, config.settings);
+
+    let rovasOk = false;
+    let rovasError: string | undefined;
+    try {
+      await rovas.fetchNationalHourlyRate("SK");
+      rovasOk = true;
+    } catch (err) {
+      rovasOk = false;
+      rovasError =
+        err instanceof Error
+          ? err.message.slice(0, 160)
+          : "Rovas unreachable";
+    }
+
     return {
       ok: true,
+      civic_api: { ok: true as const },
+      rovas: {
+        ok: rovasOk,
+        base_url: config.rovasBaseUrl,
+        ...(rovasError ? { error: rovasError } : {}),
+      },
       formula_version: rate.formula_version,
       wage_basis: rate.wage_basis,
       hourly_wage_eur: rate.hourly_wage_eur,

@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { VerificationNotificationBannerConnected } from "@/components/VerificationNotificationBanner";
@@ -25,6 +26,7 @@ export function CivicScreenHeader({
   back?: unknown;
 }) {
   const title = headerTitleText(options);
+  const showAbout = !back;
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safe}>
@@ -35,7 +37,7 @@ export function CivicScreenHeader({
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel={t("common.back")}
-            style={styles.backBtn}
+            style={styles.sideBtn}
           >
             <Text style={styles.backLabel}>‹</Text>
           </Pressable>
@@ -45,7 +47,25 @@ export function CivicScreenHeader({
         <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
-        <View style={styles.side} />
+        {showAbout ? (
+          <Pressable
+            onPress={() => {
+              router.push("/about");
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("about.open_a11y")}
+            style={styles.sideBtn}
+          >
+            <MaterialCommunityIcons
+              name="information-box-outline"
+              size={24}
+              color="#fff"
+            />
+          </Pressable>
+        ) : (
+          <View style={styles.side} />
+        )}
       </View>
       <VerificationNotificationBannerConnected />
     </SafeAreaView>
@@ -65,7 +85,7 @@ const styles = StyleSheet.create({
   side: {
     width: 44,
   },
-  backBtn: {
+  sideBtn: {
     width: 44,
     height: 44,
     alignItems: "center",

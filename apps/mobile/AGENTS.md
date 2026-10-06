@@ -20,6 +20,19 @@ Slovak copy uses **sentence case** for these terms: lowercase mid-sentence
 See `.cursor/rules/civic-terminology.mdc` and the NeoFund glossary linked from
 the repo README.
 
+## About + Status
+
+- Header (tab roots only): `information-box-outline` in
+  `components/CivicScreenHeader.tsx` → `/about` (no 6th tab).
+- `/about`: operator blurb, Merit framing, legal links, link to `/status`,
+  app version (`lib/app-version.ts` via `expo-application`).
+- `/status`: session + `GET /health` (Civic API + Rovas probe). Client:
+  `fetchHealth()` in `lib/api.ts`.
+- Legal URLs: `lib/legal-urls.ts` — override with `EXPO_PUBLIC_LEGAL_*` and
+  optional `EXPO_PUBLIC_ROVAS_SITE_URL` (see `.env.example`). Do not point
+  legal links at `EXPO_PUBLIC_ROVAS_BASE_URL` (may be `dev.rovas.app`).
+- Auth terms/privacy screens open the same URLs in the system browser.
+
 ## Rovas integration
 
 Any **Rovas-side** work Civic needs (API fields, Services resources, OAuth,
