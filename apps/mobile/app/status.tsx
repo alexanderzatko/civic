@@ -10,25 +10,12 @@ import {
 import { useFocusEffect } from "expo-router";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
-import {
-  fetchHealth,
-  getApiHostLabel,
-  type HealthResponse,
-} from "@/lib/api";
+import { fetchHealth, type HealthResponse } from "@/lib/api";
 import { getAppVersionParts } from "@/lib/app-version";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
 
 type RowState = "ok" | "fail" | "unknown" | "loading";
-
-function hostFromUrl(url: string | undefined): string {
-  if (!url) return "—";
-  try {
-    return new URL(url).host;
-  } catch {
-    return url;
-  }
-}
 
 function StatusChip({ state }: { state: RowState }) {
   const label =
@@ -58,22 +45,11 @@ function StatusChip({ state }: { state: RowState }) {
   );
 }
 
-function StatusRow({
-  label,
-  state,
-  detail,
-}: {
-  label: string;
-  state: RowState;
-  detail?: string | null;
-}) {
+function StatusRow({ label, state }: { label: string; state: RowState }) {
   return (
     <View style={styles.row}>
-      <View style={styles.rowTop}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        <StatusChip state={state} />
-      </View>
-      {detail ? <Text style={styles.rowDetail}>{detail}</Text> : null}
+      <Text style={styles.rowLabel}>{label}</Text>
+      <StatusChip state={state} />
     </View>
   );
 }
@@ -85,7 +61,6 @@ export default function StatusScreen() {
 
   const [checking, setChecking] = useState(false);
   const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [civicError, setCivicError] = useState<string | null>(null);
 
   const runChecks = useCallback(async () => {
@@ -93,7 +68,6 @@ export default function StatusScreen() {
     setCivicError(null);
     try {
       const result = await fetchHealth();
-      setLatencyMs(result.latencyMs);
       setHealth(result.data);
       setCivicError(result.error);
     } finally {
@@ -113,12 +87,6 @@ export default function StatusScreen() {
       : authStatus === "signedIn"
         ? "ok"
         : "unknown";
-  const sessionDetail =
-    authStatus === "signedIn"
-      ? t("status.session_signed_in")
-      : authStatus === "loading"
-        ? t("status.session_loading")
-        : t("status.session_signed_out");
 
   const civicState: RowState = checking
     ? "loading"
@@ -127,13 +95,6 @@ export default function StatusScreen() {
       : health.civic_api?.ok !== false
         ? "ok"
         : "fail";
-  const civicDetail = checking
-    ? null
-    : civicError
-      ? civicError
-      : latencyMs != null
-        ? t("status.latency_ms").replace("{{ms}}", String(latencyMs))
-        : null;
 
   const rovasState: RowState = checking
     ? "loading"
@@ -142,35 +103,16 @@ export default function StatusScreen() {
       : health.rovas?.ok
         ? "ok"
         : "fail";
-  const rovasDetail = !health
-    ? null
-    : health.rovas?.ok
-      ? hostFromUrl(health.rovas.base_url ?? health.rovas_base_url)
-      : (health.rovas?.error ?? t("status.rovas_unreachable"));
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.intro}>{t("status.intro")}</Text>
 
-      <StatusRow
-        label={t("status.check_session")}
-        state={sessionState}
-        detail={sessionDetail}
-      />
-      <StatusRow
-        label={t("status.check_civic")}
-        state={civicState}
-        detail={civicDetail}
-      />
-      <StatusRow
-        label={t("status.check_rovas")}
-        state={rovasState}
-        detail={rovasDetail}
-      />
+      <StatusRow label={t("status.check_session")} state={sessionState} />
+      <StatusRow label={t("status.check_civic")} state={civicState} />
+      <StatusRow label={t("status.check_rovas")} state={rovasState} />
 
       <View style={styles.metaBlock}>
-        <Text style={styles.metaLabel}>{t("status.api_host")}</Text>
-        <Text style={styles.metaValue}>{getApiHostLabel()}</Text>
         <Text style={styles.metaLabel}>{t("status.app_build")}</Text>
         <Text style={styles.metaValue}>
           {t("about.version")
@@ -206,17 +148,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
     padding: 14,
-    gap: 6,
-    backgroundColor: "#fff",
-  },
-  rowTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
+    backgroundColor: "#fff",
   },
   rowLabel: { flex: 1, fontWeight: "700", color: colors.ink, fontSize: 15 },
-  rowDetail: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   chip: {
     borderRadius: 8,
     paddingHorizontal: 10,
