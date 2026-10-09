@@ -1,7 +1,8 @@
 import type Database from "better-sqlite3";
 import type { CivicSettings, ClaimReceiptErrorCode } from "@civic/shared";
+import { BRATISLAVA_TZ, bratislavaDateKey } from "@civic/shared";
 
-export const BRATISLAVA_TZ = "Europe/Bratislava";
+export { BRATISLAVA_TZ, bratislavaDateKey } from "@civic/shared";
 
 export type FraudBlock = {
   code: ClaimReceiptErrorCode;
@@ -16,18 +17,6 @@ export function normalizeStoreKey(
   const raw = (storeAddress || merchantAddress || "").trim();
   if (!raw) return null;
   return raw.replace(/\s+/g, " ").toLowerCase();
-}
-
-/** YYYY-MM-DD in Europe/Bratislava for an instant. */
-export function bratislavaDateKey(isoOrDate: string | Date = new Date()): string {
-  const d = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
-  if (!Number.isFinite(d.getTime())) return "";
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: BRATISLAVA_TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d);
 }
 
 /**

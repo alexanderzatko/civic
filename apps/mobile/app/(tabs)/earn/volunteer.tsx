@@ -22,7 +22,7 @@ import type {
   VolunteerProjectRow,
 } from "@civic/shared";
 import type { WorkReportGeoJsonGeometry } from "@civic/shared";
-import { round2 } from "@civic/shared";
+import { isWorkReportDateOutsideWindow, round2 } from "@civic/shared";
 import { CreateProjectSection } from "@/components/CreateProjectSection";
 import { NacePicker, findNaceNode } from "@/components/NacePicker";
 import { VolunteerMapProofSection } from "@/components/VolunteerMapProofSection";
@@ -370,6 +370,10 @@ export default function VolunteerScreen() {
       setFormError(t("volunteer.error_date"));
       return;
     }
+    if (isWorkReportDateOutsideWindow(started)) {
+      setFormError(t("volunteer.error_date_reporting_window_expired"));
+      return;
+    }
     const hrs = parseDurationHours(hours, minutes);
     if (hrs == null) {
       setFormError(t("volunteer.error_hours"));
@@ -579,6 +583,7 @@ export default function VolunteerScreen() {
         <Text style={styles.stepHeading}>{t("volunteer.step2_heading")}</Text>
         <View style={styles.pillbox}>
         <Text style={[styles.label, styles.labelFirst]}>{t("volunteer.date")}</Text>
+        <Text style={styles.hint}>{t("volunteer.date_window_hint")}</Text>
         <TextInput
           value={date}
           onChangeText={setDate}

@@ -718,6 +718,7 @@ export interface WorkReportFeeInfo {
 export type CreateWorkReportErrorCode =
   | "not_shareholder"
   | "date_before_registration"
+  | "date_reporting_window_expired"
   | "pending_verifications"
   | "invalid_input"
   | "project_not_found"

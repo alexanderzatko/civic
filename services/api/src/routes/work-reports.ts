@@ -10,6 +10,7 @@ import type {
   WorkReportGeoJsonGeometry,
   WorkReportPhotoInput,
 } from "@civic/shared";
+import { isWorkReportDateOutsideWindow } from "@civic/shared";
 import { optionalAuth, requireAuth } from "../auth.js";
 import { resolveCivicContentLang } from "../content-lang.js";
 import type { AppContext } from "../context.js";
@@ -306,6 +307,16 @@ export const workReportsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async 
         return reply
           .code(400)
           .send(fail("invalid_input", "Work date cannot be in the future."));
+      }
+      if (isWorkReportDateOutsideWindow(dateStarted)) {
+        return reply
+          .code(400)
+          .send(
+            fail(
+              "date_reporting_window_expired",
+              "Work date is outside the reporting window.",
+            ),
+          );
       }
       if (!Number.isFinite(hours) || hours <= 0) {
         return reply

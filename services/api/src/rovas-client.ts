@@ -1814,6 +1814,12 @@ export function volunteerErrorCodeFromRovas(
   if (blob.includes("date_before_registration")) {
     return "date_before_registration";
   }
+  if (
+    blob.includes("date_reporting_window_expired") ||
+    blob.includes("reporting_window")
+  ) {
+    return "date_reporting_window_expired";
+  }
   if (blob.includes("pending_verifications")) return "pending_verifications";
   if (blob.includes("project_not_found") || err.status === 404) {
     return "project_not_found";
