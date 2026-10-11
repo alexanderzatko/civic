@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import * as Sharing from "expo-sharing";
 import QRCode from "react-native-qrcode-svg";
-import ViewShot, { captureRef, type ViewShotRef } from "react-native-view-shot";
+import ViewShot, { captureRef } from "react-native-view-shot";
 import { colors } from "@/constants/theme";
 import { capture } from "@/lib/analytics";
 import { t } from "@/lib/i18n";
@@ -33,7 +33,7 @@ export function GiftPaymentForm({
   donateIban,
   beneficiaryName,
 }: Props) {
-  const shotRef = useRef<ViewShotRef>(null);
+  const shotRef = useRef<ViewShot>(null);
   const [amountText, setAmountText] = useState("");
   const [amountError, setAmountError] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
