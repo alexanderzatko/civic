@@ -249,28 +249,28 @@ export function GiftPaymentForm({
       <Text style={styles.hint}>{t("project.gift_actions_hint")}</Text>
 
       <Pressable
-        style={[styles.primaryBtn, saving && styles.btnDisabled]}
-        onPress={() => void saveToGallery()}
-        disabled={saving || sharing}
-        accessibilityRole="button"
-      >
-        {saving ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.primaryText}>{t("project.gift_save")}</Text>
-        )}
-      </Pressable>
-
-      <Pressable
-        style={[styles.secondaryBtn, sharing && styles.btnDisabled]}
+        style={[styles.primaryBtn, sharing && styles.btnDisabled]}
         onPress={() => void shareToBank()}
         disabled={saving || sharing}
         accessibilityRole="button"
       >
         {sharing ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.primaryText}>{t("project.gift_share")}</Text>
+        )}
+      </Pressable>
+
+      <Pressable
+        style={[styles.secondaryBtn, saving && styles.btnDisabled]}
+        onPress={() => void saveToGallery()}
+        disabled={saving || sharing}
+        accessibilityRole="button"
+      >
+        {saving ? (
           <ActivityIndicator color={colors.brand} />
         ) : (
-          <Text style={styles.secondaryText}>{t("project.gift_share")}</Text>
+          <Text style={styles.secondaryText}>{t("project.gift_save")}</Text>
         )}
       </Pressable>
 
