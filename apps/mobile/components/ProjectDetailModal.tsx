@@ -17,6 +17,7 @@ import {
   type ProjectShareholderItem,
   type ProjectWorkReportItem,
 } from "@civic/shared";
+import { GiftPaymentForm } from "@/components/GiftPaymentForm";
 import { colors } from "@/constants/theme";
 import {
   fetchProject,
@@ -288,6 +289,16 @@ export function ProjectDetailModal({
                   >
                     <Text style={styles.link}>{t("project.donate_open")} →</Text>
                   </Pressable>
+                ) : null}
+                {detail.charity_status === "approved" &&
+                detail.donate_iban ? (
+                  <GiftPaymentForm
+                    projectNid={detail.project_nid}
+                    donateIban={detail.donate_iban}
+                    beneficiaryName={
+                      detail.organization?.trim() || detail.title
+                    }
+                  />
                 ) : null}
               </View>
             ) : null}

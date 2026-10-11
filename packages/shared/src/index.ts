@@ -32,6 +32,12 @@ export {
 } from "./receipt-uid.js";
 
 export {
+  compactIbanOrNull,
+  isPlausibleIban,
+  normalizeIban,
+} from "./iban.js";
+
+export {
   BRATISLAVA_TZ,
   WORK_REPORT_REPORTING_WINDOW_DAYS,
   bratislavaDateKey,

@@ -107,6 +107,11 @@ export interface ProjectDetail {
   donate_instructions?: string | null;
   /** Optional off-app donate URL (opens in the device browser). */
   donate_url?: string | null;
+  /**
+   * Compact SEPA IBAN for gift transfer (Pay by Square). Present only when
+   * Rovas staff verified the org controls this account; omit/`null` otherwise.
+   */
+  donate_iban?: string | null;
 }
 
 /** Month bucket for tax Merits on a public profile (`YYYY-MM`). */

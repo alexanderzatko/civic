@@ -45,7 +45,11 @@ import type {
   CharityProject,
   CharityProjectsResponse,
 } from "@civic/shared";
-import { resolveContributionCategories, displayMerits } from "@civic/shared";
+import {
+  compactIbanOrNull,
+  displayMerits,
+  resolveContributionCategories,
+} from "@civic/shared";
 import {
   appendLangParam,
   type CivicContentLang,
@@ -1417,6 +1421,7 @@ function normalizeProjectDetail(
       typeof raw.donate_url === "string" && raw.donate_url.trim()
         ? raw.donate_url.trim()
         : null,
+    donate_iban: compactIbanOrNull(raw.donate_iban),
   };
 }
 

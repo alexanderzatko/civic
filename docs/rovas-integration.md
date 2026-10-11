@@ -134,7 +134,7 @@ Optional Bearer:
 | `GET /rank/spotlight` | Period Merit spotlight — proxies Rovas `GET /rovas/civic_merit_spotlight` (no Bearer required; Bearer adds `you`) |
 | `GET /rank/index/countries` | Merit Index country filter — proxies Rovas `GET /rovas/civic_merit_index_countries` (no Bearer required) |
 | `GET /nace` | NACE tree for Prínos filters — proxies Rovas `GET /rovas/civic_nace_tree` (no Bearer required) |
-| `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}?lang=`. Anonymous allowed for NeoFund-**approved** public-benefit / nonprofit projects (`is_charity` + approved org); other projects need Bearer. Gift-path fields (wire names): `is_charity`, `charity_status`, `organization`, `donate_instructions`, `donate_url`. See Rovas **Next work: charitable projects (Civic catalog)** and **Next work: broaden Gifts path labels (public-benefit orgs)**. |
+| `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}?lang=`. Anonymous allowed for NeoFund-**approved** public-benefit / nonprofit projects (`is_charity` + approved org); other projects need Bearer. Gift-path fields (wire names): `is_charity`, `charity_status`, `organization`, `donate_instructions`, `donate_url`, `donate_iban` (compact IBAN only when staff IBAN-verified — see Rovas **[gift-donate-iban](../../rovas/docs/integration/civic_tasks/active/gift-donate-iban.md)**). Also: **Next work: charitable projects (Civic catalog)** and **Next work: broaden Gifts path labels (public-benefit orgs)**. |
 | `GET /projects/:nid/work-reports` | Paginated work ledgers — same anonymous rule as project detail |
 | `GET /projects/:nid/shareholders` | Paginated shareholders — same anonymous rule as project detail |
 

@@ -7,7 +7,9 @@ export type AnalyticsEvent =
   | "auth_signed_out"
   | "volunteer_report_submitted"
   | "receipt_claimed"
-  | "verification_submitted";
+  | "verification_submitted"
+  | "gift_payment_share"
+  | "gift_payment_preview";
 
 let client: PostHog | null = null;
 
