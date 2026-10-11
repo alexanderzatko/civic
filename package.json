@@ -14,9 +14,20 @@
     "ngrok:tunnel": "pnpm --filter @civic/mobile ngrok:tunnel",
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
-    "test": "pnpm -r run test"
+    "test": "pnpm -r run test",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
+  },
+  "version": "1.0.0",
+  "dependencies": {
+    "expo": "~54.0.36",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
   }
 }
