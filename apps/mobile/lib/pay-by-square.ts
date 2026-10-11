@@ -22,13 +22,27 @@ export function resolveGiftBeneficiaryIban(orgIban: string): string {
 }
 
 /**
+ * Banks are happier with ASCII beneficiary names (Base32hex / alphanumeric QR).
+ * Strip combining marks after NFD; keep letters/digits/spaces/basic punctuation.
+ */
+export function asciiBeneficiaryName(raw: string): string {
+  const stripped = raw
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^\x20-\x7E]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return stripped.slice(0, 70) || "Organisation";
+}
+
+/**
  * Encode a PAY by square payment-order payload for Slovak banking apps.
  * Returns the Base32Hex string to place in a QR code.
  */
 export function encodeGiftPayBySquare(input: GiftPaymentInput): string {
   const iban = resolveGiftBeneficiaryIban(input.iban);
   const amount = Math.round(input.amountEur * 100) / 100;
-  const name = input.beneficiaryName.trim().slice(0, 70) || "Organisation";
+  const name = asciiBeneficiaryName(input.beneficiaryName);
   return encode({
     payments: [
       {
@@ -40,6 +54,22 @@ export function encodeGiftPayBySquare(input: GiftPaymentInput): string {
       },
     ],
   });
+}
+
+/** Plain-text block for manual entry / share when QR handoff fails. */
+export function formatGiftPaymentDetails(input: {
+  iban: string;
+  amountEur: number;
+  beneficiaryName: string;
+}): string {
+  const iban = resolveGiftBeneficiaryIban(input.iban);
+  const amount = formatGiftAmountEur(input.amountEur);
+  const name = input.beneficiaryName.trim() || "Organisation";
+  return [
+    name,
+    `IBAN: ${iban}`,
+    `Amount: ${amount} EUR`,
+  ].join("\n");
 }
 
 /** Parse a user-entered EUR amount (`.` or `,` decimals). */

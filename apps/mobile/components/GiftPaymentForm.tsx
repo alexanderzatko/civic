@@ -3,11 +3,13 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import QRCode from "react-native-qrcode-svg";
 import ViewShot, { captureRef } from "react-native-view-shot";
@@ -15,11 +17,17 @@ import { colors } from "@/constants/theme";
 import { capture } from "@/lib/analytics";
 import { t } from "@/lib/i18n";
 import {
+  asciiBeneficiaryName,
   encodeGiftPayBySquare,
   formatGiftAmountEur,
+  formatGiftPaymentDetails,
   parseGiftAmountEur,
   resolveGiftBeneficiaryIban,
 } from "@/lib/pay-by-square";
+
+/** QR module size (px) + quiet zone — banks need a real margin around the code. */
+const QR_SIZE = 280;
+const QR_QUIET_ZONE = 16;
 
 type Props = {
   projectNid: string;
@@ -28,12 +36,15 @@ type Props = {
   beneficiaryName: string;
 };
 
+type SvgHandle = { toDataURL?: (cb: (data: string) => void) => void };
+
 export function GiftPaymentForm({
   projectNid,
   donateIban,
   beneficiaryName,
 }: Props) {
   const shotRef = useRef<ViewShot>(null);
+  const svgRef = useRef<SvgHandle | null>(null);
   const [amountText, setAmountText] = useState("");
   const [amountError, setAmountError] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -44,6 +55,10 @@ export function GiftPaymentForm({
   const iban = useMemo(
     () => resolveGiftBeneficiaryIban(donateIban),
     [donateIban],
+  );
+  const displayName = useMemo(
+    () => beneficiaryName.trim() || "Organisation",
+    [beneficiaryName],
   );
 
   const payload = useMemo(() => {
@@ -69,10 +84,53 @@ export function GiftPaymentForm({
     return parsed;
   }, [amountText]);
 
+  const writePngFromBase64 = useCallback(async (base64: string) => {
+    const clean = base64.replace(/^data:image\/png;base64,/, "");
+    const path = `${FileSystem.cacheDirectory}civic-pay-by-square.png`;
+    await FileSystem.writeAsStringAsync(path, clean, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return path;
+  }, []);
+
+  const captureQrPng = useCallback(async (): Promise<string> => {
+    // Prefer SVG→PNG (sharp modules). Fall back to ViewShot of the on-screen QR.
+    const fromSvg = await new Promise<string | null>((resolve) => {
+      const svg = svgRef.current;
+      if (!svg?.toDataURL) {
+        resolve(null);
+        return;
+      }
+      try {
+        svg.toDataURL((data) => {
+          resolve(data && data.length > 32 ? data : null);
+        });
+      } catch {
+        resolve(null);
+      }
+    });
+    if (fromSvg) return writePngFromBase64(fromSvg);
+
+    if (!shotRef.current) {
+      throw new Error("qr_not_ready");
+    }
+    // On-screen (near-invisible) capture — off-screen views often render blank on iOS.
+    await new Promise((r) => setTimeout(r, 120));
+    return captureRef(shotRef, {
+      format: "png",
+      quality: 1,
+      result: "tmpfile",
+      width: QR_SIZE + QR_QUIET_ZONE * 2,
+      height: QR_SIZE + QR_QUIET_ZONE * 2,
+    });
+  }, [writePngFromBase64]);
+
   const shareToBank = useCallback(async () => {
     setShareError(null);
-    if (validateAmount() == null || !payload || !shotRef.current) {
-      if (!payload) setShareError(t("project.gift_encode_error"));
+    if (validateAmount() == null || !payload) {
+      if (!payload && parseGiftAmountEur(amountText) != null) {
+        setShareError(t("project.gift_encode_error"));
+      }
       return;
     }
     setSharing(true);
@@ -82,13 +140,7 @@ export function GiftPaymentForm({
         setShareError(t("project.gift_share_unavailable"));
         return;
       }
-      // Let the off-screen QR lay out before capture.
-      await new Promise((r) => setTimeout(r, 50));
-      const uri = await captureRef(shotRef, {
-        format: "png",
-        quality: 1,
-        result: "tmpfile",
-      });
+      const uri = await captureQrPng();
       capture("gift_payment_share", { project_nid: projectNid });
       await Sharing.shareAsync(uri, {
         mimeType: "image/png",
@@ -100,7 +152,7 @@ export function GiftPaymentForm({
     } finally {
       setSharing(false);
     }
-  }, [payload, projectNid, validateAmount]);
+  }, [amountText, captureQrPng, payload, projectNid, validateAmount]);
 
   const openPreview = useCallback(() => {
     setShareError(null);
@@ -113,6 +165,22 @@ export function GiftPaymentForm({
     capture("gift_payment_preview", { project_nid: projectNid });
     setPreviewOpen(true);
   }, [amountText, payload, projectNid, validateAmount]);
+
+  const shareDetailsText = useCallback(async () => {
+    setShareError(null);
+    const parsed = validateAmount();
+    if (parsed == null) return;
+    const message = formatGiftPaymentDetails({
+      iban: donateIban,
+      amountEur: parsed,
+      beneficiaryName: displayName,
+    });
+    try {
+      await Share.share({ message });
+    } catch {
+      setShareError(t("project.gift_share_error"));
+    }
+  }, [displayName, donateIban, validateAmount]);
 
   return (
     <View style={styles.wrap}>
@@ -161,21 +229,36 @@ export function GiftPaymentForm({
         <Text style={styles.secondaryText}>{t("project.gift_preview")}</Text>
       </Pressable>
 
+      <Pressable
+        style={styles.secondaryBtn}
+        onPress={() => void shareDetailsText()}
+        accessibilityRole="button"
+      >
+        <Text style={styles.secondaryText}>{t("project.gift_share_details")}</Text>
+      </Pressable>
+
       {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
 
-      {/* Off-screen PAY by square card for share capture */}
+      {/*
+        Nearly invisible but ON-SCREEN QR for capture. Off-screen (left: -N)
+        views often composite blank on iOS, so banks see no payment QR.
+      */}
       {payload ? (
-        <View style={styles.offscreen} pointerEvents="none" collapsable={false}>
-          <ViewShot
-            ref={shotRef}
-            options={{ format: "png", quality: 1, result: "tmpfile" }}
-          >
-            <PayBySquareCard
-              payload={payload}
-              amount={amount!}
-              beneficiaryName={beneficiaryName}
-              iban={iban}
-            />
+        <View style={styles.captureHost} pointerEvents="none" collapsable={false}>
+          <ViewShot ref={shotRef} options={{ format: "png", quality: 1 }}>
+            <View style={styles.qrOnly} collapsable={false}>
+              <QRCode
+                value={payload}
+                size={QR_SIZE}
+                quietZone={QR_QUIET_ZONE}
+                ecl="M"
+                backgroundColor="#FFFFFF"
+                color="#000000"
+                getRef={(c) => {
+                  svgRef.current = c;
+                }}
+              />
+            </View>
           </ViewShot>
         </View>
       ) : null}
@@ -189,13 +272,35 @@ export function GiftPaymentForm({
         <View style={styles.previewBackdrop}>
           <View style={styles.previewCard}>
             <Text style={styles.previewTitle}>{t("project.gift_preview")}</Text>
+            <Text style={styles.payBySquareMark}>
+              {t("project.gift_pay_by_square")}
+            </Text>
             {payload && amount != null ? (
-              <PayBySquareCard
-                payload={payload}
-                amount={amount}
-                beneficiaryName={beneficiaryName}
-                iban={iban}
-              />
+              <>
+                <View style={styles.qrOnly}>
+                  <QRCode
+                    value={payload}
+                    size={QR_SIZE}
+                    quietZone={QR_QUIET_ZONE}
+                    ecl="M"
+                    backgroundColor="#FFFFFF"
+                    color="#000000"
+                  />
+                </View>
+                <Text style={styles.qrMeta} numberOfLines={2}>
+                  {displayName}
+                </Text>
+                <Text style={styles.qrMetaMuted} numberOfLines={1}>
+                  {asciiBeneficiaryName(displayName)}
+                </Text>
+                <Text style={styles.qrMeta}>
+                  {formatGiftAmountEur(amount)} {t("project.gift_currency")}
+                </Text>
+                <Text style={styles.qrIban} selectable>
+                  {iban}
+                </Text>
+                <Text style={styles.previewHint}>{t("project.gift_preview_hint")}</Text>
+              </>
             ) : null}
             <Pressable
               style={styles.primaryBtn}
@@ -207,36 +312,6 @@ export function GiftPaymentForm({
           </View>
         </View>
       </Modal>
-    </View>
-  );
-}
-
-function PayBySquareCard({
-  payload,
-  amount,
-  beneficiaryName,
-  iban,
-}: {
-  payload: string;
-  amount: number;
-  beneficiaryName: string;
-  iban: string;
-}) {
-  return (
-    <View style={styles.qrCard} collapsable={false}>
-      <Text style={styles.payBySquareMark}>{t("project.gift_pay_by_square")}</Text>
-      <View style={styles.qrWrap} collapsable={false}>
-        <QRCode value={payload} size={200} backgroundColor="#FFFFFF" color="#000000" />
-      </View>
-      <Text style={styles.qrMeta} numberOfLines={2}>
-        {beneficiaryName}
-      </Text>
-      <Text style={styles.qrMeta}>
-        {formatGiftAmountEur(amount)} {t("project.gift_currency")}
-      </Text>
-      <Text style={styles.qrIban} selectable>
-        {iban}
-      </Text>
     </View>
   );
 }
@@ -292,6 +367,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
     backgroundColor: colors.brand,
+    alignSelf: "stretch",
   },
   primaryText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   secondaryBtn: {
@@ -308,38 +384,44 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   btnDisabled: { opacity: 0.6 },
-  offscreen: {
+  captureHost: {
     position: "absolute",
-    left: -4000,
     top: 0,
-    opacity: 1,
+    left: 0,
+    opacity: 0.02,
+    zIndex: -1,
   },
-  qrCard: {
+  qrOnly: {
     backgroundColor: "#FFFFFF",
-    padding: 16,
     alignItems: "center",
-    gap: 8,
-    width: 280,
+    justifyContent: "center",
   },
   payBySquareMark: {
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 0.3,
-    color: "#000000",
-  },
-  qrWrap: {
-    padding: 8,
-    backgroundColor: "#FFFFFF",
+    color: colors.ink,
   },
   qrMeta: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#12241C",
+    color: colors.ink,
+    textAlign: "center",
+  },
+  qrMetaMuted: {
+    fontSize: 11,
+    color: colors.muted,
     textAlign: "center",
   },
   qrIban: {
     fontSize: 12,
-    color: "#5B6B63",
+    color: colors.muted,
+    textAlign: "center",
+  },
+  previewHint: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.muted,
     textAlign: "center",
   },
   previewBackdrop: {
@@ -352,7 +434,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
-    gap: 14,
+    gap: 10,
     alignItems: "center",
   },
   previewTitle: {
