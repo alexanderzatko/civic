@@ -397,12 +397,15 @@ export default function CharityScreen() {
               </Text>
             ) : null}
             {donorRate > 0 ? (
-              <Text style={styles.me}>
-                {t("charity.me_per_eur").replace(
-                  "{{rate}}",
-                  formatMePerEur(donorRate),
-                )}
-              </Text>
+              <View style={styles.meRow}>
+                <Text style={styles.meLabel}>{t("charity.me_per_eur_label")}</Text>
+                <Text style={styles.meRate} numberOfLines={1}>
+                  {t("charity.me_per_eur").replace(
+                    "{{rate}}",
+                    formatMePerEur(donorRate),
+                  )}
+                </Text>
+              </View>
             ) : null}
           </Pressable>
         ))}
@@ -735,13 +738,27 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: "700", color: colors.ink },
   org: { color: colors.brandSoft, fontWeight: "600", fontSize: 13 },
   summary: { color: colors.muted, fontSize: 14, marginTop: 2 },
-  me: {
+  meRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    justifyContent: "flex-end",
+    alignItems: "baseline",
+    gap: 6,
+  },
+  meLabel: {
     color: colors.ink,
     fontWeight: "600",
-    fontSize: 26,
-    lineHeight: 32,
-    marginTop: 14,
-    textAlign: "right",
+    fontSize: 13,
+    lineHeight: 18,
+    flexShrink: 1,
+  },
+  meRate: {
+    color: colors.ink,
+    fontWeight: "600",
+    fontSize: 10,
+    lineHeight: 14,
+    flexShrink: 0,
   },
   inviteCard: {
     marginTop: 8,
