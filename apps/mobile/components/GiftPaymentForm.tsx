@@ -201,6 +201,7 @@ export function GiftPaymentForm({
             setShareError(null);
           }}
           onFocus={() => onAmountFocus?.(amountRef.current)}
+          onBlur={() => onAmountFocus?.(null)}
           placeholder={t("project.gift_amount_placeholder")}
           placeholderTextColor={colors.muted}
           keyboardType="decimal-pad"

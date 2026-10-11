@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
-  KeyboardAvoidingView,
+  Keyboard,
   Linking,
   Modal,
   Platform,
@@ -30,7 +31,8 @@ import {
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
 
-const FOCUS_SCROLL_PAD = 16;
+const FOCUS_SCROLL_PAD = 24;
+const CONTENT_BOTTOM_PAD = 40;
 
 type Props = {
   projectNid: string | null;
@@ -81,6 +83,8 @@ export function ProjectDetailModal({
   const scrollRef = useRef<ScrollView>(null);
   const scrollHostRef = useRef<View>(null);
   const scrollYRef = useRef(0);
+  const keyboardHeightRef = useRef(0);
+  const focusedFieldRef = useRef<TextInput | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProjectDetail | null>(null);
@@ -88,14 +92,20 @@ export function ProjectDetailModal({
   const [loadingMoreWr, setLoadingMoreWr] = useState(false);
   const [loadingMoreSh, setLoadingMoreSh] = useState(false);
 
-  function scrollFieldIntoView(field: TextInput | null) {
-    setTimeout(() => {
+  const scrollFieldIntoView = useCallback((field: TextInput | null) => {
+    focusedFieldRef.current = field;
+    if (!field) return;
+    const run = () => {
       if (!field || !scrollRef.current || !scrollHostRef.current) return;
       field.measureInWindow((_x, y, _w, h) => {
         scrollHostRef.current?.measureInWindow((_sx, sy, _sw, sh) => {
-          const fieldBottom = y + h + FOCUS_SCROLL_PAD;
-          const visibleBottom = sy + sh;
-          const overlap = fieldBottom - visibleBottom;
+          // pageSheet Modals often leave the ScrollView full-height behind the
+          // keyboard, so measure host vs screen-minus-keyboard — not host alone.
+          const screenBottom =
+            Dimensions.get("window").height - keyboardHeightRef.current;
+          const visibleBottom =
+            Math.min(sy + sh, screenBottom) - FOCUS_SCROLL_PAD;
+          const overlap = y + h - visibleBottom;
           if (overlap <= 0) return;
           scrollRef.current?.scrollTo({
             y: Math.max(0, scrollYRef.current + overlap),
@@ -103,8 +113,36 @@ export function ProjectDetailModal({
           });
         });
       });
-    }, 280);
-  }
+    };
+    // Keyboard frame arrives after focus; nudge twice across the animation.
+    setTimeout(run, 50);
+    setTimeout(run, 320);
+  }, []);
+
+  useEffect(() => {
+    if (!visible) {
+      keyboardHeightRef.current = 0;
+      focusedFieldRef.current = null;
+      return;
+    }
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const onShow = Keyboard.addListener(showEvent, (e) => {
+      keyboardHeightRef.current = e.endCoordinates.height;
+      if (focusedFieldRef.current) {
+        scrollFieldIntoView(focusedFieldRef.current);
+      }
+    });
+    const onHide = Keyboard.addListener(hideEvent, () => {
+      keyboardHeightRef.current = 0;
+    });
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, [visible, scrollFieldIntoView]);
 
   useEffect(() => {
     if (!projectNid) {
@@ -232,10 +270,7 @@ export function ProjectDetailModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.shell}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <View style={styles.shell}>
         <View style={styles.header}>
           <Text style={styles.title} numberOfLines={2}>
             {title}
@@ -262,6 +297,7 @@ export function ProjectDetailModal({
             showsVerticalScrollIndicator
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
+            automaticallyAdjustKeyboardInsets
             onScroll={(e) => {
               scrollYRef.current = e.nativeEvent.contentOffset.y;
             }}
@@ -458,7 +494,7 @@ export function ProjectDetailModal({
           </ScrollView>
           </View>
         ) : null}
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -593,7 +629,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: CONTENT_BOTTOM_PAD,
     gap: 16,
   },
   centered: {
