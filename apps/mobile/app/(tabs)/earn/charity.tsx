@@ -398,7 +398,6 @@ export default function CharityScreen() {
             ) : null}
             {donorRate > 0 ? (
               <Text style={styles.me}>
-                {t("charity.me_per_eur_label")}{" "}
                 {t("charity.me_per_eur").replace(
                   "{{rate}}",
                   formatMePerEur(donorRate),
@@ -736,7 +735,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: "700", color: colors.ink },
   org: { color: colors.brandSoft, fontWeight: "600", fontSize: 13 },
   summary: { color: colors.muted, fontSize: 14, marginTop: 2 },
-  me: { color: colors.ink, fontWeight: "600", fontSize: 13, marginTop: 4 },
+  me: {
+    color: colors.ink,
+    fontWeight: "600",
+    fontSize: 26,
+    lineHeight: 32,
+    marginTop: 14,
+    textAlign: "right",
+  },
   inviteCard: {
     marginTop: 8,
     borderRadius: 14,
