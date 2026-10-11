@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -26,6 +29,8 @@ import {
 } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
+
+const FOCUS_SCROLL_PAD = 16;
 
 type Props = {
   projectNid: string | null;
@@ -73,12 +78,33 @@ export function ProjectDetailModal({
   const router = useRouter();
   const { locale } = useLocale();
   const visible = projectNid != null;
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollHostRef = useRef<View>(null);
+  const scrollYRef = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProjectDetail | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loadingMoreWr, setLoadingMoreWr] = useState(false);
   const [loadingMoreSh, setLoadingMoreSh] = useState(false);
+
+  function scrollFieldIntoView(field: TextInput | null) {
+    setTimeout(() => {
+      if (!field || !scrollRef.current || !scrollHostRef.current) return;
+      field.measureInWindow((_x, y, _w, h) => {
+        scrollHostRef.current?.measureInWindow((_sx, sy, _sw, sh) => {
+          const fieldBottom = y + h + FOCUS_SCROLL_PAD;
+          const visibleBottom = sy + sh;
+          const overlap = fieldBottom - visibleBottom;
+          if (overlap <= 0) return;
+          scrollRef.current?.scrollTo({
+            y: Math.max(0, scrollYRef.current + overlap),
+            animated: true,
+          });
+        });
+      });
+    }, 280);
+  }
 
   useEffect(() => {
     if (!projectNid) {
@@ -206,7 +232,10 @@ export function ProjectDetailModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.shell}>
+      <KeyboardAvoidingView
+        style={styles.shell}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <View style={styles.header}>
           <Text style={styles.title} numberOfLines={2}>
             {title}
@@ -226,9 +255,17 @@ export function ProjectDetailModal({
             <Text style={styles.error}>{error}</Text>
           </View>
         ) : detail ? (
+          <View ref={scrollHostRef} style={styles.scrollHost}>
           <ScrollView
+            ref={scrollRef}
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            onScroll={(e) => {
+              scrollYRef.current = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
           >
             {detail.summary ? (
               <Text style={styles.summary}>{detail.summary}</Text>
@@ -298,6 +335,7 @@ export function ProjectDetailModal({
                     beneficiaryName={
                       detail.organization?.trim() || detail.title
                     }
+                    onAmountFocus={scrollFieldIntoView}
                   />
                 ) : null}
               </View>
@@ -418,8 +456,9 @@ export function ProjectDetailModal({
               </Pressable>
             ) : null}
           </ScrollView>
+          </View>
         ) : null}
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -524,6 +563,9 @@ const styles = StyleSheet.create({
   shell: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  scrollHost: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",

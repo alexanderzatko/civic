@@ -43,17 +43,23 @@ export function encodeGiftPayBySquare(input: GiftPaymentInput): string {
   const iban = resolveGiftBeneficiaryIban(input.iban);
   const amount = Math.round(input.amountEur * 100) / 100;
   const name = asciiBeneficiaryName(input.beneficiaryName);
-  return encode({
-    payments: [
-      {
-        type: PaymentOptions.PaymentOrder,
-        amount,
-        currencyCode: CurrencyCode.EUR,
-        beneficiary: { name },
-        bankAccounts: [{ iban }],
-      },
-    ],
-  });
+  // Default bysquare encode uses spec v1.2.0 (header nibble 2 → payload
+  // starts with "08…"). Many SK bank apps still only accept v1.1.0 ("04…")
+  // and report "unsupported QR code type" for 1.2.0. Pin to 1.1.0.
+  return encode(
+    {
+      payments: [
+        {
+          type: PaymentOptions.PaymentOrder,
+          amount,
+          currencyCode: CurrencyCode.EUR,
+          beneficiary: { name },
+          bankAccounts: [{ iban }],
+        },
+      ],
+    },
+    { version: 1, deburr: true, validate: true },
+  );
 }
 
 /** Plain-text block for manual entry / share when QR handoff fails. */

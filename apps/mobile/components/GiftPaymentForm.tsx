@@ -11,8 +11,8 @@ import {
 } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import QRCode from "react-native-qrcode-svg";
 import ViewShot, { captureRef } from "react-native-view-shot";
+import { PayBySquareQr } from "@/components/PayBySquareQr";
 import { colors } from "@/constants/theme";
 import { capture } from "@/lib/analytics";
 import { t } from "@/lib/i18n";
@@ -34,6 +34,8 @@ type Props = {
   /** Verified compact IBAN from project detail. */
   donateIban: string;
   beneficiaryName: string;
+  /** Keep amount field above the keyboard (parent ScrollView). */
+  onAmountFocus?: (field: TextInput | null) => void;
 };
 
 type SvgHandle = { toDataURL?: (cb: (data: string) => void) => void };
@@ -42,9 +44,11 @@ export function GiftPaymentForm({
   projectNid,
   donateIban,
   beneficiaryName,
+  onAmountFocus,
 }: Props) {
   const shotRef = useRef<ViewShot>(null);
   const svgRef = useRef<SvgHandle | null>(null);
+  const amountRef = useRef<TextInput>(null);
   const [amountText, setAmountText] = useState("");
   const [amountError, setAmountError] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -94,7 +98,6 @@ export function GiftPaymentForm({
   }, []);
 
   const captureQrPng = useCallback(async (): Promise<string> => {
-    // Prefer SVG→PNG (sharp modules). Fall back to ViewShot of the on-screen QR.
     const fromSvg = await new Promise<string | null>((resolve) => {
       const svg = svgRef.current;
       if (!svg?.toDataURL) {
@@ -114,14 +117,14 @@ export function GiftPaymentForm({
     if (!shotRef.current) {
       throw new Error("qr_not_ready");
     }
-    // On-screen (near-invisible) capture — off-screen views often render blank on iOS.
     await new Promise((r) => setTimeout(r, 120));
+    const side = QR_SIZE + QR_QUIET_ZONE * 2;
     return captureRef(shotRef, {
       format: "png",
       quality: 1,
       result: "tmpfile",
-      width: QR_SIZE + QR_QUIET_ZONE * 2,
-      height: QR_SIZE + QR_QUIET_ZONE * 2,
+      width: side,
+      height: side,
     });
   }, [writePngFromBase64]);
 
@@ -189,6 +192,7 @@ export function GiftPaymentForm({
       <Text style={styles.label}>{t("project.gift_amount_label")}</Text>
       <View style={styles.amountRow}>
         <TextInput
+          ref={amountRef}
           style={styles.amountInput}
           value={amountText}
           onChangeText={(v) => {
@@ -196,6 +200,7 @@ export function GiftPaymentForm({
             setAmountError(null);
             setShareError(null);
           }}
+          onFocus={() => onAmountFocus?.(amountRef.current)}
           placeholder={t("project.gift_amount_placeholder")}
           placeholderTextColor={colors.muted}
           keyboardType="decimal-pad"
@@ -239,23 +244,16 @@ export function GiftPaymentForm({
 
       {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
 
-      {/*
-        Nearly invisible but ON-SCREEN QR for capture. Off-screen (left: -N)
-        views often composite blank on iOS, so banks see no payment QR.
-      */}
       {payload ? (
         <View style={styles.captureHost} pointerEvents="none" collapsable={false}>
           <ViewShot ref={shotRef} options={{ format: "png", quality: 1 }}>
             <View style={styles.qrOnly} collapsable={false}>
-              <QRCode
+              <PayBySquareQr
                 value={payload}
                 size={QR_SIZE}
                 quietZone={QR_QUIET_ZONE}
-                ecl="M"
-                backgroundColor="#FFFFFF"
-                color="#000000"
                 getRef={(c) => {
-                  svgRef.current = c;
+                  svgRef.current = c as SvgHandle;
                 }}
               />
             </View>
@@ -278,13 +276,10 @@ export function GiftPaymentForm({
             {payload && amount != null ? (
               <>
                 <View style={styles.qrOnly}>
-                  <QRCode
+                  <PayBySquareQr
                     value={payload}
                     size={QR_SIZE}
                     quietZone={QR_QUIET_ZONE}
-                    ecl="M"
-                    backgroundColor="#FFFFFF"
-                    color="#000000"
                   />
                 </View>
                 <Text style={styles.qrMeta} numberOfLines={2}>
