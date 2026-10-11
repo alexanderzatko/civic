@@ -44,6 +44,7 @@
     "expo-linking": "~8.0.12",
     "expo-localization": "~17.0.9",
     "expo-location": "~18.0.10",
+    "expo-media-library": "~18.2.1",
     "expo-modules-core": "~3.0.29",
     "expo-router": "~6.0.24",
     "expo-secure-store": "~15.0.8",

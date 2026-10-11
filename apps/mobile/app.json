@@ -13,7 +13,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Civic potrebuje kameru na skenovanie QR kódu z eKasa bločka.",
         "NSLocationWhenInUseUsageDescription": "Civic používa polohu pri registrácii meritov z bločka (kontrola dôveryhodnosti).",
-        "NSPhotoLibraryUsageDescription": "Civic používa fotky ako dôkaz dobrovoľníckej práce."
+        "NSPhotoLibraryUsageDescription": "Civic používa fotky ako dôkaz dobrovoľníckej práce.",
+        "NSPhotoLibraryAddUsageDescription": "Civic ukladá QR kód platby do galérie, aby ste ho mohli načítať v bankovej appke."
       }
     },
     "android": {
@@ -84,6 +85,14 @@
         "expo-image-picker",
         {
           "photosPermission": "Civic používa fotky ako dôkaz dobrovoľníckej práce."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Civic používa fotky ako dôkaz dobrovoľníckej práce.",
+          "savePhotosPermission": "Civic ukladá QR kód platby do galérie, aby ste ho mohli načítať v bankovej appke.",
+          "granularPermissions": ["photo"]
         }
       ],
       "expo-font",

@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
+import * as MediaLibrary from "expo-media-library";
 import * as Sharing from "expo-sharing";
 import ViewShot, { captureRef } from "react-native-view-shot";
 import { PayBySquareQr } from "@/components/PayBySquareQr";
@@ -51,7 +52,9 @@ export function GiftPaymentForm({
   const amountRef = useRef<TextInput>(null);
   const [amountText, setAmountText] = useState("");
   const [amountError, setAmountError] = useState<string | null>(null);
-  const [shareError, setShareError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [saveOk, setSaveOk] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -128,11 +131,40 @@ export function GiftPaymentForm({
     });
   }, [writePngFromBase64]);
 
-  const shareToBank = useCallback(async () => {
-    setShareError(null);
+  const saveToGallery = useCallback(async () => {
+    setActionError(null);
+    setSaveOk(false);
     if (validateAmount() == null || !payload) {
       if (!payload && parseGiftAmountEur(amountText) != null) {
-        setShareError(t("project.gift_encode_error"));
+        setActionError(t("project.gift_encode_error"));
+      }
+      return;
+    }
+    setSaving(true);
+    try {
+      // writeOnly: iOS add-to-library; Android write without full media read.
+      const perm = await MediaLibrary.requestPermissionsAsync(true);
+      if (!perm.granted) {
+        setActionError(t("project.gift_save_permission"));
+        return;
+      }
+      const uri = await captureQrPng();
+      await MediaLibrary.saveToLibraryAsync(uri);
+      capture("gift_payment_save", { project_nid: projectNid });
+      setSaveOk(true);
+    } catch {
+      setActionError(t("project.gift_save_error"));
+    } finally {
+      setSaving(false);
+    }
+  }, [amountText, captureQrPng, payload, projectNid, validateAmount]);
+
+  const shareToBank = useCallback(async () => {
+    setActionError(null);
+    setSaveOk(false);
+    if (validateAmount() == null || !payload) {
+      if (!payload && parseGiftAmountEur(amountText) != null) {
+        setActionError(t("project.gift_encode_error"));
       }
       return;
     }
@@ -140,7 +172,7 @@ export function GiftPaymentForm({
     try {
       const available = await Sharing.isAvailableAsync();
       if (!available) {
-        setShareError(t("project.gift_share_unavailable"));
+        setActionError(t("project.gift_share_unavailable"));
         return;
       }
       const uri = await captureQrPng();
@@ -151,17 +183,18 @@ export function GiftPaymentForm({
         UTI: "public.png",
       });
     } catch {
-      setShareError(t("project.gift_share_error"));
+      setActionError(t("project.gift_share_error"));
     } finally {
       setSharing(false);
     }
   }, [amountText, captureQrPng, payload, projectNid, validateAmount]);
 
   const openPreview = useCallback(() => {
-    setShareError(null);
+    setActionError(null);
+    setSaveOk(false);
     if (validateAmount() == null || !payload) {
       if (parseGiftAmountEur(amountText) != null && !payload) {
-        setShareError(t("project.gift_encode_error"));
+        setActionError(t("project.gift_encode_error"));
       }
       return;
     }
@@ -170,7 +203,7 @@ export function GiftPaymentForm({
   }, [amountText, payload, projectNid, validateAmount]);
 
   const shareDetailsText = useCallback(async () => {
-    setShareError(null);
+    setActionError(null);
     const parsed = validateAmount();
     if (parsed == null) return;
     const message = formatGiftPaymentDetails({
@@ -181,7 +214,7 @@ export function GiftPaymentForm({
     try {
       await Share.share({ message });
     } catch {
-      setShareError(t("project.gift_share_error"));
+      setActionError(t("project.gift_share_error"));
     }
   }, [displayName, donateIban, validateAmount]);
 
@@ -198,7 +231,8 @@ export function GiftPaymentForm({
           onChangeText={(v) => {
             setAmountText(v);
             setAmountError(null);
-            setShareError(null);
+            setActionError(null);
+            setSaveOk(false);
           }}
           onFocus={() => onAmountFocus?.(amountRef.current)}
           onBlur={() => onAmountFocus?.(null)}
@@ -212,38 +246,40 @@ export function GiftPaymentForm({
       </View>
       {amountError ? <Text style={styles.error}>{amountError}</Text> : null}
 
-      <Text style={styles.hint}>{t("project.gift_share_hint")}</Text>
+      <Text style={styles.hint}>{t("project.gift_actions_hint")}</Text>
 
       <Pressable
-        style={[styles.primaryBtn, sharing && styles.btnDisabled]}
-        onPress={() => void shareToBank()}
-        disabled={sharing}
+        style={[styles.primaryBtn, saving && styles.btnDisabled]}
+        onPress={() => void saveToGallery()}
+        disabled={saving || sharing}
         accessibilityRole="button"
       >
-        {sharing ? (
+        {saving ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.primaryText}>{t("project.gift_share")}</Text>
+          <Text style={styles.primaryText}>{t("project.gift_save")}</Text>
         )}
       </Pressable>
 
       <Pressable
-        style={styles.secondaryBtn}
-        onPress={openPreview}
+        style={[styles.secondaryBtn, sharing && styles.btnDisabled]}
+        onPress={() => void shareToBank()}
+        disabled={saving || sharing}
         accessibilityRole="button"
       >
-        <Text style={styles.secondaryText}>{t("project.gift_preview")}</Text>
+        {sharing ? (
+          <ActivityIndicator color={colors.brand} />
+        ) : (
+          <Text style={styles.secondaryText}>{t("project.gift_share")}</Text>
+        )}
       </Pressable>
 
-      <Pressable
-        style={styles.secondaryBtn}
-        onPress={() => void shareDetailsText()}
-        accessibilityRole="button"
-      >
-        <Text style={styles.secondaryText}>{t("project.gift_share_details")}</Text>
+      <Pressable onPress={openPreview} accessibilityRole="button" hitSlop={8}>
+        <Text style={styles.tertiaryText}>{t("project.gift_preview")}</Text>
       </Pressable>
 
-      {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
+      {saveOk ? <Text style={styles.success}>{t("project.gift_save_success")}</Text> : null}
+      {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
 
       {payload ? (
         <View style={styles.captureHost} pointerEvents="none" collapsable={false}>
@@ -305,6 +341,15 @@ export function GiftPaymentForm({
             >
               <Text style={styles.primaryText}>{t("common.close")}</Text>
             </Pressable>
+            <Pressable
+              onPress={() => void shareDetailsText()}
+              accessibilityRole="button"
+              hitSlop={8}
+            >
+              <Text style={styles.tertiaryText}>
+                {t("project.gift_share_details")}
+              </Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -357,6 +402,11 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontWeight: "600",
   },
+  success: {
+    fontSize: 13,
+    color: colors.brand,
+    fontWeight: "600",
+  },
   primaryBtn: {
     marginTop: 4,
     borderRadius: 12,
@@ -378,6 +428,13 @@ const styles = StyleSheet.create({
     color: colors.brand,
     fontWeight: "700",
     fontSize: 15,
+  },
+  tertiaryText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.muted,
+    textAlign: "center",
+    paddingVertical: 4,
   },
   btnDisabled: { opacity: 0.6 },
   captureHost: {

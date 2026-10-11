@@ -8,6 +8,7 @@ export type AnalyticsEvent =
   | "volunteer_report_submitted"
   | "receipt_claimed"
   | "verification_submitted"
+  | "gift_payment_save"
   | "gift_payment_share"
   | "gift_payment_preview";
 
