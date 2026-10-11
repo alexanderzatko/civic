@@ -67,9 +67,8 @@ function mePerEur(rate: MeritRate | null): number {
 }
 
 function formatMePerEur(n: number): string {
-  return n.toLocaleString("sk-SK", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 2,
+  return Math.round(n).toLocaleString("sk-SK", {
+    maximumFractionDigits: 0,
   });
 }
 
@@ -756,8 +755,8 @@ const styles = StyleSheet.create({
   meRate: {
     color: colors.ink,
     fontWeight: "600",
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 19.5,
+    lineHeight: 24,
     flexShrink: 0,
   },
   inviteCard: {

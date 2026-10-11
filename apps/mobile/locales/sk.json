@@ -142,7 +142,7 @@
   "charity.title": "Neziskové projekty",
   "charity.intro": "Nájdite overené neziskové a verejnoprospešné organizácie. Ťuknite na projekt pre detaily a spôsob darovania. Civic zaznamenáva merity za overené dary.",
   "charity.me_per_eur_label": "Meritov za váš dar:",
-  "charity.me_per_eur": "{{rate}} ME / €",
+  "charity.me_per_eur": "~{{rate}} ME / €",
   "charity.search_placeholder": "Hľadať podľa názvu organizácie…",
   "charity.empty": "Zatiaľ žiadne schválené neziskové projekty.",
   "charity.search_empty": "Nenašli sa žiadne organizácie s týmto názvom.",
