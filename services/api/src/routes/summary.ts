@@ -76,6 +76,7 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         total_me: profile.total_me,
         total_chr: profile.total_chr,
         language: profile.language,
+        receipt_history_retention: profile.receipt_history_retention,
         client_id: user.token.client_id,
         scope: user.token.scope ?? null,
         expires_at: user.token.expires,
@@ -84,6 +85,37 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       return sendRovasError(reply, err);
     }
   });
+
+  /**
+   * Set receipt scanning-history retention (keep vs 90-day policy).
+   * Proxies Rovas `POST /rovas/civic_receipt_history_preference`.
+   */
+  app.post(
+    "/me/receipt-history-preference",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const body = (req.body ?? {}) as { retention?: unknown };
+      const retention =
+        body.retention === "keep" || body.retention === "policy"
+          ? body.retention
+          : null;
+      if (!retention) {
+        return reply.code(422).send({
+          error: "invalid_input",
+          message: 'Body must include retention: "keep" | "policy".',
+        });
+      }
+      try {
+        return await ctx.rovas.setReceiptHistoryPreference(
+          user.accessToken,
+          retention,
+        );
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
 
   app.get(
     "/me/contributions/summary",

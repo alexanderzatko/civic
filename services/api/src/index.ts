@@ -32,6 +32,7 @@ async function main() {
       "/health",
       "GET /merit-rate",
       "GET /me",
+      "POST /me/receipt-history-preference",
       "POST /receipts/verify",
       "POST /receipts/claim",
       "GET /receipts",

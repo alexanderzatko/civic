@@ -20,8 +20,11 @@ public-benefit / nonprofit orgs). Wire ids stay `charity` / `is_charity` /
 **Product copy (Merits-first):** Civic screens emphasize Merits as a
 non-transferable record of contribution (About screen, Earn explainers). Rovas
 is named on login and About. Chron reward choice is **opt-in** on Profile
-(`civic.prefs.allow_chrons`); volunteer reports default to Merits only. See
-Rovas **Next work: Civic-branded OAuth login/register** for Civic-skinned
+(`civic.prefs.allow_chrons`); volunteer reports default to Merits only.
+Receipt scanning-history retention (`keep` vs 90-day `policy`) is asked before
+the first claim (and whenever unset) and editable under Profile **Taxes
+settings**; stored on Rovas — see **[receipt-history-retention](../../rovas/docs/integration/civic_tasks/done/receipt-history-retention.md)**.
+See Rovas **Next work: Civic-branded OAuth login/register** for Civic-skinned
 HybridAuth login/register when authorizing client `civic`.
 
 **Legal / glossary URLs (mobile):** `apps/mobile/lib/legal-urls.ts` defaults to
@@ -97,7 +100,8 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 
 | Route | Notes |
 |-------|--------|
-| `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, total_chr?, created?, language?, client_id, scope, expires_at }`. `total_chr` (Chron wallet) for Profil — see Rovas **Next work: Chron balance on /rovas/me**. `created` (ISO-8601 account registration) is required for Civic fraud rule C — see Rovas **Next work: expose account created on /rovas/me**. `language` (Drupal preferred langcode) drives signed-in UI locale — see Rovas **Next work: expose preferred language on /rovas/me**. |
+| `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, total_chr?, created?, language?, receipt_history_retention?, client_id, scope, expires_at }`. `total_chr` (Chron wallet) for Profil — see Rovas **Next work: Chron balance on /rovas/me**. `created` (ISO-8601 account registration) is required for Civic fraud rule C — see Rovas **Next work: expose account created on /rovas/me**. `language` (Drupal preferred langcode) drives signed-in UI locale — see Rovas **Next work: expose preferred language on /rovas/me**. `receipt_history_retention` (`null` \| `"keep"` \| `"policy"`) gates receipt claim + Profile Taxes settings — see Rovas **[receipt-history-retention](../../rovas/docs/integration/civic_tasks/done/receipt-history-retention.md)**. |
+| `POST /me/receipt-history-preference` | Body `{ retention: "keep" \| "policy" }` → Rovas `POST /rovas/civic_receipt_history_preference`. Returns `{ receipt_history_retention, scrubbed_claims }`. Keep→policy may scrub aged merchant/purchase detail (irreversible). Survives app reinstall. See Rovas **receipt-history-retention**. |
 | `GET /me/contributions/summary` | `total_me` from Rovas wallet; `by_category.taxes` + receipt stats from Rovas claim summary once live (interim: zeros — see Rovas task **Civic claim reads + SoT**) |
 | `POST /receipts/claim` | Re-verify FS + Civic fraud checks (strikes, window, registration, same-store, min VAT, rate limits); UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (optional `shares[]`; optional `location`). Rovas `{civic_claims}` is sole claim registry |
 | `GET /users/search` | Split-claim typeahead — proxies Rovas `GET /rovas/users_search?query=` (Civic accepts `?q=`; maps to Rovas `query` because Drupal reserves `$_GET['q']` for the path) |

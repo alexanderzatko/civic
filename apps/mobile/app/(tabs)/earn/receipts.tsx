@@ -18,6 +18,7 @@ import {
 import {
   type ClaimReceiptErrorCode,
   type ClaimReceiptResponse,
+  type ReceiptHistoryRetention,
   type ReceiptHistoryView,
   type ReceiptReceivedItem,
   type ReceiptSubmittedItem,
@@ -26,12 +27,14 @@ import {
 } from "@civic/shared";
 import { AddRecipientModal } from "@/components/AddRecipientModal";
 import { ReceiptDetailModal } from "@/components/ReceiptDetailModal";
+import { ReceiptHistoryRetentionModal } from "@/components/ReceiptHistoryRetentionModal";
 import { ShareEditor } from "@/components/ShareEditor";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { capture } from "@/lib/analytics";
 import { claimReceipt, fetchMe, fetchReceiptHistory, verifyReceipt } from "@/lib/api";
 import { notifyMeritsChanged } from "@/lib/merits-refresh";
+import { useReceiptHistoryPreference } from "@/lib/receipt-history-preference";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
 import {
   loadRecipientMemory,
@@ -64,6 +67,11 @@ export default function ReceiptsScreen() {
   useLocale();
   const { status: authStatus } = useAuth();
   const signedIn = authStatus === "signedIn";
+  const {
+    retention,
+    ready: retentionReady,
+    setRetention,
+  } = useReceiptHistoryPreference();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
@@ -92,6 +100,7 @@ export default function ReceiptsScreen() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState(false);
   const [detailUid, setDetailUid] = useState<string | null>(null);
+  const [retentionModalOpen, setRetentionModalOpen] = useState(false);
 
   const seedRecipients = useCallback(async (profile: MeProfile) => {
     const memory = await loadRecipientMemory();
@@ -281,7 +290,7 @@ export default function ReceiptsScreen() {
   const sharesValid =
     recipients.length > 0 && Math.abs(shareSum(recipients) - 100) < 0.01;
 
-  async function runClaim() {
+  async function executeClaim() {
     if (!preview || !sharesValid || preview.claim_allowed === false) return;
     setClaiming(true);
     setError(null);
@@ -327,6 +336,22 @@ export default function ReceiptsScreen() {
     } finally {
       setClaiming(false);
     }
+  }
+
+  async function runClaim() {
+    if (!preview || !sharesValid || preview.claim_allowed === false) return;
+    if (!retentionReady) return;
+    if (retention == null) {
+      setRetentionModalOpen(true);
+      return;
+    }
+    await executeClaim();
+  }
+
+  async function onRetentionChosen(value: ReceiptHistoryRetention) {
+    await setRetention(value);
+    setRetentionModalOpen(false);
+    await executeClaim();
   }
 
   function onChangeShare(rovasUid: string, sharePct: number) {
@@ -567,6 +592,12 @@ export default function ReceiptsScreen() {
         excludeUids={excludeUids}
         onClose={() => setAddOpen(false)}
         onPick={onPickRecipient}
+      />
+
+      <ReceiptHistoryRetentionModal
+        visible={retentionModalOpen}
+        onCancel={() => setRetentionModalOpen(false)}
+        onChoose={onRetentionChosen}
       />
     </ScrollView>
   );

@@ -98,6 +98,8 @@ export type {
   MeritHistoryPage,
   MeritHistorySourceKind,
   MeProfile,
+  ReceiptHistoryPreferenceResult,
+  ReceiptHistoryRetention,
   MeritIndexCountry,
   MeritIndexFilters,
   MeritIndexOrder,

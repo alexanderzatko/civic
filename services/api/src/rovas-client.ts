@@ -59,6 +59,8 @@ import {
   normalizeWorkReportPage,
 } from "./work-report-normalize.js";
 
+export type RovasReceiptHistoryRetention = "keep" | "policy";
+
 export type RovasMe = {
   uid: number;
   username: string;
@@ -73,6 +75,16 @@ export type RovasMe = {
    * (e.g. `sk`, `en`, `cs`). Optional until Rovas exposes it on `/rovas/me`.
    */
   language: string | null;
+  /**
+   * Receipt scanning-history retention. `null` until answered.
+   * See Rovas task `receipt-history-retention`.
+   */
+  receipt_history_retention: RovasReceiptHistoryRetention | null;
+};
+
+export type RovasReceiptHistoryPreferenceResult = {
+  receipt_history_retention: RovasReceiptHistoryRetention;
+  scrubbed_claims: number;
 };
 
 export type RovasAggregate = {
@@ -113,7 +125,11 @@ export class RovasClient {
 
   async fetchMe(accessToken: string): Promise<RovasMe> {
     const body = await this.getJson<
-      Partial<RovasMe> & { created?: unknown; language?: unknown }
+      Partial<RovasMe> & {
+        created?: unknown;
+        language?: unknown;
+        receipt_history_retention?: unknown;
+      }
     >("/rovas/me", accessToken);
     if (
       typeof body.uid !== "number" ||
@@ -136,6 +152,9 @@ export class RovasClient {
           : undefined,
       created: typeof body.created === "string" && body.created ? body.created : null,
       language: typeof body.language === "string" && body.language ? body.language : null,
+      receipt_history_retention: parseReceiptHistoryRetention(
+        body.receipt_history_retention,
+      ),
     };
   }
 
@@ -1049,6 +1068,34 @@ export class RovasClient {
     };
   }
 
+  /**
+   * Set receipt scanning-history retention.
+   * `POST /rovas/civic_receipt_history_preference`
+   */
+  async setReceiptHistoryPreference(
+    accessToken: string,
+    retention: RovasReceiptHistoryRetention,
+  ): Promise<RovasReceiptHistoryPreferenceResult> {
+    const body = await this.postJson<
+      Partial<RovasReceiptHistoryPreferenceResult>
+    >("/rovas/civic_receipt_history_preference", accessToken, { retention });
+    const parsed = parseReceiptHistoryRetention(body.receipt_history_retention);
+    if (!parsed) {
+      throw new RovasClientError(
+        "Rovas receipt history preference response missing retention",
+        502,
+      );
+    }
+    return {
+      receipt_history_retention: parsed,
+      scrubbed_claims:
+        typeof body.scrubbed_claims === "number" &&
+        Number.isFinite(body.scrubbed_claims)
+          ? Math.max(0, Math.floor(body.scrubbed_claims))
+          : 0,
+    };
+  }
+
   async claimVatReceipt(
     accessToken: string,
     payload: RovasClaimVatReceiptRequest,
@@ -1857,6 +1904,12 @@ export function verificationErrorCodeFromRovas(
   if (err.status === 400) return "invalid_input";
   if (err.status === 403) return "not_assigned";
   return "rovas_error";
+}
+
+function parseReceiptHistoryRetention(
+  value: unknown,
+): RovasReceiptHistoryRetention | null {
+  return value === "keep" || value === "policy" ? value : null;
 }
 
 function unwrapList(body: unknown): unknown[] {

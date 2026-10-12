@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "expo-router";
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,7 +11,11 @@ import {
   Text,
   View,
 } from "react-native";
-import { displayMerits, type MeritHistoryItem } from "@civic/shared";
+import {
+  displayMerits,
+  type MeritHistoryItem,
+  type ReceiptHistoryRetention,
+} from "@civic/shared";
 import { MeritHistoryList } from "@/components/MeritHistoryList";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
@@ -17,7 +23,9 @@ import { fetchMe, fetchMeritHistory } from "@/lib/api";
 import { useChronPreference } from "@/lib/chron-preference";
 import { visibleDisplayName } from "@/lib/format-member-handle";
 import { CIVIC_LOCALES, type Locale, t } from "@/lib/i18n";
+import { getPrivacyUrl } from "@/lib/legal-urls";
 import { useLocale } from "@/lib/locale";
+import { useReceiptHistoryPreference } from "@/lib/receipt-history-preference";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
 
 const PAGE_SIZE = 20;
@@ -39,6 +47,12 @@ export default function ProfileScreen() {
   const { status, signOut } = useAuth();
   const { locale, setAppLocale } = useLocale();
   const { allowChrons, setAllowChrons } = useChronPreference();
+  const {
+    retention,
+    ready: retentionReady,
+    setRetention,
+  } = useReceiptHistoryPreference();
+  const [retentionSaving, setRetentionSaving] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [totalMe, setTotalMe] = useState<number | null>(null);
@@ -135,6 +149,57 @@ export default function ProfileScreen() {
       });
   }, [items.length, loadingMore, total]);
 
+  const applyRetention = useCallback(
+    async (value: ReceiptHistoryRetention) => {
+      setRetentionSaving(true);
+      try {
+        const result = await setRetention(value);
+        if (value === "policy" && result.scrubbed_claims > 0) {
+          Alert.alert(
+            t("profile.taxes_scrubbed_title"),
+            t("profile.taxes_scrubbed_body").replace(
+              "{{count}}",
+              String(result.scrubbed_claims),
+            ),
+          );
+        }
+      } catch {
+        Alert.alert(
+          t("profile.taxes_save_error_title"),
+          t("profile.taxes_save_error_body"),
+        );
+      } finally {
+        setRetentionSaving(false);
+      }
+    },
+    [setRetention],
+  );
+
+  const onSelectRetention = useCallback(
+    (value: ReceiptHistoryRetention) => {
+      if (!retentionReady || retentionSaving || retention === value) return;
+      if (retention === "keep" && value === "policy") {
+        Alert.alert(
+          t("profile.taxes_irreversible_title"),
+          t("profile.taxes_irreversible_body"),
+          [
+            { text: t("common.back"), style: "cancel" },
+            {
+              text: t("profile.taxes_irreversible_confirm"),
+              style: "destructive",
+              onPress: () => {
+                void applyRetention("policy");
+              },
+            },
+          ],
+        );
+        return;
+      }
+      void applyRetention(value);
+    },
+    [applyRetention, retention, retentionReady, retentionSaving],
+  );
+
   const languageSwitcher = (
     <View style={styles.langBlock}>
       <Text style={styles.langLabel}>{t("profile.language")}</Text>
@@ -217,6 +282,70 @@ export default function ProfileScreen() {
           <Text style={styles.prefHint}>{t("profile.allow_chrons_hint")}</Text>
         </View>
 
+        <View style={styles.pillbox}>
+          <Text style={styles.pillLabel}>{t("profile.taxes_section")}</Text>
+          <Text style={styles.prefHint}>{t("profile.taxes_hint")}</Text>
+          {!retentionReady || retentionSaving ? (
+            <ActivityIndicator color={colors.brand} />
+          ) : (
+            <View style={styles.langRow}>
+              {(
+                [
+                  {
+                    id: "keep" as const,
+                    label: t("profile.taxes_keep"),
+                  },
+                  {
+                    id: "policy" as const,
+                    label: t("profile.taxes_policy"),
+                  },
+                ] as const
+              ).map((opt) => {
+                const selected = retention === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    style={[
+                      styles.langBtn,
+                      selected && styles.langBtnSelected,
+                    ]}
+                    onPress={() => onSelectRetention(opt.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <Text
+                      style={[
+                        styles.langBtnText,
+                        selected && styles.langBtnTextSelected,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+          {retention === "keep" ? (
+            <Text style={styles.prefHint}>{t("profile.taxes_keep_detail")}</Text>
+          ) : retention === "policy" ? (
+            <Text style={styles.prefHint}>
+              {t("profile.taxes_policy_detail")}
+            </Text>
+          ) : (
+            <Text style={styles.prefHint}>{t("profile.taxes_unset")}</Text>
+          )}
+          <Pressable
+            onPress={() => void Linking.openURL(getPrivacyUrl())}
+            accessibilityRole="link"
+            hitSlop={6}
+          >
+            <Text style={styles.privacyLink}>
+              {t("profile.taxes_privacy_link")}
+            </Text>
+          </Pressable>
+        </View>
+
         <Pressable
           style={styles.btn}
           onPress={() => {
@@ -291,6 +420,13 @@ const styles = StyleSheet.create({
   },
   prefLabel: { flex: 1, color: colors.ink, fontWeight: "600", lineHeight: 20 },
   prefHint: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  privacyLink: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+    lineHeight: 18,
+  },
   btn: {
     backgroundColor: colors.brand,
     borderRadius: 12,

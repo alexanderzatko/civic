@@ -127,9 +127,16 @@ export type MeIdentity = {
   total_chr?: number;
   /** Rovas preferred language when exposed on `/rovas/me` (e.g. `sk`, `en`). */
   language?: string | null;
+  /** Keep vs 90-day policy; `null` until answered (Rovas-backed). */
+  receipt_history_retention?: "keep" | "policy" | null;
   client_id: string;
   scope: string | null;
   expires_at: number;
+};
+
+export type ReceiptHistoryPreferenceResult = {
+  receipt_history_retention: "keep" | "policy";
+  scrubbed_claims: number;
 };
 
 export type MyContributionsSummary = ContributionsSummary & {
@@ -395,6 +402,19 @@ export function fetchProjectShareholders(
 
 export function fetchMe(): Promise<MeIdentity> {
   return apiFetch("/me", { auth: "required" });
+}
+
+export function setReceiptHistoryPreference(
+  retention: "keep" | "policy",
+): Promise<ReceiptHistoryPreferenceResult> {
+  return apiFetch<ReceiptHistoryPreferenceResult>(
+    "/me/receipt-history-preference",
+    {
+      method: "POST",
+      auth: "required",
+      body: JSON.stringify({ retention }),
+    },
+  );
 }
 
 export function fetchMySummary(): Promise<MyContributionsSummary> {

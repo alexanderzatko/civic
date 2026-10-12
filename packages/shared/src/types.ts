@@ -135,6 +135,20 @@ export interface NaceExpertiseSection {
 }
 
 /**
+ * Receipt scanning-history retention on the Rovas account.
+ * `null` / omitted = not answered yet (Civic gates claim until set).
+ * See Rovas task `receipt-history-retention`.
+ */
+export type ReceiptHistoryRetention = "keep" | "policy";
+
+/** Response from `POST /me/receipt-history-preference`. */
+export interface ReceiptHistoryPreferenceResult {
+  receipt_history_retention: ReceiptHistoryRetention;
+  /** Claim rows whose merchant/time detail were nulled in this request. */
+  scrubbed_claims: number;
+}
+
+/**
  * Signed-in identity from `GET /me` (proxies Rovas `GET /rovas/me`).
  */
 export interface MeProfile {
@@ -145,6 +159,11 @@ export interface MeProfile {
   /** Chron wallet when Rovas exposes `total_chr` on `/rovas/me`. */
   total_chr?: number;
   language?: string | null;
+  /**
+   * Keep unlimited receipt history vs 90-day policy scrub.
+   * `null` until the user answers (survives reinstall via Rovas).
+   */
+  receipt_history_retention?: ReceiptHistoryRetention | null;
   client_id: string;
   scope: string | null;
   expires_at: number;
