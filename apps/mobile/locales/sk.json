@@ -131,7 +131,7 @@
   "receipts.detail_items_empty": "Bloček nemá položky.",
   "receipts.detail_source": "Údaje z registra Finančnej správy (eKasa).",
   "receipts.scan_hint": "Zarovnajte QR kód do rámčeka",
-  "receipts.intro": "Po naskenovaní bločka Civic vypočíta merity zo zaplatenej DPH.",
+  "receipts.intro": "Po naskenovaní bločka Civic vypočíta merity zo zaplatenej DPH. Registrovať sa dajú len bločky nie staršie ako 7 dní.",
   "receipts.error_invalid": "Neplatné číslo bločka.",
   "receipts.error_not_found": "Bloček sa v registri Finančnej správy nenašiel.",
   "receipts.error_fs": "Chyba pri volaní Finančnej správy.",

@@ -131,7 +131,7 @@
   "receipts.detail_items_empty": "No line items on this receipt.",
   "receipts.detail_source": "Data from the Finančná správa eKasa registry.",
   "receipts.scan_hint": "Align the QR code in the frame",
-  "receipts.intro": "After scanning a receipt, Civic calculates Merits from the VAT paid.",
+  "receipts.intro": "After scanning a receipt, Civic calculates Merits from the VAT paid. Only receipts up to 7 days old can be registered.",
   "receipts.error_invalid": "Invalid receipt number.",
   "receipts.error_not_found": "Receipt not found in the Finančná správa registry.",
   "receipts.error_fs": "Error calling Finančná správa.",
