@@ -2,8 +2,9 @@ import { CurrencyCode, encode, PaymentOptions } from "bysquare/pay";
 
 /**
  * When NeoFund’s remittance IBAN is ready, set this compact IBAN to route
- * gift transfers there instead of the organisation’s verified account.
- * Until then, callers pass the org `donate_iban` from project detail.
+ * gift transfers there instead of the organisation account.
+ * Until then, callers pass `donate_iban` from project detail only when
+ * `iban_verified` is true (Pay by Square must not use unverified IBANs).
  */
 export const GIFT_BENEFICIARY_IBAN_OVERRIDE: string | null = null;
 

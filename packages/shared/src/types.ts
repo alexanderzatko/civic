@@ -108,10 +108,18 @@ export interface ProjectDetail {
   /** Optional off-app donate URL (opens in the device browser). */
   donate_url?: string | null;
   /**
-   * Compact SEPA IBAN for gift transfer (Pay by Square). Present only when
-   * Rovas staff verified the org controls this account; omit/`null` otherwise.
+   * Compact SEPA IBAN for gift transfer (Pay by Square). Present whenever the
+   * linked org has a stored IBAN (not gated on staff verification — see
+   * `iban_verified`). Omit/`null` when empty/invalid/no org.
    */
   donate_iban?: string | null;
+  /**
+   * Whether NeoFund staff verified the org controls `donate_iban`.
+   * `true`/`false` when a linked charity org exists; omit/`null` otherwise.
+   * Gate Pay by Square on `true`; Basic info may still show unverified IBAN
+   * with at-own-risk copy.
+   */
+  iban_verified?: boolean | null;
   /** IČO / registration number from linked charity org; omit/`null` when unknown. */
   org_id?: string | null;
   /** ISO 3166-1 alpha-2 country of registered seat; omit/`null` when unknown. */

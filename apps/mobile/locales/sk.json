@@ -161,6 +161,7 @@
   "charity.basic_country": "Krajina sídla",
   "charity.basic_website": "Webová stránka",
   "charity.basic_iban": "SEPA IBAN",
+  "charity.iban_unverified_risk": "Tento IBAN NeoFund ešte neoveril. Používate ho na vlastné riziko.",
   "charity.detail_load_error": "Detaily projektu sa nepodarilo načítať.",
   "charity.invite": "Pozvať organizáciu",
   "charity.invite_body": "Pošlite organizácii e-mail s pozvánkou na zápis ako overená verejnoprospešná (nezisková) organizácia. Civic automaticky doplní odkaz na návod.",

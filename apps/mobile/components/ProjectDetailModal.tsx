@@ -364,6 +364,7 @@ export function ProjectDetailModal({
                   </Pressable>
                 ) : null}
                 {detail.charity_status === "approved" &&
+                detail.iban_verified === true &&
                 detail.donate_iban ? (
                   <GiftPaymentForm
                     projectNid={detail.project_nid}

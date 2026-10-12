@@ -13,7 +13,7 @@ export function isPlausibleIban(value: string): boolean {
 
 /**
  * Return a compact IBAN if the string looks plausible; otherwise `null`.
- * Used when passthrough-ing Rovas `donate_iban`.
+ * Used when passthrough-ing Rovas `donate_iban` (verified or not).
  */
 export function compactIbanOrNull(value: unknown): string | null {
   if (typeof value !== "string") return null;

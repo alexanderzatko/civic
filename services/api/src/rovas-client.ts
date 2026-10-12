@@ -1469,6 +1469,8 @@ function normalizeProjectDetail(
         ? raw.donate_url.trim()
         : null,
     donate_iban: compactIbanOrNull(raw.donate_iban),
+    iban_verified:
+      typeof raw.iban_verified === "boolean" ? raw.iban_verified : null,
     org_id:
       typeof raw.org_id === "string" && raw.org_id.trim()
         ? raw.org_id.trim()

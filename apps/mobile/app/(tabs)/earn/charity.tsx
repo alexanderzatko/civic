@@ -451,6 +451,7 @@ export default function CharityScreen() {
           const showPayment =
             detail != null &&
             detail.charity_status === "approved" &&
+            detail.iban_verified === true &&
             Boolean(detail.donate_iban);
           const countryDisplay = detail?.country
             ? countryLabel(detail.country, locale)
@@ -581,14 +582,21 @@ export default function CharityScreen() {
                             </View>
                           ) : null}
                           {detail.donate_iban ? (
-                            <View style={styles.metaRow}>
-                              <Text style={styles.metaLabel}>
-                                {t("charity.basic_iban")}
-                              </Text>
-                              <Text style={styles.metaValue}>
-                                {formatIbanDisplay(detail.donate_iban)}
-                              </Text>
-                            </View>
+                            <>
+                              <View style={styles.metaRow}>
+                                <Text style={styles.metaLabel}>
+                                  {t("charity.basic_iban")}
+                                </Text>
+                                <Text style={styles.metaValue}>
+                                  {formatIbanDisplay(detail.donate_iban)}
+                                </Text>
+                              </View>
+                              {detail.iban_verified === false ? (
+                                <Text style={styles.ibanRiskHint}>
+                                  {t("charity.iban_unverified_risk")}
+                                </Text>
+                              ) : null}
+                            </>
                           ) : null}
                         </View>
                       ) : null}
@@ -1061,6 +1069,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.ink,
+  },
+  ibanRiskHint: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.muted,
+    fontWeight: "500",
   },
   link: {
     color: colors.brand,

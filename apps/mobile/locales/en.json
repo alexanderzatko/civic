@@ -161,6 +161,7 @@
   "charity.basic_country": "Country of registered seat",
   "charity.basic_website": "Website",
   "charity.basic_iban": "SEPA IBAN",
+  "charity.iban_unverified_risk": "This IBAN has not been verified by NeoFund. Use it at your own risk.",
   "charity.detail_load_error": "Could not load project details.",
   "charity.invite": "Invite an organisation",
   "charity.invite_body": "Send an organisation an email inviting them to enroll as a verified public-benefit (nonprofit) project. Civic appends enrollment instructions automatically.",
