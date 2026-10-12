@@ -11,11 +11,7 @@ import {
   Text,
   View,
 } from "react-native";
-import {
-  displayMerits,
-  type MeritHistoryItem,
-  type ReceiptHistoryRetention,
-} from "@civic/shared";
+import { type MeritHistoryItem, type ReceiptHistoryRetention } from "@civic/shared";
 import { MeritHistoryList } from "@/components/MeritHistoryList";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
@@ -35,12 +31,16 @@ const LOCALE_LABELS: Record<Locale, string> = {
   en: "English",
 };
 
-function formatMe(n: number): string {
-  return displayMerits(n).toLocaleString("sk-SK");
-}
-
 function formatChr(n: number): string {
   return Math.round(n).toLocaleString("sk-SK");
+}
+
+function retentionStatusLabel(
+  retention: ReceiptHistoryRetention | null,
+): string {
+  if (retention === "keep") return t("profile.taxes_status_keep");
+  if (retention === "policy") return t("profile.taxes_status_policy");
+  return t("profile.taxes_status_unset");
 }
 
 export default function ProfileScreen() {
@@ -55,7 +55,6 @@ export default function ProfileScreen() {
   const [retentionSaving, setRetentionSaving] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
-  const [totalMe, setTotalMe] = useState<number | null>(null);
   const [totalChr, setTotalChr] = useState<number | null>(null);
   const [items, setItems] = useState<MeritHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -84,7 +83,6 @@ export default function ProfileScreen() {
     if (status !== "signedIn") {
       setUsername(null);
       setDisplayName(null);
-      setTotalMe(null);
       setTotalChr(null);
       setItems([]);
       setTotal(0);
@@ -98,14 +96,12 @@ export default function ProfileScreen() {
         const name = me.username ?? me.rovas_uid;
         setUsername(name);
         setDisplayName(me.display_name ?? null);
-        setTotalMe(typeof me.total_me === "number" ? me.total_me : null);
         setTotalChr(typeof me.total_chr === "number" ? me.total_chr : null);
       })
       .catch(() => {
         if (!cancelled) {
           setUsername(null);
           setDisplayName(null);
-          setTotalMe(null);
           setTotalChr(null);
         }
       });
@@ -175,9 +171,11 @@ export default function ProfileScreen() {
     [setRetention],
   );
 
-  const onSelectRetention = useCallback(
-    (value: ReceiptHistoryRetention) => {
-      if (!retentionReady || retentionSaving || retention === value) return;
+  const onToggleKeepReceipts = useCallback(
+    (keep: boolean) => {
+      if (!retentionReady || retentionSaving) return;
+      const value: ReceiptHistoryRetention = keep ? "keep" : "policy";
+      if (retention === value) return;
       if (retention === "keep" && value === "policy") {
         Alert.alert(
           t("profile.taxes_irreversible_title"),
@@ -252,13 +250,17 @@ export default function ProfileScreen() {
           {username ? `: @${username}` : ""} ({t("profile.signed_in")})
         </Text>
         {shownName ? <Text style={styles.displayName}>{shownName}</Text> : null}
-        {totalMe != null ? (
-          <Text style={styles.balance}>
-            {formatMe(totalMe)} {t("common.me")}
-          </Text>
-        ) : null}
 
         {languageSwitcher}
+
+        <Pressable
+          style={styles.btn}
+          onPress={() => {
+            void signOut();
+          }}
+        >
+          <Text style={styles.btnText}>{t("profile.sign_out")}</Text>
+        </Pressable>
 
         <View style={styles.pillbox}>
           <Text style={styles.pillLabel}>{t("profile.chrons_section")}</Text>
@@ -285,56 +287,26 @@ export default function ProfileScreen() {
         <View style={styles.pillbox}>
           <Text style={styles.pillLabel}>{t("profile.taxes_section")}</Text>
           <Text style={styles.prefHint}>{t("profile.taxes_hint")}</Text>
-          {!retentionReady || retentionSaving ? (
-            <ActivityIndicator color={colors.brand} />
-          ) : (
-            <View style={styles.langRow}>
-              {(
-                [
-                  {
-                    id: "keep" as const,
-                    label: t("profile.taxes_keep"),
-                  },
-                  {
-                    id: "policy" as const,
-                    label: t("profile.taxes_policy"),
-                  },
-                ] as const
-              ).map((opt) => {
-                const selected = retention === opt.id;
-                return (
-                  <Pressable
-                    key={opt.id}
-                    style={[
-                      styles.langBtn,
-                      selected && styles.langBtnSelected,
-                    ]}
-                    onPress={() => onSelectRetention(opt.id)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                  >
-                    <Text
-                      style={[
-                        styles.langBtnText,
-                        selected && styles.langBtnTextSelected,
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-          {retention === "keep" ? (
-            <Text style={styles.prefHint}>{t("profile.taxes_keep_detail")}</Text>
-          ) : retention === "policy" ? (
-            <Text style={styles.prefHint}>
-              {t("profile.taxes_policy_detail")}
-            </Text>
-          ) : (
-            <Text style={styles.prefHint}>{t("profile.taxes_unset")}</Text>
-          )}
+          <View style={styles.prefRow}>
+            <Text style={styles.prefLabel}>{t("profile.taxes_keep_switch")}</Text>
+            {!retentionReady || retentionSaving ? (
+              <ActivityIndicator color={colors.brand} />
+            ) : (
+              <Switch
+                value={retention === "keep"}
+                onValueChange={onToggleKeepReceipts}
+                trackColor={{ false: colors.border, true: colors.brandSoft }}
+                accessibilityRole="switch"
+                accessibilityLabel={t("profile.taxes_keep_switch")}
+              />
+            )}
+          </View>
+          <Text style={styles.prefHint}>
+            {t("profile.taxes_status").replace(
+              "{{status}}",
+              retentionStatusLabel(retention),
+            )}
+          </Text>
           <Pressable
             onPress={() => void Linking.openURL(getPrivacyUrl())}
             accessibilityRole="link"
@@ -346,14 +318,6 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        <Pressable
-          style={styles.btn}
-          onPress={() => {
-            void signOut();
-          }}
-        >
-          <Text style={styles.btnText}>{t("profile.sign_out")}</Text>
-        </Pressable>
         <MeritHistoryList
           items={items}
           total={total}
@@ -385,7 +349,6 @@ const styles = StyleSheet.create({
   userLine: { color: colors.ink, fontWeight: "600", fontSize: 16, lineHeight: 22 },
   displayName: { color: colors.ink, fontSize: 18, fontWeight: "700", marginTop: -4 },
   body: { color: colors.muted, lineHeight: 22 },
-  balance: { fontSize: 22, fontWeight: "700", color: colors.ink },
   balanceChr: { fontSize: 15, fontWeight: "400", color: colors.ink, lineHeight: 22 },
   pillbox: {
     backgroundColor: colors.surface,
