@@ -1469,6 +1469,18 @@ function normalizeProjectDetail(
         ? raw.donate_url.trim()
         : null,
     donate_iban: compactIbanOrNull(raw.donate_iban),
+    org_id:
+      typeof raw.org_id === "string" && raw.org_id.trim()
+        ? raw.org_id.trim()
+        : null,
+    country:
+      typeof raw.country === "string" && /^[A-Za-z]{2}$/.test(raw.country.trim())
+        ? raw.country.trim().toUpperCase()
+        : null,
+    website_url:
+      typeof raw.website_url === "string" && raw.website_url.trim()
+        ? raw.website_url.trim()
+        : null,
   };
 }
 

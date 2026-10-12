@@ -138,7 +138,7 @@ Optional Bearer:
 | `GET /rank/spotlight` | Period Merit spotlight — proxies Rovas `GET /rovas/civic_merit_spotlight` (no Bearer required; Bearer adds `you`) |
 | `GET /rank/index/countries` | Merit Index country filter — proxies Rovas `GET /rovas/civic_merit_index_countries` (no Bearer required) |
 | `GET /nace` | NACE tree for Prínos filters — proxies Rovas `GET /rovas/civic_nace_tree` (no Bearer required) |
-| `GET /projects/:nid` | Project detail modal — proxies Rovas `GET /rovas/civic_project/{nid}?lang=`. Anonymous allowed for NeoFund-**approved** public-benefit / nonprofit projects (`is_charity` + approved org); other projects need Bearer. Gift-path fields (wire names): `is_charity`, `charity_status`, `organization`, `donate_instructions`, `donate_url`, `donate_iban` (compact IBAN only when staff IBAN-verified — see Rovas **[gift-donate-iban](../../rovas/docs/integration/civic_tasks/done/gift-donate-iban.md)**). Also: **Next work: charitable projects (Civic catalog)** and **Next work: broaden Gifts path labels (public-benefit orgs)**. |
+| `GET /projects/:nid` | Project detail / Nonprofit expand — proxies Rovas `GET /rovas/civic_project/{nid}?lang=`. Anonymous allowed for NeoFund-**approved** public-benefit / nonprofit projects (`is_charity` + approved org); other projects need Bearer. Gift-path fields (wire names): `is_charity`, `charity_status`, `organization`, `donate_instructions`, `donate_url`, `donate_iban` (compact IBAN only when staff IBAN-verified — see Rovas **[gift-donate-iban](../../rovas/docs/integration/civic_tasks/done/gift-donate-iban.md)**), plus `org_id`, `country` (ISO2), `website_url` for Basic info — see Rovas **[charity-org-basic-info](../../rovas/docs/integration/civic_tasks/active/charity-org-basic-info.md)**. Also: **Next work: charitable projects (Civic catalog)** and **Next work: broaden Gifts path labels (public-benefit orgs)**. |
 | `GET /projects/:nid/work-reports` | Paginated work ledgers — same anonymous rule as project detail |
 | `GET /projects/:nid/shareholders` | Paginated shareholders — same anonymous rule as project detail |
 
@@ -150,11 +150,11 @@ Public:
 | `GET /merit-rate` | National hourly wage for ME↔€ / claim preview — proxies Rovas `GET /rovas/civic_national_hourly_rate` (falls back to `HOURLY_WAGE_EUR` if unreachable) |
 | `GET /charities/projects` | Gifts / nonprofit catalog — proxies Rovas `GET /rovas/civic_charity_projects` when `type=charity` (`query`, `limit`, `lang`). Envelope `{ total, projects[] }`. Invest stubs remain static (`type=invest`). Wire path/type stay `charities` / `charity`. See Rovas **Next work: charitable projects (Civic catalog)** and **Next work: broaden Gifts path labels (public-benefit orgs)**. |
 
-**Smoke (after Rovas [donor-add-charity-org](../../rovas/docs/integration/civic_tasks/active/donor-add-charity-org.md) is live on rovdev):**
+**Smoke (after Rovas [donor-add-charity-org](../../rovas/docs/integration/civic_tasks/done/donor-add-charity-org.md) is live on rovdev):**
 
-1. Signed-in Civic user submits Add organisation with a known SK IČO from the nonprofit register → `status: approved`, org appears in `GET /charities/projects`, project modal opens.
+1. Signed-in Civic user submits Add organisation with a known SK IČO from the nonprofit register → `status: approved`, org appears in `GET /charities/projects`, catalog card expands in place.
 2. Non-SK country (or unknown IČO) → `status: pending`; under-review alert; org absent from catalog until staff approve.
-3. Resubmit same `(country, org_id)` → `created: false`, same nids; approved duplicate opens in list; pending duplicate shows under-review again.
+3. Resubmit same `(country, org_id)` → `created: false`, same nids; approved duplicate expands in list; pending duplicate shows under-review again.
 4. Contact email matching the Bearer user’s Drupal mail → `ownership: "submitter"`; otherwise `ownership: "custodial"`.
 5. Verify button next to contact email → stub modal only (no API yet).
 

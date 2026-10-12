@@ -20,10 +20,16 @@ import {
   round2,
   type CharityProject,
   type MeritRate,
+  type ProjectDetail,
 } from "@civic/shared";
-import { ProjectDetailModal } from "@/components/ProjectDetailModal";
+import { GiftPaymentForm } from "@/components/GiftPaymentForm";
 import { colors } from "@/constants/theme";
-import { createCharityOrg, fetchMeritRate, fetchProjects } from "@/lib/api";
+import {
+  createCharityOrg,
+  fetchMeritRate,
+  fetchProject,
+  fetchProjects,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
   countryLabel,
@@ -76,6 +82,26 @@ function charityEnrollmentUrl(): string {
   return `${getRovasBaseUrl().replace(/\/$/, "")}/charity-projects`;
 }
 
+function projectNidOf(p: CharityProject): string | null {
+  return p.project_nid ?? (/^\d+$/.test(p.id) ? p.id : null);
+}
+
+/** Count catalog rows per organisation legal name. */
+function orgProjectCounts(list: CharityProject[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const p of list) {
+    const key = p.organization.trim() || p.title.trim();
+    if (!key) continue;
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function formatIbanDisplay(compact: string): string {
+  const s = compact.replace(/\s+/g, "").toUpperCase();
+  return s.replace(/(.{4})/g, "$1 ").trim();
+}
+
 export default function CharityScreen() {
   const { locale } = useLocale();
   const { status: authStatus } = useAuth();
@@ -85,6 +111,7 @@ export default function CharityScreen() {
   const scrollYRef = useRef(0);
   const addOrgIdRef = useRef<TextInput>(null);
   const addIbanRef = useRef<TextInput>(null);
+  const expandedNidRef = useRef<string | null>(null);
 
   const [projects, setProjects] = useState<CharityProject[]>([]);
   const [total, setTotal] = useState(0);
@@ -92,8 +119,14 @@ export default function CharityScreen() {
   const [searching, setSearching] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [query, setQuery] = useState("");
-  const [projectNid, setProjectNid] = useState<string | null>(null);
-  const [fallbackTitle, setFallbackTitle] = useState<string | null>(null);
+  /** Org → project count from last full (non-search) catalog load. */
+  const [orgCounts, setOrgCounts] = useState<Record<string, number>>({});
+  const [expandedNid, setExpandedNid] = useState<string | null>(null);
+  const [expandedDetail, setExpandedDetail] = useState<ProjectDetail | null>(
+    null,
+  );
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(false);
   const [meritRate, setMeritRate] = useState<MeritRate | null>(null);
 
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -153,6 +186,7 @@ export default function CharityScreen() {
       }
       setProjects(list);
       setTotal(catalogTotal);
+      setOrgCounts(orgProjectCounts(list));
     } catch {
       setProjects([]);
       setTotal(0);
@@ -206,11 +240,38 @@ export default function CharityScreen() {
     };
   }, [query, showSearch, loadDefault]);
 
-  function openProject(p: CharityProject) {
-    const nid = p.project_nid ?? (/^\d+$/.test(p.id) ? p.id : null);
+  const loadExpandedDetail = useCallback((nid: string) => {
+    expandedNidRef.current = nid;
+    setExpandedNid(nid);
+    setExpandedDetail(null);
+    setDetailError(false);
+    setDetailLoading(true);
+    void fetchProject(nid)
+      .then((detail) => {
+        if (expandedNidRef.current !== nid) return;
+        setExpandedDetail(detail);
+        setDetailLoading(false);
+      })
+      .catch(() => {
+        if (expandedNidRef.current !== nid) return;
+        setExpandedDetail(null);
+        setDetailLoading(false);
+        setDetailError(true);
+      });
+  }, []);
+
+  function toggleExpand(p: CharityProject) {
+    const nid = projectNidOf(p);
     if (!nid) return;
-    setFallbackTitle(p.title);
-    setProjectNid(nid);
+    if (expandedNid === nid) {
+      expandedNidRef.current = null;
+      setExpandedNid(null);
+      setExpandedDetail(null);
+      setDetailLoading(false);
+      setDetailError(false);
+      return;
+    }
+    loadExpandedDetail(nid);
   }
 
   async function onInvite() {
@@ -298,8 +359,7 @@ export default function CharityScreen() {
         setAddIban("");
         setAddCountry("SK");
         await loadDefault();
-        setFallbackTitle(res.organization);
-        setProjectNid(res.project_nid);
+        loadExpandedDetail(res.project_nid);
       } else {
         Alert.alert(
           t("charity.add_pending_title"),
@@ -382,32 +442,203 @@ export default function CharityScreen() {
           <Text style={styles.hint}>{t("charity.search_empty")}</Text>
         ) : null}
 
-        {projects.map((p) => (
-          <Pressable
-            key={p.id}
-            style={styles.card}
-            onPress={() => openProject(p)}
-          >
-            <Text style={styles.title}>{p.title}</Text>
-            <Text style={styles.org}>{p.organization}</Text>
-            {p.summary ? (
-              <Text style={styles.summary} numberOfLines={3}>
-                {p.summary}
-              </Text>
-            ) : null}
-            {donorRate > 0 ? (
-              <View style={styles.meRow}>
-                <Text style={styles.meLabel}>{t("charity.me_per_eur_label")}</Text>
-                <Text style={styles.meRate} numberOfLines={1}>
-                  {t("charity.me_per_eur").replace(
-                    "{{rate}}",
-                    formatMePerEur(donorRate),
+        {projects.map((p) => {
+          const nid = projectNidOf(p);
+          const orgKey = p.organization.trim() || p.title.trim();
+          const multiOrg = (orgCounts[orgKey] ?? 1) > 1;
+          const expanded = nid != null && expandedNid === nid;
+          const detail = expanded ? expandedDetail : null;
+          const showPayment =
+            detail != null &&
+            detail.charity_status === "approved" &&
+            Boolean(detail.donate_iban);
+          const countryDisplay = detail?.country
+            ? countryLabel(detail.country, locale)
+            : null;
+          const hasBasic =
+            detail != null &&
+            Boolean(
+              detail.org_id ||
+                detail.country ||
+                detail.website_url ||
+                detail.donate_iban,
+            );
+
+          return (
+            <View key={p.id} style={styles.card}>
+              <Pressable
+                style={styles.cardHeader}
+                onPress={() => toggleExpand(p)}
+                accessibilityRole="button"
+              >
+                <View style={styles.cardHeaderText}>
+                  {multiOrg ? (
+                    <>
+                      <Text style={styles.nameLabel}>
+                        {t("charity.project_label")}
+                      </Text>
+                      <Text style={styles.title}>{p.title}</Text>
+                      <Text style={[styles.nameLabel, styles.nameLabelSpaced]}>
+                        {t("project.organization")}
+                      </Text>
+                      <Text style={styles.org}>{p.organization}</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.title}>{p.title}</Text>
                   )}
-                </Text>
-              </View>
-            ) : null}
-          </Pressable>
-        ))}
+                  {!expanded && p.summary ? (
+                    <Text style={styles.summary} numberOfLines={3}>
+                      {p.summary}
+                    </Text>
+                  ) : null}
+                  {donorRate > 0 ? (
+                    <View style={styles.meRow}>
+                      <Text style={styles.meLabel}>
+                        {t("charity.me_per_eur_label")}
+                      </Text>
+                      <Text style={styles.meRate} numberOfLines={1}>
+                        {t("charity.me_per_eur").replace(
+                          "{{rate}}",
+                          formatMePerEur(donorRate),
+                        )}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View style={styles.cardChevronWrap}>
+                  <MaterialIcons
+                    name={expanded ? "expand-more" : "chevron-right"}
+                    size={24}
+                    color={colors.muted}
+                    style={styles.cardChevronIcon}
+                  />
+                </View>
+              </Pressable>
+
+              {expanded ? (
+                <View style={styles.cardExpand}>
+                  {detailLoading && p.summary ? (
+                    <Text style={styles.summaryFull}>{p.summary}</Text>
+                  ) : null}
+                  {detailLoading ? (
+                    <ActivityIndicator color={colors.brand} />
+                  ) : null}
+                  {detailError ? (
+                    <Text style={styles.error}>
+                      {t("charity.detail_load_error")}
+                    </Text>
+                  ) : null}
+
+                  {!detailLoading && !detailError && detail ? (
+                    <>
+                      {detail.summary || p.summary ? (
+                        <Text style={styles.summaryFull}>
+                          {detail.summary || p.summary}
+                        </Text>
+                      ) : null}
+
+                      {hasBasic ? (
+                        <View style={styles.pillbox}>
+                          <Text style={styles.pillLabel}>
+                            {t("charity.basic_info")}
+                          </Text>
+                          {detail.org_id ? (
+                            <View style={styles.metaRow}>
+                              <Text style={styles.metaLabel}>
+                                {t("charity.basic_org_id")}
+                              </Text>
+                              <Text style={styles.metaValue}>
+                                {detail.org_id}
+                              </Text>
+                            </View>
+                          ) : null}
+                          {countryDisplay ? (
+                            <View style={styles.metaRow}>
+                              <Text style={styles.metaLabel}>
+                                {t("charity.basic_country")}
+                              </Text>
+                              <Text style={styles.metaValue}>
+                                {countryDisplay}
+                              </Text>
+                            </View>
+                          ) : null}
+                          {detail.website_url ? (
+                            <View style={styles.metaRow}>
+                              <Text style={styles.metaLabel}>
+                                {t("charity.basic_website")}
+                              </Text>
+                              <Pressable
+                                onPress={() =>
+                                  void Linking.openURL(detail.website_url!)
+                                }
+                                accessibilityRole="link"
+                                style={styles.metaValuePress}
+                              >
+                                <Text style={styles.metaLink} numberOfLines={2}>
+                                  {detail.website_url}
+                                </Text>
+                              </Pressable>
+                            </View>
+                          ) : null}
+                          {detail.donate_iban ? (
+                            <View style={styles.metaRow}>
+                              <Text style={styles.metaLabel}>
+                                {t("charity.basic_iban")}
+                              </Text>
+                              <Text style={styles.metaValue}>
+                                {formatIbanDisplay(detail.donate_iban)}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      ) : null}
+
+                      <View style={styles.pillboxDonate}>
+                        <Text style={styles.pillLabel}>
+                          {t("project.donate_title")}
+                        </Text>
+                        {showPayment ? (
+                          <GiftPaymentForm
+                            projectNid={detail.project_nid}
+                            donateIban={detail.donate_iban!}
+                            beneficiaryName={
+                              detail.organization?.trim() || detail.title
+                            }
+                            onAmountFocus={scrollFieldIntoView}
+                          />
+                        ) : (
+                          <>
+                            {detail.donate_instructions ? (
+                              <Text style={styles.donateInstructions}>
+                                {detail.donate_instructions}
+                              </Text>
+                            ) : (
+                              <Text style={styles.hint}>
+                                {t("project.donate_none")}
+                              </Text>
+                            )}
+                            {detail.donate_url ? (
+                              <Pressable
+                                onPress={() =>
+                                  void Linking.openURL(detail.donate_url!)
+                                }
+                                accessibilityRole="link"
+                              >
+                                <Text style={styles.link}>
+                                  {t("project.donate_open")} →
+                                </Text>
+                              </Pressable>
+                            ) : null}
+                          </>
+                        )}
+                      </View>
+                    </>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
 
         <View style={styles.inviteCard}>
           <Pressable
@@ -609,15 +840,6 @@ export default function CharityScreen() {
       </View>
       </KeyboardAvoidingView>
 
-      <ProjectDetailModal
-        projectNid={projectNid}
-        fallbackTitle={fallbackTitle}
-        onClose={() => {
-          setProjectNid(null);
-          setFallbackTitle(null);
-        }}
-      />
-
       <Modal
         visible={addCountryOpen}
         transparent
@@ -729,14 +951,46 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: 14,
-    padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    gap: 4,
+    overflow: "hidden",
   },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 16,
+    gap: 8,
+  },
+  cardHeaderText: { flex: 1, gap: 4 },
+  cardChevronWrap: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  cardChevronIcon: { marginTop: 1 },
+  cardExpand: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 12,
+  },
+  nameLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  nameLabelSpaced: { marginTop: 6 },
   title: { fontSize: 16, fontWeight: "700", color: colors.ink },
   org: { color: colors.brandSoft, fontWeight: "600", fontSize: 13 },
   summary: { color: colors.muted, fontSize: 14, marginTop: 2 },
+  summaryFull: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 20,
+  },
   meRow: {
     marginTop: 14,
     flexDirection: "row",
@@ -758,6 +1012,60 @@ const styles = StyleSheet.create({
     fontSize: 19.5,
     lineHeight: 24,
     flexShrink: 0,
+  },
+  pillbox: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    gap: 10,
+  },
+  pillboxDonate: {
+    backgroundColor: colors.catCharitySoft,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    gap: 10,
+  },
+  pillLabel: { fontWeight: "700", color: colors.ink, fontSize: 15 },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  metaLabel: {
+    fontSize: 13,
+    color: colors.muted,
+    fontWeight: "600",
+    flexShrink: 0,
+    maxWidth: "46%",
+  },
+  metaValue: {
+    fontSize: 14,
+    color: colors.ink,
+    fontWeight: "500",
+    textAlign: "right",
+    flex: 1,
+  },
+  metaValuePress: { flex: 1 },
+  metaLink: {
+    fontSize: 14,
+    color: colors.brand,
+    fontWeight: "600",
+    textAlign: "right",
+  },
+  donateInstructions: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.ink,
+  },
+  link: {
+    color: colors.brand,
+    fontWeight: "700",
+    fontSize: 14,
   },
   inviteCard: {
     marginTop: 8,

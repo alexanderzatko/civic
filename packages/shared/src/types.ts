@@ -112,6 +112,12 @@ export interface ProjectDetail {
    * Rovas staff verified the org controls this account; omit/`null` otherwise.
    */
   donate_iban?: string | null;
+  /** IČO / registration number from linked charity org; omit/`null` when unknown. */
+  org_id?: string | null;
+  /** ISO 3166-1 alpha-2 country of registered seat; omit/`null` when unknown. */
+  country?: string | null;
+  /** Organisation website (http/https); omit/`null` when unknown. */
+  website_url?: string | null;
 }
 
 /** Month bucket for tax Merits on a public profile (`YYYY-MM`). */
