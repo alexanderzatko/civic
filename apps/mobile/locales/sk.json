@@ -551,7 +551,7 @@
   "profile.taxes_status_keep": "údaje sú natrvalo uchovávané",
   "profile.taxes_privacy_link": "Zásady ochrany údajov",
   "profile.taxes_irreversible_title": "Vymazať staršie detaily bločkov?",
-  "profile.taxes_irreversible_body": "Prepnutie na zásady ochrany údajov natrvalo vymaže údaje o obchodníkovi a nákupe staršie ako 90 dní. Súčty meritov ostanú. Túto zmenu nie je možné vrátiť.",
+  "profile.taxes_irreversible_body": "Merity z DPH zaplatených bločkov vám ostanú, ale podrobnosti ako sú údaje o obchodníkovi alebo nákupe budú natrvalo vymazané. Túto zmenu nie je možné vrátiť.",
   "profile.taxes_irreversible_confirm": "Vymazať staršie detaily",
   "profile.taxes_scrubbed_title": "História aktualizovaná",
   "profile.taxes_scrubbed_body": "Odstránené detaily z {{count}} starších bločkov.",

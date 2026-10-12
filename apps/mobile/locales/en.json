@@ -551,7 +551,7 @@
   "profile.taxes_status_keep": "data is kept permanently",
   "profile.taxes_privacy_link": "Privacy policy",
   "profile.taxes_irreversible_title": "Delete aged receipt detail?",
-  "profile.taxes_irreversible_body": "Switching to the privacy policy permanently deletes merchant and purchase details older than 90 days. Merit totals stay. This cannot be undone.",
+  "profile.taxes_irreversible_body": "Merits from VAT paid on receipts stay with you, but details such as merchant or purchase data will be permanently deleted. This change cannot be undone.",
   "profile.taxes_irreversible_confirm": "Delete aged detail",
   "profile.taxes_scrubbed_title": "History updated",
   "profile.taxes_scrubbed_body": "Removed detail from {{count}} aged receipt(s).",
