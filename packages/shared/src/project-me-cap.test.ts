@@ -24,17 +24,28 @@ describe("capProjectRowsToCategory", () => {
     const sum = capped.reduce((s, r) => s + displayMerits(r.me), 0);
     assert.equal(sum, displayMerits(2.96));
     assert.equal(sum, 3);
-    assert.ok(capped.every((r) => r.me >= 0));
+    assert.ok(capped.every((r) => displayMerits(r.me) > 0));
     // Relative order preserved for positive weights.
-    assert.ok(capped[0]!.me >= capped[1]!.me);
+    assert.ok(capped[0]!.me >= (capped[1]?.me ?? 0));
   });
 
-  it("zeros rows when category is non-positive", () => {
+  it("omits rows that round to 0 ME after cap", () => {
+    const rows = [
+      { name: "Big", me: 6 },
+      { name: "Tiny", me: 1 },
+    ];
+    const capped = capProjectRowsToCategory(rows, 2.4); // display 2
+    assert.ok(capped.every((r) => displayMerits(r.me) > 0));
+    assert.equal(
+      capped.reduce((s, r) => s + displayMerits(r.me), 0),
+      2,
+    );
+  });
+
+  it("returns empty when category is non-positive", () => {
     const rows = [{ name: "X", me: 5 }];
-    assert.deepEqual(capProjectRowsToCategory(rows, 0), [{ name: "X", me: 0 }]);
-    assert.deepEqual(capProjectRowsToCategory(rows, -2), [
-      { name: "X", me: 0 },
-    ]);
+    assert.deepEqual(capProjectRowsToCategory(rows, 0), []);
+    assert.deepEqual(capProjectRowsToCategory(rows, -2), []);
   });
 
   it("is a no-op for empty rows", () => {

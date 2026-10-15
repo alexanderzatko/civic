@@ -30,7 +30,7 @@ export function capProjectRowsToCategory(
 
   const capDisplay = displayMerits(cap);
   if (capDisplay <= 0) {
-    return rows.map((r) => ({ ...r, me: 0 }));
+    return [];
   }
 
   // Largest-remainder allocation of whole displayed ME.
@@ -48,5 +48,7 @@ export function capProjectRowsToCategory(
     rem -= 1;
   }
 
-  return rows.map((r, i) => ({ ...r, me: allocated[i]! }));
+  return rows
+    .map((r, i) => ({ ...r, me: allocated[i]! }))
+    .filter((r) => displayMerits(r.me) > 0);
 }

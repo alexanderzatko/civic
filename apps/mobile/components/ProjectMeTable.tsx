@@ -17,8 +17,9 @@ function formatMe(n: number): string {
 export function ProjectMeTable({ rows, emptyLabel }: Props) {
   const [openNid, setOpenNid] = useState<string | null>(null);
   const [openTitle, setOpenTitle] = useState<string | null>(null);
+  const visible = rows.filter((r) => displayMerits(r.me) > 0);
 
-  if (rows.length === 0) {
+  if (visible.length === 0) {
     return <Text style={styles.empty}>{emptyLabel}</Text>;
   }
 
@@ -29,7 +30,7 @@ export function ProjectMeTable({ rows, emptyLabel }: Props) {
           <Text style={[styles.th, styles.colName]}>{t("community.col_name")}</Text>
           <Text style={[styles.th, styles.colMe]}>{t("common.me")}</Text>
         </View>
-        {rows.map((r) => {
+        {visible.map((r) => {
           const clickable = Boolean(r.project_nid);
           const rowKey = r.project_nid ? `${r.project_nid}:${r.name}` : r.name;
           return (
