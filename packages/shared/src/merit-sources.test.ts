@@ -18,14 +18,46 @@ describe("categoriesFromMeritSources", () => {
     );
   });
 
-  it("folds penalty into volunteer (may go negative)", () => {
+  it("splits penalty across non-zero buckets proportionally", () => {
+    // bases 100 + 50 = 150; penalty -80 → taxes −80×100/150, volunteer −80×50/150
     assert.deepEqual(
       categoriesFromMeritSources({
         volunteer_work: 50,
         penalty: -80,
         tax_payment: 100,
       }),
-      { taxes: 100, charity: 0, volunteer: -30 },
+      { taxes: 46.67, charity: 0, volunteer: 23.33 },
+    );
+  });
+
+  it("splits penalty across charity and volunteer (LAO-shaped)", () => {
+    // 8.93 + 7.53 = 16.46; −10 × shares
+    assert.deepEqual(
+      categoriesFromMeritSources({
+        charitable_donation: 8.93,
+        volunteer_work: 7.53,
+        penalty: -10,
+      }),
+      { taxes: 0, charity: 3.5, volunteer: 2.96 },
+    );
+  });
+
+  it("assigns all penalty to the sole non-zero bucket", () => {
+    assert.deepEqual(
+      categoriesFromMeritSources({
+        tax_payment: 9,
+        penalty: -1,
+      }),
+      { taxes: 8, charity: 0, volunteer: 0 },
+    );
+  });
+
+  it("splits penalty equally when all earned buckets are zero", () => {
+    assert.deepEqual(
+      categoriesFromMeritSources({
+        penalty: -3,
+      }),
+      { taxes: -1, charity: -1, volunteer: -1 },
     );
   });
 
@@ -50,7 +82,7 @@ describe("resolveContributionCategories", () => {
         { taxes: 1, charity: 2, volunteer: 3 },
         { tax_payment: 9, penalty: -1 },
       ),
-      { taxes: 9, charity: 0, volunteer: -1 },
+      { taxes: 8, charity: 0, volunteer: 0 },
     );
   });
 

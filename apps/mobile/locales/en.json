@@ -392,7 +392,7 @@
   "community.volunteer_hint": "Top projects by Merits earned",
   "community.volunteer_empty": "No public volunteer projects yet.",
   "community.volunteer_none": "This user has no volunteer contributions yet.",
-  "community.volunteer_penalty_hint": "Net volunteer Merits include penalties.",
+  "community.volunteer_penalty_hint": "Net Merits in this source include a share of penalties.",
   "community.expertise_title": "Areas of expertise",
   "community.invite_title": "Invite a friend to Civic",
   "community.invite_body": "Send a friend an email invite. After they create a Civic account, you can find each other via Community search.",

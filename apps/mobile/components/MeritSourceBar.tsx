@@ -23,7 +23,7 @@ const SEGMENTS: Array<{
 ];
 
 export function MeritSourceBar({ by, height = 10 }: Props) {
-  // Penalties can make volunteer negative; bar shares use positive parts only.
+  // Penalties can make any bucket negative; bar shares use positive parts only.
   const taxes = Math.max(0, by.taxes);
   const charity = Math.max(0, by.charity);
   const volunteer = Math.max(0, by.volunteer);
