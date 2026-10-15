@@ -25,6 +25,8 @@ export {
   type MeritSourceKey,
 } from "./merit-sources.js";
 
+export { capProjectRowsToCategory } from "./project-me-cap.js";
+
 export {
   isValidReceiptUid,
   normalizeUid,

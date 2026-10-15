@@ -48,6 +48,7 @@ import type {
 import {
   compactIbanOrNull,
   displayMerits,
+  capProjectRowsToCategory,
   resolveContributionCategories,
 } from "@civic/shared";
 import {
@@ -338,14 +339,26 @@ export class RovasClient {
         const y = Number(raw);
         return Number.isFinite(y) && y > 0 ? y : 0;
       })(),
-      by_category: normalizeCategories(
-        body.by_category,
-        (body as { by_source?: unknown }).by_source,
-      ),
+      ...(() => {
+        const by = normalizeCategories(
+          body.by_category,
+          (body as { by_source?: unknown }).by_source,
+        );
+        // Cap project tables to post-penalty category ME (Rovas keeps gross).
+        return {
+          by_category: by,
+          top_charities: capProjectRowsToCategory(
+            normalizeProjectRows(body.top_charities),
+            by.charity,
+          ),
+          top_volunteer_projects: capProjectRowsToCategory(
+            normalizeProjectRows(body.top_volunteer_projects),
+            by.volunteer,
+          ),
+        };
+      })(),
       nace_expertise: normalizeNaceExpertise(body.nace_expertise),
       taxes_last_3_months: normalizeTaxMonths(body.taxes_last_3_months),
-      top_charities: normalizeProjectRows(body.top_charities),
-      top_volunteer_projects: normalizeProjectRows(body.top_volunteer_projects),
     };
   }
 

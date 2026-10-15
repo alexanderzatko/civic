@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { displayMerits, type UserLookup } from "@civic/shared";
+import {
+  capProjectRowsToCategory,
+  displayMerits,
+  type UserLookup,
+} from "@civic/shared";
 import { ProjectMeTable } from "@/components/ProjectMeTable";
 import { NaceExpertiseIcons } from "@/components/NaceExpertiseIcons";
 import { TaxMonthsTable } from "@/components/TaxMonthsTable";
@@ -97,6 +101,14 @@ export function ContributionBreakdown({
 
   const activeMeta = SOURCE_META.find((s) => s.id === activeId)!;
   const valueFor = (id: MeritSourceId) => profile.by_category[id];
+  const charityRows = capProjectRowsToCategory(
+    profile.top_charities,
+    valueFor("charity"),
+  );
+  const volunteerRows = capProjectRowsToCategory(
+    profile.top_volunteer_projects,
+    valueFor("volunteer"),
+  );
   const isFirst = activeId === "taxes";
   const isLast = activeId === "volunteer";
 
@@ -169,7 +181,7 @@ export function ContributionBreakdown({
                   {t("community.charity_hint")}
                 </Text>
                 <ProjectMeTable
-                  rows={profile.top_charities}
+                  rows={charityRows}
                   emptyLabel={t("community.charity_empty")}
                 />
               </>
@@ -179,14 +191,14 @@ export function ContributionBreakdown({
 
           {activeId === "volunteer" &&
             (valueFor("volunteer") > 0 ||
-            profile.top_volunteer_projects.length > 0 ||
+            volunteerRows.length > 0 ||
             profile.nace_expertise.length > 0 ? (
               <>
                 <Text style={styles.drawerHint}>
                   {t("community.volunteer_hint")}
                 </Text>
                 <ProjectMeTable
-                  rows={profile.top_volunteer_projects}
+                  rows={volunteerRows}
                   emptyLabel={t("community.volunteer_empty")}
                 />
                 <NaceExpertiseIcons
