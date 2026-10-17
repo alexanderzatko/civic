@@ -830,6 +830,65 @@ export class RovasClient {
   }
 
   /**
+   * Pending watched-comment notices for in-app notifications.
+   * `GET /rovas/civic_pending_comment_notices`
+   */
+  async fetchPendingCommentNotices(
+    accessToken: string,
+  ): Promise<{
+    total: number;
+    items: import("@civic/shared").PendingCommentNoticeItem[];
+  }> {
+    const body = await this.getJson<{
+      total?: unknown;
+      items?: unknown;
+    }>("/rovas/civic_pending_comment_notices", accessToken);
+    const items = Array.isArray(body.items)
+      ? body.items
+          .map((raw) => {
+            if (!raw || typeof raw !== "object") return null;
+            const r = raw as Record<string, unknown>;
+            const nid = r.nid != null ? String(r.nid).trim() : "";
+            const cid = r.cid != null ? String(r.cid).trim() : "";
+            const nodeTitle =
+              typeof r.node_title === "string" ? r.node_title.trim() : "";
+            const commentUrl =
+              typeof r.comment_url === "string" ? r.comment_url.trim() : "";
+            const created =
+              typeof r.created === "number"
+                ? r.created
+                : typeof r.created === "string" && /^\d+$/.test(r.created)
+                  ? Number(r.created)
+                  : NaN;
+            if (
+              !/^\d+$/.test(nid) ||
+              !/^\d+$/.test(cid) ||
+              !nodeTitle ||
+              !commentUrl ||
+              !Number.isFinite(created)
+            ) {
+              return null;
+            }
+            return {
+              nid,
+              node_title: nodeTitle,
+              cid,
+              comment_url: commentUrl,
+              created,
+            };
+          })
+          .filter(
+            (x): x is import("@civic/shared").PendingCommentNoticeItem =>
+              x != null,
+          )
+      : [];
+    return {
+      total: typeof body.total === "number" ? body.total : items.length,
+      items,
+    };
+  }
+
+  /**
    * Pending verification slots for in-app notifications.
    * `GET /rovas/civic_pending_verifications?lang=`
    */

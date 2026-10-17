@@ -19,7 +19,7 @@ export const colors = {
   catCharitySoft: "rgba(27, 107, 74, 0.18)",
   catVolunteer: "#C47A2C",
   catVolunteerSoft: "rgba(196, 122, 44, 0.18)",
-  /** Rovas `section#block-block-12` — pending verifications banner. */
+  /** Rovas pending-verifications + watched-comment banners (`#FFA108`). */
   verifyBanner: "#FFA108",
   verifyBannerInk: "#12241C",
   verifyBannerLink: "#1565C0",

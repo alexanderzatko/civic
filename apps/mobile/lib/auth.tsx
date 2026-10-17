@@ -45,6 +45,10 @@ import {
   clearPendingVerificationsState,
   refreshPendingVerifications,
 } from "@/lib/pending-verifications";
+import {
+  clearPendingCommentNoticesState,
+  refreshPendingCommentNotices,
+} from "@/lib/pending-comment-notices";
 import { capture, resetAnalytics } from "@/lib/analytics";
 import { resetSpotlightDismiss } from "@/lib/spotlight-dismiss";
 
@@ -202,6 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearSession = useCallback(async () => {
     void unregisterCivicPushToken().catch(() => undefined);
     clearPendingVerificationsState();
+    clearPendingCommentNoticesState();
     resetSpotlightDismiss();
     await clearPendingOAuth();
     await clearTokens();
@@ -219,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus("signedIn");
       void registerCivicPushToken();
       void refreshPendingVerifications();
+      void refreshPendingCommentNotices();
     } else {
       await clearSession();
     }
@@ -268,6 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus("signedIn");
         void registerCivicPushToken();
         void refreshPendingVerifications();
+        void refreshPendingCommentNotices();
         return;
       }
 

@@ -11,6 +11,7 @@ import { usersRoutes } from "./routes/users.js";
 import { projectsRoutes } from "./routes/projects.js";
 import { workReportsRoutes } from "./routes/work-reports.js";
 import { verificationsRoutes } from "./routes/verifications.js";
+import { commentNoticesRoutes } from "./routes/comment-notices.js";
 import { pushTokensRoutes } from "./routes/push-tokens.js";
 
 async function main() {
@@ -57,6 +58,7 @@ async function main() {
       "GET /work-reports/fee-info",
       "GET /verifications/pending",
       "POST /verifications/:slot_nid",
+      "GET /comment-notices/pending",
       "POST /push-tokens",
       "DELETE /push-tokens",
     ],
@@ -105,6 +107,7 @@ async function main() {
   await app.register(projectsRoutes, { ctx });
   await app.register(workReportsRoutes, { ctx });
   await app.register(verificationsRoutes, { ctx });
+  await app.register(commentNoticesRoutes, { ctx });
   await app.register(pushTokensRoutes, { ctx });
 
   await app.listen({ port: config.port, host: config.host });

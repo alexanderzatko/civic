@@ -138,6 +138,8 @@ export type {
   WorkReportFeeInfo,
   PendingVerificationItem,
   PendingVerificationsPage,
+  PendingCommentNoticeItem,
+  PendingCommentNoticesPage,
   SubmitVerificationBody,
   SubmitVerificationError,
   SubmitVerificationErrorCode,

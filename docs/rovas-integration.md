@@ -121,6 +121,7 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `POST /work-reports` | Submit volunteer report — proxies Rovas `POST /rovas/civic_create_work_report` (hours, date, description, NACE, proof URL and/or photos and/or `field_location` GeoJSON, `reward_kind`). Civic rejects `date_started` more than **30** Bratislava calendar days before today (`date_reporting_window_expired`) before calling Rovas. When `WR_USAGE_FEE_ENABLED` and `CIVIC_APP_PROJECT_NID` are set, Civic attaches `usage_fee_project_id` + `usage_fee_rate` for a deferred app AUR on approval. See Rovas **Next work: Civic WR usage fee (app AUR)**. |
 | `GET /verifications/pending` | In-app verification notifications — proxies Rovas `GET /rovas/civic_pending_verifications?lang=`. |
 | `POST /verifications/:slot_nid` | Submit verdict — proxies Rovas `POST /rovas/civic_submit_verification` (`verdict`, optional `verified_hours`, `note`). |
+| `GET /comment-notices/pending` | In-app watched-comment notifications — proxies Rovas `GET /rovas/civic_pending_comment_notices`. Links open Rovas `comment_url` until in-Civic comments exist. See Rovas **[pending-comment-notices](../../rovas/docs/integration/civic_tasks/active/pending-comment-notices.md)**. |
 | `POST /push-tokens` | Register Expo push token for OS notifications (Phase 4). Body: `expo_push_token`, `platform` (`ios` \| `android`). |
 | `DELETE /push-tokens` | Remove push token(s) on logout. Optional body `expo_push_token`; omit to clear all for user. |
 | `POST /charities/organizations` | Bearer — donor adds a public-benefit / nonprofit org. Proxies Rovas `POST /rovas/civic_create_charity_org` (`name`, `country`, `website_url`, `contact_email`, `org_id`, `iban`). Response `{ ok, status: approved\|pending, created, organization_nid, project_nid, organization, ownership }`. See Rovas **[donor-add-charity-org](../../rovas/docs/integration/civic_tasks/done/donor-add-charity-org.md)**. |
@@ -203,6 +204,18 @@ before verifier UX works end-to-end on rovdev.
 **OS push (Phase 4):** mobile registers Expo tokens via `POST /push-tokens` after
 sign-in. Server-side send + Rovas assignment webhook are documented in the Rovas
 integration doc follow-up section.
+
+## Watched-comment notices (in-app)
+
+Same banner pattern as verification notices (header under the nav bar). Polls
+`GET /comment-notices/pending` (Rovas `GET /rovas/civic_pending_comment_notices`
+— see **[pending-comment-notices](../../rovas/docs/integration/civic_tasks/active/pending-comment-notices.md)**).
+Each row opens the Rovas `comment_url` in the system browser for now; rewire to
+in-Civic comment UI when reports show comments in-app.
+
+**Requires on rovdev:** `rovas_comment_watch` enabled + `drush74 updb` (`7028`)
+so the resource returns notices (empty `{ total: 0, items: [] }` if the module
+is off).
 
 ## Civic WR usage fee (app AUR)
 

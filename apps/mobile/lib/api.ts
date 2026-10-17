@@ -33,6 +33,7 @@ import type {
   CreateWorkReportBody,
   CreateWorkReportResponse,
   PendingVerificationsPage,
+  PendingCommentNoticesPage,
   SubmitVerificationBody,
   SubmitVerificationResponse,
   WorkReportDetail,
@@ -533,6 +534,10 @@ export function createWorkReport(
 export function fetchPendingVerifications(): Promise<PendingVerificationsPage> {
   const params = new URLSearchParams({ lang: getLocale() });
   return apiFetch(`/verifications/pending?${params}`, { auth: "required" });
+}
+
+export function fetchPendingCommentNotices(): Promise<PendingCommentNoticesPage> {
+  return apiFetch(`/comment-notices/pending`, { auth: "required" });
 }
 
 export function fetchWorkReportDetail(

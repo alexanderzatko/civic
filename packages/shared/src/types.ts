@@ -796,6 +796,22 @@ export interface PendingVerificationsPage {
   items: PendingVerificationItem[];
 }
 
+/** Watched-comment notice for Civic in-app notifications (Rovas Comment Notify audience). */
+export interface PendingCommentNoticeItem {
+  nid: string;
+  node_title: string;
+  cid: string;
+  /** Absolute Rovas permalink; opening while logged in on web clears the notice. */
+  comment_url: string;
+  /** Unix timestamp when the notice was created. */
+  created: number;
+}
+
+export interface PendingCommentNoticesPage {
+  total: number;
+  items: PendingCommentNoticeItem[];
+}
+
 export interface WorkReportVerificationContext {
   slot_nid: string;
   can_decline: boolean;

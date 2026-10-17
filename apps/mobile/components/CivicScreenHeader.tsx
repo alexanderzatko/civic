@@ -2,6 +2,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { CommentNotificationBannerConnected } from "@/components/CommentNotificationBanner";
 import { VerificationNotificationBannerConnected } from "@/components/VerificationNotificationBanner";
 import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
@@ -71,6 +72,7 @@ export function CivicScreenHeader({
         )}
       </View>
       <VerificationNotificationBannerConnected />
+      <CommentNotificationBannerConnected />
     </SafeAreaView>
   );
 }
