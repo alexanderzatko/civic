@@ -23,6 +23,7 @@ export function CommentNotificationBanner({ visible, items }: Props) {
   return (
     <View style={styles.banner} accessibilityRole="alert">
       <Text style={styles.title}>{t("comments.notifications_title")}</Text>
+      <Text style={styles.body}>{t("comments.notifications_body")}</Text>
       <View style={styles.links}>
         {items.map((item) => (
           <Pressable
@@ -68,6 +69,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "700",
+    color: colors.verifyBannerInk,
+  },
+  body: {
+    fontSize: 14,
+    fontWeight: "400",
+    lineHeight: 20,
     color: colors.verifyBannerInk,
   },
   links: {
