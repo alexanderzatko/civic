@@ -9,6 +9,12 @@ changed on Rovas, describe that work in the Rovas doc above (a **Next work:**
 section with checklist + smoke test). Do not leave Rovas tasks only in chat —
 Rovas agents read that file, not this conversation.
 
+**Deferred (Rovas, not scheduled):** Trusted User via Slovak government ID
+(slovensko.sk / eID) — design lives in Rovas
+[`docs/trusted-user-eid.md`](../../rovas/docs/trusted-user-eid.md). Civic would
+only consume `/rovas/me` flags after that ships; do not invent Expo UI until the
+Rovas task is opened.
+
 This document is the **Civic-side** companion (Expo login + Civic API Bearer).
 
 **Gifts path framing:** user-facing copy is **Gifts** / **Dary** (verified

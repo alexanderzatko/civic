@@ -45,7 +45,9 @@ Civic account.
 | Mobile builds | Dev client (iOS) + release APK (Android); EAS + Firebase App Distribution |
 
 Still deferred: in-app gifts/invest flows, GPS location fraud heuristics, income-tax
-Merits / ÚPVS, App Store / Play production release, Postgres.
+Merits / ÚPVS, Trusted User via Slovak eID (Rovas-side design:
+[`../rovas/docs/trusted-user-eid.md`](../rovas/docs/trusted-user-eid.md)), App Store /
+Play production release, Postgres.
 
 UI browsing can use Expo Go; **camera + OAuth** need a development build (Expo Go
 cannot claim `civic://`).
