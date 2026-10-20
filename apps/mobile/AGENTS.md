@@ -13,6 +13,7 @@ use *zásluha*, *credit*, *odmena*). Use the established forms in locale files:
 | Merit unit | Merit, Merits, ME | Merit, merity, meritov, ME (sentence case) |
 | Time token | Chron, Chrons | Chron, chrony (sentence case) |
 | Platform | Rovas | **Rováš** / **v Rováši** (never *Na Rováši*; never unaccented *Rovas* in SK UI) |
+| Status | Trusted user | dôveryhodný používateľ (Rovas term; Capital T in EN labels) |
 
 Slovak copy uses **sentence case** for Merit/Chron: lowercase mid-sentence
 (`získať merity`), capital only at sentence start or as a standalone label

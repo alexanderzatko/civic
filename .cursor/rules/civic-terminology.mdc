@@ -20,6 +20,9 @@ When writing or editing user-facing copy (locales, alerts, notifications, docs):
   - SK: always accented **Rováš**, with normal Slovak inflection — e.g. **v Rováši**
     (locative). Never **Na Rováši**. Never unaccented *Rovas* in Slovak UI strings.
   - Wire ids, env vars, hostnames (`rovas.app`, `ROVAS_*`) stay ASCII *rovas*.
+- **Trusted user** (Rovas status; work reports can be credited immediately):
+  - EN: **Trusted user** (match Rovas UI; not “verified user”)
+  - SK: **dôveryhodný používateľ** (sentence case mid-sentence)
 - Broader product definitions: NeoFund glossary at
   `~/Documents/Business/NeoFund_NP/glossary.md` (linked from repo `README.md`).
 

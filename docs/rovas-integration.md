@@ -225,7 +225,8 @@ is off).
 
 ## Civic WR usage fee (app AUR)
 
-After two verifiers approve a work report filed through Civic, Rovas takes its
+When a work report filed through Civic is approved (peer verification, or
+immediate approval for a **Trusted user** with auto-approve), Rovas takes its
 usual **1%** platform AUR, then (when enabled) an additional **Civic app fee**
 (~3% of `hours × 10` Chrons) as a second AUR to the Civic project. Merits go to
 that project’s shareholders. Reports filed on Rovas directly are unaffected.
