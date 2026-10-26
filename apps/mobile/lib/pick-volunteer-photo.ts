@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { requireOptionalNativeModule } from "expo-modules-core";
@@ -104,3 +105,22 @@ export async function rotateVolunteerPhoto(
     uri: result.uri,
   };
 }
+
+/** Persist painted JPEG bytes and return a draft ready for upload + thumbnail. */
+export async function applyPaintedVolunteerPhoto(
+  photo: VolunteerPhotoDraft,
+  paintedBase64: string,
+): Promise<VolunteerPhotoDraft> {
+  const path = `${FileSystem.cacheDirectory}volunteer-paint-${Date.now()}.jpg`;
+  await FileSystem.writeAsStringAsync(path, paintedBase64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  const base = photo.filename.replace(/\.[^.]+$/, "") || "photo";
+  return {
+    filename: `${base}-painted.jpg`,
+    mime: "image/jpeg",
+    data: paintedBase64,
+    uri: path,
+  };
+}
+

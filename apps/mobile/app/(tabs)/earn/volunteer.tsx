@@ -27,6 +27,8 @@ import { CreateProjectSection } from "@/components/CreateProjectSection";
 import { NacePicker, findNaceNode } from "@/components/NacePicker";
 import { VolunteerMapProofSection } from "@/components/VolunteerMapProofSection";
 import { VolunteerPhotoList } from "@/components/VolunteerPhotoList";
+import { VolunteerPhotoPaintModal } from "@/components/VolunteerPhotoPaintModal";
+import { VolunteerPhotoPrivacyModal } from "@/components/VolunteerPhotoPrivacyModal";
 import { colors } from "@/constants/theme";
 import {
   createWorkReport,
@@ -155,6 +157,9 @@ export default function VolunteerScreen() {
   const [rotatingPhotoIndex, setRotatingPhotoIndex] = useState<number | null>(
     null,
   );
+  const [paintPhotoIndex, setPaintPhotoIndex] = useState<number | null>(null);
+  const [privacyNoteOpen, setPrivacyNoteOpen] = useState(false);
+  const privacyNoteShownRef = useRef(false);
   const [reward, setReward] = useState<RewardKind>("merits");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -224,6 +229,9 @@ export default function VolunteerScreen() {
     setWebUrl("");
     setPhotos([]);
     setMapLocation(null);
+    setPaintPhotoIndex(null);
+    setPrivacyNoteOpen(false);
+    privacyNoteShownRef.current = false;
     setReward("merits");
     setFormError(null);
     setSuccess(false);
@@ -271,7 +279,12 @@ export default function VolunteerScreen() {
     if (result.ok) {
       setPhotos((prev) => {
         if (prev.length >= 5) return prev;
-        return [...prev, result.photo];
+        const next = [...prev, result.photo];
+        if (prev.length === 0 && !privacyNoteShownRef.current) {
+          privacyNoteShownRef.current = true;
+          setPrivacyNoteOpen(true);
+        }
+        return next;
       });
       return;
     }
@@ -709,11 +722,23 @@ export default function VolunteerScreen() {
           </Text>
         ) : null}
         {photos.length > 0 ? (
+          <View style={styles.photoNote}>
+            <Text style={styles.photoNoteTitle}>
+              {t("volunteer.paint_note_title")}
+            </Text>
+            <Text style={styles.photoNoteBody}>{t("volunteer.paint_note")}</Text>
+            <Text style={styles.photoNoteHint}>
+              {t("volunteer.paint_note_hint")}
+            </Text>
+          </View>
+        ) : null}
+        {photos.length > 0 ? (
           <VolunteerPhotoList
             photos={photos}
             rotatingIndex={rotatingPhotoIndex}
-            disabled={!signedIn}
+            disabled={!signedIn || paintPhotoIndex !== null}
             onRotate={(index) => void onRotatePhoto(index)}
+            onPaint={(index) => setPaintPhotoIndex(index)}
             onRemove={(index) =>
               setPhotos((prev) => prev.filter((_, idx) => idx !== index))
             }
@@ -812,6 +837,26 @@ export default function VolunteerScreen() {
           {t("volunteer.api_hint_after")}
         </Text>
       </ScrollView>
+
+      <VolunteerPhotoPrivacyModal
+        visible={privacyNoteOpen}
+        onDismiss={() => setPrivacyNoteOpen(false)}
+      />
+      <VolunteerPhotoPaintModal
+        visible={paintPhotoIndex !== null}
+        photo={
+          paintPhotoIndex != null ? (photos[paintPhotoIndex] ?? null) : null
+        }
+        onCancel={() => setPaintPhotoIndex(null)}
+        onApply={(painted) => {
+          const index = paintPhotoIndex;
+          if (index == null) return;
+          setPhotos((prev) =>
+            prev.map((item, idx) => (idx === index ? painted : item)),
+          );
+          setPaintPhotoIndex(null);
+        }}
+      />
 
       <Modal
         visible={naceTipsOpen}
@@ -955,6 +1000,30 @@ const styles = StyleSheet.create({
   choiceWarn: { borderColor: colors.danger },
   choiceText: { color: colors.ink, fontWeight: "600" },
   warn: { color: colors.danger, fontSize: 12 },
+  photoNote: {
+    backgroundColor: "rgba(196, 163, 90, 0.18)",
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 12,
+    padding: 12,
+    gap: 6,
+  },
+  photoNoteTitle: {
+    color: colors.ink,
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  photoNoteBody: {
+    color: colors.ink,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  photoNoteHint: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontStyle: "italic",
+  },
   warnMuted: { color: colors.muted, fontSize: 12 },
   link: { color: colors.brand, fontWeight: "700" },
   projectLinks: { gap: 4, marginVertical: 4 },
