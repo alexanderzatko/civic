@@ -88,6 +88,14 @@ export type RovasReceiptHistoryPreferenceResult = {
   scrubbed_claims: number;
 };
 
+/** Response from Rovas `POST /rovas/civic_give_chrons` (1 CHR = 1 ME). */
+export type RovasGiveChronsResult = {
+  chrons_given: number;
+  merits_gained: number;
+  total_chr: number;
+  total_me: number;
+};
+
 export type RovasAggregate = {
   total_me: number;
   by_category: ContributionCategoryBreakdown;
@@ -1165,6 +1173,42 @@ export class RovasClient {
         Number.isFinite(body.scrubbed_claims)
           ? Math.max(0, Math.floor(body.scrubbed_claims))
           : 0,
+    };
+  }
+
+  /**
+   * Convert Chrons to Merits (1:1).
+   * `POST /rovas/civic_give_chrons`
+   */
+  async giveChrons(
+    accessToken: string,
+    amount: number,
+  ): Promise<RovasGiveChronsResult> {
+    const body = await this.postJson<Partial<RovasGiveChronsResult>>(
+      "/rovas/civic_give_chrons",
+      accessToken,
+      { amount },
+    );
+    const chronsGiven = Number(body.chrons_given);
+    const meritsGained = Number(body.merits_gained);
+    const totalChr = Number(body.total_chr);
+    const totalMe = Number(body.total_me);
+    if (
+      !Number.isFinite(chronsGiven) ||
+      !Number.isFinite(meritsGained) ||
+      !Number.isFinite(totalChr) ||
+      !Number.isFinite(totalMe)
+    ) {
+      throw new RovasClientError(
+        "Rovas give-chrons response missing required fields",
+        502,
+      );
+    }
+    return {
+      chrons_given: chronsGiven,
+      merits_gained: meritsGained,
+      total_chr: totalChr,
+      total_me: totalMe,
     };
   }
 

@@ -163,6 +163,17 @@ export interface ReceiptHistoryPreferenceResult {
 }
 
 /**
+ * Response from `POST /me/give-chrons`
+ * (proxies Rovas `POST /rovas/civic_give_chrons` — 1 Chron = 1 Merit).
+ */
+export interface GiveChronsResult {
+  chrons_given: number;
+  merits_gained: number;
+  total_chr: number;
+  total_me: number;
+}
+
+/**
  * Signed-in identity from `GET /me` (proxies Rovas `GET /rovas/me`).
  */
 export interface MeProfile {

@@ -23,6 +23,7 @@ import type {
   MeritIndexPage,
   MeritSpotlight,
   MeritSpotlightFilters,
+  GiveChronsResult,
   VolunteerProjectRow,
   NaceNode,
   ClassifyNaceBody,
@@ -416,6 +417,15 @@ export function setReceiptHistoryPreference(
       body: JSON.stringify({ retention }),
     },
   );
+}
+
+/** Convert Chrons → Merits (1:1). Proxies Rovas `POST /rovas/civic_give_chrons`. */
+export function giveChrons(amount: number): Promise<GiveChronsResult> {
+  return apiFetch<GiveChronsResult>("/me/give-chrons", {
+    method: "POST",
+    auth: "required",
+    body: JSON.stringify({ amount }),
+  });
 }
 
 export function fetchMySummary(): Promise<MyContributionsSummary> {

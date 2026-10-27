@@ -92,12 +92,15 @@
         {
           "photosPermission": "Civic používa fotky ako dôkaz dobrovoľníckej práce.",
           "savePhotosPermission": "Civic ukladá QR kód platby do galérie, aby ste ho mohli načítať v bankovej appke.",
-          "granularPermissions": ["photo"]
+          "granularPermissions": [
+            "photo"
+          ]
         }
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

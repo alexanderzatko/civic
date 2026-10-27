@@ -117,6 +117,36 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
     },
   );
 
+  /**
+   * Convert Chrons to Merits (1:1).
+   * Proxies Rovas `POST /rovas/civic_give_chrons`.
+   */
+  app.post(
+    "/me/give-chrons",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const body = (req.body ?? {}) as { amount?: unknown };
+      const raw =
+        typeof body.amount === "number"
+          ? body.amount
+          : typeof body.amount === "string"
+            ? Number(body.amount.replace(",", "."))
+            : NaN;
+      if (!Number.isFinite(raw) || raw <= 0) {
+        return reply.code(422).send({
+          error: "invalid_input",
+          message: "Body must include a positive amount of Chrons.",
+        });
+      }
+      try {
+        return await ctx.rovas.giveChrons(user.accessToken, raw);
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
+
   app.get(
     "/me/contributions/summary",
     { preHandler: [requireAuth(ctx)] },

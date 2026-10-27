@@ -13,6 +13,9 @@ import {
   TextInput,
   View,
 } from "react-native";
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Link, router, useFocusEffect } from "expo-router";
 import type {
@@ -22,7 +25,11 @@ import type {
   VolunteerProjectRow,
 } from "@civic/shared";
 import type { WorkReportGeoJsonGeometry } from "@civic/shared";
-import { isWorkReportDateOutsideWindow, round2 } from "@civic/shared";
+import {
+  isWorkReportDateOutsideWindow,
+  round2,
+  WORK_REPORT_REPORTING_WINDOW_DAYS,
+} from "@civic/shared";
 import { CreateProjectSection } from "@/components/CreateProjectSection";
 import { NacePicker, findNaceNode } from "@/components/NacePicker";
 import { VolunteerMapProofSection } from "@/components/VolunteerMapProofSection";
@@ -80,11 +87,14 @@ type RewardPreviewModel = {
   feeLine: string | null;
 };
 
+function formatSkDate(d: Date): string {
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${d.getFullYear()}`;
+}
+
 function todaySk(): string {
-  const n = new Date();
-  const dd = String(n.getDate()).padStart(2, "0");
-  const mm = String(n.getMonth() + 1).padStart(2, "0");
-  return `${dd}.${mm}.${n.getFullYear()}`;
+  return formatSkDate(new Date());
 }
 
 function parseSkDate(value: string): number | null {
@@ -98,6 +108,20 @@ function parseSkDate(value: string): number | null {
     return null;
   }
   return Math.floor(dt.getTime() / 1000);
+}
+
+function skDateToDate(value: string): Date {
+  const unix = parseSkDate(value);
+  if (unix == null) return new Date();
+  return new Date(unix * 1000);
+}
+
+function reportingWindowBounds(): { min: Date; max: Date } {
+  const max = new Date();
+  max.setHours(12, 0, 0, 0);
+  const min = new Date(max);
+  min.setDate(min.getDate() - WORK_REPORT_REPORTING_WINDOW_DAYS);
+  return { min, max };
 }
 
 function errorCopy(code: CreateWorkReportErrorCode | string): string {
@@ -137,6 +161,7 @@ export default function VolunteerScreen() {
   const [mapOpen, setMapOpen] = useState(false);
 
   const [date, setDate] = useState(todaySk);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
   const [description, setDescription] = useState("");
@@ -597,14 +622,69 @@ export default function VolunteerScreen() {
         <View style={styles.pillbox}>
         <Text style={[styles.label, styles.labelFirst]}>{t("volunteer.date")}</Text>
         <Text style={styles.hint}>{t("volunteer.date_window_hint")}</Text>
-        <TextInput
-          value={date}
-          onChangeText={setDate}
-          placeholder={t("volunteer.date_placeholder")}
-          placeholderTextColor={colors.muted}
-          style={styles.input}
-          editable={signedIn}
-        />
+        <Pressable
+          style={[styles.input, styles.dateBtn, !signedIn && styles.dateBtnDisabled]}
+          onPress={() => {
+            if (!signedIn) return;
+            setDatePickerOpen(true);
+          }}
+          disabled={!signedIn}
+          accessibilityRole="button"
+          accessibilityLabel={t("volunteer.date_pick_a11y")}
+        >
+          <Text style={styles.dateBtnText}>{date}</Text>
+          <MaterialIcons name="calendar-today" size={20} color={colors.brand} />
+        </Pressable>
+        {datePickerOpen ? (
+          Platform.OS === "ios" ? (
+            <Modal
+              visible
+              transparent
+              animationType="slide"
+              onRequestClose={() => setDatePickerOpen(false)}
+            >
+              <Pressable
+                style={styles.dateModalBackdrop}
+                onPress={() => setDatePickerOpen(false)}
+              >
+                <Pressable style={styles.dateModalCard} onPress={() => {}}>
+                  <DateTimePicker
+                    value={skDateToDate(date)}
+                    mode="date"
+                    display="spinner"
+                    maximumDate={reportingWindowBounds().max}
+                    minimumDate={reportingWindowBounds().min}
+                    onChange={(_event: DateTimePickerEvent, selected?: Date) => {
+                      if (selected) setDate(formatSkDate(selected));
+                    }}
+                  />
+                  <Pressable
+                    style={styles.dateModalDone}
+                    onPress={() => setDatePickerOpen(false)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.dateModalDoneText}>
+                      {t("common.close")}
+                    </Text>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              value={skDateToDate(date)}
+              mode="date"
+              display="default"
+              maximumDate={reportingWindowBounds().max}
+              minimumDate={reportingWindowBounds().min}
+              onChange={(event: DateTimePickerEvent, selected?: Date) => {
+                setDatePickerOpen(false);
+                if (event.type === "dismissed") return;
+                if (selected) setDate(formatSkDate(selected));
+              }}
+            />
+          )
+        ) : null}
 
         <View style={styles.row2}>
           <View style={styles.col}>
@@ -986,6 +1066,38 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: colors.ink,
     fontSize: 16,
+  },
+  dateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dateBtnDisabled: { opacity: 0.6 },
+  dateBtnText: {
+    color: colors.ink,
+    fontSize: 16,
+  },
+  dateModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  dateModalCard: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 24,
+    paddingTop: 8,
+  },
+  dateModalDone: {
+    alignSelf: "flex-end",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  dateModalDoneText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.brand,
   },
   area: { minHeight: 90 },
   choice: {

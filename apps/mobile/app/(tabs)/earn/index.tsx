@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -7,10 +7,13 @@ import {
   Text,
   View,
 } from "react-native";
-import { Link } from "expo-router";
+import { Link, useFocusEffect } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { GiveChronsModal } from "@/components/GiveChronsModal";
 import { colors } from "@/constants/theme";
+import { useAuth } from "@/lib/auth";
+import { fetchMe } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
 
@@ -100,8 +103,42 @@ function RichText({
 export default function EarnHubScreen() {
   // Subscribe so body copy refreshes when the UI locale changes.
   useLocale();
+  const { status } = useAuth();
+  const signedIn = status === "signedIn";
   const [helpId, setHelpId] = useState<PathId | null>(null);
+  const [totalChr, setTotalChr] = useState(0);
+  const [giveOpen, setGiveOpen] = useState(false);
   const helpPath = PATHS.find((p) => p.id === helpId) ?? null;
+  const showGiveChrons = signedIn && totalChr > 0;
+
+  const refreshChr = useCallback(() => {
+    if (!signedIn) {
+      setTotalChr(0);
+      return;
+    }
+    let cancelled = false;
+    fetchMe()
+      .then((me) => {
+        if (cancelled) return;
+        setTotalChr(
+          typeof me.total_chr === "number" && Number.isFinite(me.total_chr)
+            ? me.total_chr
+            : 0,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setTotalChr(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn]);
+
+  useFocusEffect(
+    useCallback(() => {
+      return refreshChr();
+    }, [refreshChr]),
+  );
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -135,14 +172,34 @@ export default function EarnHubScreen() {
             >
               <Text style={styles.helpBtnText}>?</Text>
             </Pressable>
-            <Link href={path.href} asChild>
-              <Pressable style={styles.secondaryBtn}>
-                <Text style={styles.secondaryText}>{t(path.ctaKey)}</Text>
-              </Pressable>
-            </Link>
+            <View style={styles.ctaButtons}>
+              {path.id === "volunteer" && showGiveChrons ? (
+                <Pressable
+                  style={styles.secondaryBtn}
+                  onPress={() => setGiveOpen(true)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.secondaryText}>
+                    {t("earn.give_chrons")}
+                  </Text>
+                </Pressable>
+              ) : null}
+              <Link href={path.href} asChild>
+                <Pressable style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryText}>{t(path.ctaKey)}</Text>
+                </Pressable>
+              </Link>
+            </View>
           </View>
         </View>
       ))}
+
+      <GiveChronsModal
+        visible={giveOpen}
+        balance={totalChr}
+        onClose={() => setGiveOpen(false)}
+        onSuccess={(next) => setTotalChr(next)}
+      />
 
       <Modal
         visible={helpPath != null}
@@ -230,6 +287,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  ctaButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    gap: 8,
   },
   secondaryBtn: {
     borderRadius: 12,

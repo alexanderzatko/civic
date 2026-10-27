@@ -100,6 +100,7 @@ export type {
   MeritHistoryPage,
   MeritHistorySourceKind,
   MeProfile,
+  GiveChronsResult,
   ReceiptHistoryPreferenceResult,
   ReceiptHistoryRetention,
   MeritIndexCountry,
