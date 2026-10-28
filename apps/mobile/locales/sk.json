@@ -182,7 +182,7 @@
   "charity.invite_invalid_email": "Zadajte platnú e-mailovú adresu.",
   "charity.invite_send_error": "Nepodarilo sa otvoriť e-mailovú aplikáciu.",
   "charity.invite_subject": "Výzva od vášho darcu",
-  "charity.invite_default_body": "Dobrý deň, som vašim darcom a rád by som vás pozval na zápis vašej organizácie do aplikácie Rováš. Toto umožní mne, ako aj iným darcom získať za naše dary merity.\n\nNávod na zápis:",
+  "charity.invite_default_body": "Dobrý deň, som vašim darcom a rád by som vás pozval na zápis vašej organizácie do aplikácie Rováš. Toto umožní mne, ako aj iným darcom získať za naše dary merity.\n\nViac informácií a návod na zápis:",
   "charity.add": "Pridať organizáciu",
   "charity.add_body": "Vyplňte údaje o organizácii. Ak sa nám po odoslaní formulára podarí overiť jej verejnoprospešný status, nájdete ju hneď v zozname. Ak ju v zozname neuvidíte, budeme vás kontaktovať keď dokončíme overovací proces.",
   "charity.add_name": "Úradný názov",
