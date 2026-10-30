@@ -193,6 +193,24 @@ export function spelledBucketLabel(
 }
 
 /**
+ * Bucket index around the people-weighted median (50th percentile of counts).
+ * Used to demo bar selection on the anonymous Home histogram.
+ */
+export function medianBucketIndex(distribution: RankDistribution): number {
+  const n = distribution.buckets.length;
+  if (n <= 0) return 0;
+  const total = histogramPopulation(distribution);
+  if (total <= 0) return Math.floor(n / 2);
+  let cumulative = 0;
+  const target = total / 2;
+  for (let i = 0; i < n; i++) {
+    cumulative += distribution.buckets[i]!.count;
+    if (cumulative >= target) return i;
+  }
+  return n - 1;
+}
+
+/**
  * Population for the rank ladder / percentile.
  * Prefer the sum of histogram buckets (same as the mockup) — Rovas
  * `total_users` also counts zero-ME accounts that are excluded from bins,

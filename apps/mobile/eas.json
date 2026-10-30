@@ -27,6 +27,11 @@
     "production": {
       "extends": "base",
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://civic-api.rovas.app",
+        "EXPO_PUBLIC_ROVAS_BASE_URL": "https://rovas.app",
+        "EXPO_PUBLIC_ROVAS_OAUTH_CLIENT_ID": "civic"
+      },
       "android": {
         "buildType": "app-bundle"
       }

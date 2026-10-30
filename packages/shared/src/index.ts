@@ -49,6 +49,7 @@ export {
 export {
   bucketIndexForMe,
   bucketIndexFromSlider,
+  medianBucketIndex,
   meFromPercentile,
   meFromSliderPosition,
   percentileFromDistribution,

@@ -24,7 +24,7 @@ import { t } from "@/lib/i18n";
 import { useLocale } from "@/lib/locale";
 
 /** Time dimension for ME•ter. `null` = all-time (lifetime Merit Index). */
-export type ImpactTimePeriod = MeritSpotlightPeriod | null;
+export type ImpactTimePeriod = Exclude<MeritSpotlightPeriod, "today"> | null;
 
 export type ImpactFilters = {
   sort: MeritIndexSort;

@@ -404,7 +404,8 @@ export type MeritIndexOrder = "asc" | "desc";
 export type MeritSourceCategory = "taxes" | "charity" | "volunteer";
 
 /** Time window for period Merit ranking / spotlight. */
-export type MeritSpotlightPeriod = "day" | "week" | "month";
+/** Spotlight / period-index windows. `today` = current Bratislava calendar day. */
+export type MeritSpotlightPeriod = "today" | "day" | "week" | "month";
 
 /** Country with Merit Index users (`GET /rank/index/countries`). */
 export interface MeritIndexCountry {

@@ -367,10 +367,15 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
     async (req, reply) => {
       const q = req.query as Record<string, string | undefined>;
       const period = (q.period ?? "week") as MeritSpotlightPeriod;
-      if (period !== "day" && period !== "week" && period !== "month") {
+      if (
+        period !== "today" &&
+        period !== "day" &&
+        period !== "week" &&
+        period !== "month"
+      ) {
         return reply.code(400).send({
           error: "invalid_period",
-          message: "period must be day, week, or month",
+          message: "period must be today, day, week, or month",
         });
       }
       const filters: MeritSpotlightFilters = {

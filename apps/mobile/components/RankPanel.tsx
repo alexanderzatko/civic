@@ -9,6 +9,7 @@ import {
 import {
   bucketIndexForMe,
   bucketIndexFromSlider,
+  medianBucketIndex,
   percentileFromDistribution,
   sliderPositionFromMe,
   spelledBucketLabel,
@@ -305,6 +306,8 @@ function RankDistributionDetail({
                     : isYours
                       ? colors.youSoft
                       : colors.border,
+                  opacity:
+                    highlightIndex >= 0 && !isHighlight && !isYours ? 0.45 : 1,
                 },
               ]}
             />
@@ -346,7 +349,8 @@ function RankDistributionDetail({
 
 /**
  * Always-visible Merit histogram (no ladder). Used on the anonymous Home
- * screen — tap a bar to see that band's count and Merit interval.
+ * screen — starts with a median-band example highlight so guests see what a
+ * tap reveals; tap any bar to explore.
  */
 export function RankDistributionChart({
   distribution,
@@ -355,8 +359,14 @@ export function RankDistributionChart({
   distribution: RankDistribution;
   caption?: string;
 }) {
-  const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [highlightIndex, setHighlightIndex] = useState(() =>
+    medianBucketIndex(distribution),
+  );
   const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
+
+  useEffect(() => {
+    setHighlightIndex(medianBucketIndex(distribution));
+  }, [distribution]);
 
   const onBarPress = useCallback((index: number) => {
     setHighlightIndex(index);
@@ -433,16 +443,16 @@ export function RankPanel({
     );
   }
 
-  const probeBucketIndex = dragState.dragging
-    ? bucketIndexFromSlider(distribution, dragState.probePct)
-    : -1;
-  const probeBucketCount =
-    probeBucketIndex >= 0
-      ? (distribution.buckets[probeBucketIndex]?.count ?? 0)
-      : 0;
-  const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
   // Narrowed: percentile/sliderPos are only non-null when `me` is a number.
   const userBucketIndex = bucketIndexForMe(distribution, me as number);
+  const highlightIndex = dragState.dragging
+    ? bucketIndexFromSlider(distribution, dragState.probePct)
+    : userBucketIndex;
+  const highlightCount =
+    highlightIndex >= 0
+      ? (distribution.buckets[highlightIndex]?.count ?? 0)
+      : 0;
+  const locale = getLocale() === "sk" ? "sk-SK" : "en-US";
 
   return (
     <View style={styles.card}>
@@ -454,29 +464,23 @@ export function RankPanel({
         <CaptionWithYouHighlight text={t("home.rank_caption")} />
       ) : null}
 
-      <View style={styles.ladderWrap}>
-        {dragState.dragging && probeBucketIndex >= 0 ? (
-          <View style={styles.probeOverlay} pointerEvents="none">
-            <Text style={styles.probeHint}>
-              {t("home.rank_probe_prefix")}{" "}
-              <Text style={styles.probeCount}>
-                {probeBucketCount.toLocaleString(locale)}
-              </Text>
-            </Text>
-            <RankDistributionDetail
-              distribution={distribution}
-              highlightIndex={probeBucketIndex}
-              userBucketIndex={userBucketIndex}
-              emphasizeBucketLabel
-            />
-          </View>
-        ) : null}
+      <Text style={styles.probeHint}>
+        {t("home.rank_probe_prefix")}{" "}
+        <Text style={styles.probeCount}>
+          {highlightCount.toLocaleString(locale)}
+        </Text>
+      </Text>
+      <RankDistributionDetail
+        distribution={distribution}
+        highlightIndex={highlightIndex}
+        userBucketIndex={userBucketIndex}
+        emphasizeBucketLabel
+      />
 
-        <RankLadder
-          userPercentile={sliderPos}
-          onDragStateChange={setDragState}
-        />
-      </View>
+      <RankLadder
+        userPercentile={sliderPos}
+        onDragStateChange={setDragState}
+      />
     </View>
   );
 }
@@ -516,20 +520,6 @@ const styles = StyleSheet.create({
   youWord: {
     color: colors.you,
     fontWeight: "700",
-  },
-  ladderWrap: {
-    position: "relative",
-    zIndex: 1,
-  },
-  probeOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: "100%",
-    gap: 8,
-    paddingBottom: 8,
-    backgroundColor: colors.surface,
-    zIndex: 2,
   },
   ladder: {
     gap: 4,

@@ -16,8 +16,8 @@ import {
   type UserLookup,
 } from "@civic/shared";
 import { ContributionBreakdown } from "@/components/ContributionBreakdown";
+import { HomeTicker } from "@/components/HomeTicker";
 import { MeLogo } from "@/components/MeLogo";
-import { MeritSpotlight } from "@/components/MeritSpotlight";
 import { RankDistributionChart, RankPanel } from "@/components/RankPanel";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
@@ -141,6 +141,8 @@ export default function HomeScreen() {
       >
         <Text style={styles.title}>{t("home.title")}</Text>
 
+        <HomeTicker />
+
         <View style={styles.personalBlock}>
           <MeLogo size={56} />
           {loading ? (
@@ -165,8 +167,6 @@ export default function HomeScreen() {
             </>
           )}
         </View>
-
-        <MeritSpotlight variant="home" />
 
         {!loading && rank ? (
           <RankPanel
@@ -199,6 +199,8 @@ export default function HomeScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{t("home.title")}</Text>
 
+      <HomeTicker />
+
       <Text style={styles.intro}>
         <Text style={styles.introBold}>{t("home.intro_brand")}</Text>
         {t("home.intro_mid")}
@@ -226,8 +228,6 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.communityLabel}>{t("home.community_total_label")}</Text>
-
-      <MeritSpotlight variant="home" />
 
       {!loading && rank ? (
         <RankDistributionChart

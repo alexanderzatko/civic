@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   bucketIndexForMe,
   bucketIndexFromSlider,
+  medianBucketIndex,
   meFromPercentile,
   meFromSliderPosition,
   percentileFromDistribution,
@@ -67,6 +68,23 @@ describe("percentileFromDistribution", () => {
     assert.equal(bucketIndexForMe(dist, 5), 0);
     assert.equal(bucketIndexForMe(dist, 50), 1);
     assert.equal(bucketIndexForMe(dist, 500), 2);
+  });
+
+  it("picks the people-weighted median bucket", () => {
+    // counts 10 / 20 / 70 → median lands in the last band
+    assert.equal(medianBucketIndex(dist), 2);
+    const even: RankDistribution = {
+      buckets: [
+        { label: "a", count: 5 },
+        { label: "b", count: 5 },
+        { label: "c", count: 5 },
+        { label: "d", count: 5 },
+      ],
+      bin_edges_log10: [0, 1, 2, 3, 4],
+      total_users: 20,
+    };
+    // cumulative crosses half (10) at index 1
+    assert.equal(medianBucketIndex(even), 1);
   });
 });
 

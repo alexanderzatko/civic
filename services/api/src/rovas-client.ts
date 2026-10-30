@@ -1785,7 +1785,12 @@ function normalizeMeritIndexCountries(raw: unknown): MeritIndexCountry[] {
   return out.sort((a, b) => a.label.localeCompare(b.label));
 }
 
-const SPOTLIGHT_PERIODS: MeritSpotlightPeriod[] = ["day", "week", "month"];
+const SPOTLIGHT_PERIODS: MeritSpotlightPeriod[] = [
+  "today",
+  "day",
+  "week",
+  "month",
+];
 const SPOTLIGHT_CATEGORIES: MeritSourceCategory[] = [
   "taxes",
   "charity",

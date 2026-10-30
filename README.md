@@ -72,7 +72,7 @@ Rovas-side contract / Next work:
 
 | Tab | Route | Role |
 |---|---|---|
-| Domov | `/(tabs)` | Contribution summary, rank histogram, Merit spotlight |
+| Domov | `/(tabs)` | Contribution summary, today ticker, rank histogram |
 | Prínos | `/(tabs)/impact` | Merit Index (ME•ter) leaderboard |
 | Získať | `/(tabs)/earn` | Hub → receipts, gifts, volunteer, invest |
 | Komunita | `/(tabs)/community` | Public profile lookup by Rovas username |
