@@ -135,56 +135,124 @@ export default function HomeScreen() {
 
   if (signedIn) {
     return (
-      <ScrollView
-        contentContainerStyle={styles.container}
-        scrollEnabled={!scrollLocked}
-      >
+      <View style={styles.screen}>
+        <HomeTicker />
+        <ScrollView
+          contentContainerStyle={styles.container}
+          scrollEnabled={!scrollLocked}
+        >
+          <Text style={styles.title}>{t("home.title")}</Text>
+
+          <View style={styles.personalBlock}>
+            <MeLogo size={56} />
+            {loading ? (
+              <ActivityIndicator color={colors.brand} />
+            ) : (
+              <>
+                <Text style={styles.personalMe}>
+                  {formatMe(personalMe)} {t("common.me")}
+                </Text>
+                <Text style={styles.eurHint}>
+                  {formatEurApprox(personalMe, meritRate)}
+                </Text>
+                {username ? (
+                  <Text style={styles.uidHint}>
+                    {formatMemberHandle({
+                      username,
+                      displayName: profile?.display_name,
+                      memberSinceYear: profile?.member_since_year,
+                    })}
+                  </Text>
+                ) : null}
+              </>
+            )}
+          </View>
+
+          {!loading && rank ? (
+            <RankPanel
+              distribution={rank}
+              userMe={personalMe}
+              onScrollLockChange={setScrollLocked}
+            />
+          ) : null}
+
+          {!loading && profile ? (
+            <ContributionBreakdown profile={profile} emptyTone="self" />
+          ) : null}
+
+          <Link href="/(tabs)/earn" asChild>
+            <Pressable style={styles.primaryBtnWide}>
+              <Text style={styles.primaryText}>{t("home.cta_earn")}</Text>
+            </Pressable>
+          </Link>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerLine}>{t("home.footer_me")}</Text>
+            <Text style={styles.footerLine}>{t("home.footer_hours")}</Text>
+            <Text style={styles.footerLine}>{t("home.footer_eur")}</Text>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      <HomeTicker />
+      <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>{t("home.title")}</Text>
 
-        <HomeTicker />
+        <Text style={styles.intro}>
+          <Text style={styles.introBold}>{t("home.intro_brand")}</Text>
+          {t("home.intro_mid")}
+          <Text style={styles.introBold}>{t("home.intro_me")}</Text>
+          {t("home.intro_end")}
+        </Text>
 
         <View style={styles.personalBlock}>
-          <MeLogo size={56} />
+          <MeLogo size={48} />
+        </View>
+
+        <View style={styles.communityBlock}>
           {loading ? (
-            <ActivityIndicator color={colors.brand} />
+            <ActivityIndicator color={colors.brand} style={styles.loader} />
           ) : (
             <>
-              <Text style={styles.personalMe}>
-                {formatMe(personalMe)} {t("common.me")}
+              <Text style={styles.communityMe}>
+                {formatMe(communityMe)} {t("common.me")}
               </Text>
               <Text style={styles.eurHint}>
-                {formatEurApprox(personalMe, meritRate)}
+                {formatEurApprox(communityMe, meritRate)}
               </Text>
-              {username ? (
-                <Text style={styles.uidHint}>
-                  {formatMemberHandle({
-                    username,
-                    displayName: profile?.display_name,
-                    memberSinceYear: profile?.member_since_year,
-                  })}
-                </Text>
-              ) : null}
             </>
           )}
         </View>
 
+        <Text style={styles.communityLabel}>
+          {t("home.community_total_label")}
+        </Text>
+
         {!loading && rank ? (
-          <RankPanel
+          <RankDistributionChart
             distribution={rank}
-            userMe={personalMe}
-            onScrollLockChange={setScrollLocked}
+            caption={t("home.rank_guest_caption")}
           />
         ) : null}
 
-        {!loading && profile ? (
-          <ContributionBreakdown profile={profile} emptyTone="self" />
-        ) : null}
+        <Text style={styles.authPrompt}>{t("home.auth_prompt")}</Text>
 
-        <Link href="/(tabs)/earn" asChild>
-          <Pressable style={styles.primaryBtnWide}>
-            <Text style={styles.primaryText}>{t("home.cta_earn")}</Text>
-          </Pressable>
-        </Link>
+        <View style={styles.authRow}>
+          <Link href="/(auth)/login" asChild>
+            <Pressable style={styles.primaryBtn}>
+              <Text style={styles.primaryText}>{t("home.sign_in")}</Text>
+            </Pressable>
+          </Link>
+          <Link href="/(auth)/register" asChild>
+            <Pressable style={styles.secondaryBtn}>
+              <Text style={styles.secondaryText}>{t("home.register")}</Text>
+            </Pressable>
+          </Link>
+        </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerLine}>{t("home.footer_me")}</Text>
@@ -192,76 +260,13 @@ export default function HomeScreen() {
           <Text style={styles.footerLine}>{t("home.footer_eur")}</Text>
         </View>
       </ScrollView>
-    );
-  }
-
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{t("home.title")}</Text>
-
-      <HomeTicker />
-
-      <Text style={styles.intro}>
-        <Text style={styles.introBold}>{t("home.intro_brand")}</Text>
-        {t("home.intro_mid")}
-        <Text style={styles.introBold}>{t("home.intro_me")}</Text>
-        {t("home.intro_end")}
-      </Text>
-
-      <View style={styles.personalBlock}>
-        <MeLogo size={48} />
-      </View>
-
-      <View style={styles.communityBlock}>
-        {loading ? (
-          <ActivityIndicator color={colors.brand} style={styles.loader} />
-        ) : (
-          <>
-            <Text style={styles.communityMe}>
-              {formatMe(communityMe)} {t("common.me")}
-            </Text>
-            <Text style={styles.eurHint}>
-              {formatEurApprox(communityMe, meritRate)}
-            </Text>
-          </>
-        )}
-      </View>
-
-      <Text style={styles.communityLabel}>{t("home.community_total_label")}</Text>
-
-      {!loading && rank ? (
-        <RankDistributionChart
-          distribution={rank}
-          caption={t("home.rank_guest_caption")}
-        />
-      ) : null}
-
-      <Text style={styles.authPrompt}>{t("home.auth_prompt")}</Text>
-
-      <View style={styles.authRow}>
-        <Link href="/(auth)/login" asChild>
-          <Pressable style={styles.primaryBtn}>
-            <Text style={styles.primaryText}>{t("home.sign_in")}</Text>
-          </Pressable>
-        </Link>
-        <Link href="/(auth)/register" asChild>
-          <Pressable style={styles.secondaryBtn}>
-            <Text style={styles.secondaryText}>{t("home.register")}</Text>
-          </Pressable>
-        </Link>
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerLine}>{t("home.footer_me")}</Text>
-        <Text style={styles.footerLine}>{t("home.footer_hours")}</Text>
-        <Text style={styles.footerLine}>{t("home.footer_eur")}</Text>
-      </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+  screen: { flex: 1 },
   container: {
     padding: 24,
     gap: 18,

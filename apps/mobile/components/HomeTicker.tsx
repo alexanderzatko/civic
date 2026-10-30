@@ -161,7 +161,7 @@ export function HomeTicker() {
     .replace("{{users}}", usersLabel);
 
   return (
-    <View style={styles.card} accessibilityLabel={a11y}>
+    <View style={styles.stripe} accessibilityLabel={a11y}>
       <View style={styles.dayCol}>
         <Text style={styles.dayLabel}>{t("home.ticker_today")}</Text>
       </View>
@@ -204,22 +204,21 @@ export function HomeTicker() {
 }
 
 const styles = StyleSheet.create({
-  card: {
+  /** Full-bleed strip under the nav title bar — not a card. */
+  stripe: {
     alignSelf: "stretch",
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    gap: 0,
-    minHeight: 52,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minHeight: 44,
   },
   dayCol: {
     width: 22,
-    height: 36,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -253,20 +252,20 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   meValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: colors.catTaxes,
-    lineHeight: 26,
+    lineHeight: 24,
   },
   usersValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: colors.ok,
-    lineHeight: 26,
+    lineHeight: 24,
   },
   spinnerHit: {
     paddingHorizontal: 4,
-    paddingVertical: 4,
+    paddingVertical: 2,
     alignItems: "center",
     justifyContent: "center",
   },
