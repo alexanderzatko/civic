@@ -17,8 +17,13 @@ import { useLocale } from "@/lib/locale";
 
 const DEFAULT_COUNTRY = "SK";
 const REFRESH_MS = 60_000;
-const SPINNER_SIZE = 28;
+const SPINNER_SIZE = 26;
 const TICK_MS = 50;
+
+/** Quiet spinner stroke / fill — readable, not attention-seeking. */
+const SPINNER_STROKE = "#9AABA2";
+const SPINNER_FILL = "#C5D0CA";
+const SPINNER_DOT = "#8A9A92";
 
 type TickerStats = {
   communityEarnedMe: number;
@@ -69,21 +74,21 @@ function WedgeSpinner({
         cy={cy}
         r={r}
         fill={colors.surface}
-        stroke={colors.brand}
-        strokeWidth={1.5}
+        stroke={SPINNER_STROKE}
+        strokeWidth={1.25}
       />
       {clamped >= 0.999 ? (
-        <Circle cx={cx} cy={cy} r={r - 0.5} fill={colors.brandSoft} />
+        <Circle cx={cx} cy={cy} r={r - 0.5} fill={SPINNER_FILL} />
       ) : pie ? (
-        <Path d={pie} fill={colors.brandSoft} />
+        <Path d={pie} fill={SPINNER_FILL} />
       ) : null}
       {refreshing ? (
         <Circle
           cx={cx}
           cy={cy}
           r={r * 0.35}
-          fill={colors.brand}
-          opacity={0.85}
+          fill={SPINNER_DOT}
+          opacity={0.7}
         />
       ) : null}
     </Svg>
@@ -163,7 +168,11 @@ export function HomeTicker() {
   return (
     <View style={styles.stripe} accessibilityLabel={a11y}>
       <View style={styles.dayCol}>
-        <Text style={styles.dayLabel}>{t("home.ticker_today")}</Text>
+        {/* Rotated block: "In Civic" stays on one line; "today" wraps below. */}
+        <View style={styles.dayLabelWrap}>
+          <Text style={styles.dayLabel}>{t("home.ticker_prefix")}</Text>
+          <Text style={styles.dayLabel}>{t("home.ticker_today")}</Text>
+        </View>
       </View>
 
       <View style={styles.divider} />
@@ -171,7 +180,7 @@ export function HomeTicker() {
       <View style={styles.statCol}>
         <Text style={styles.meUnit}>{t("common.me")}</Text>
         {loading && !stats ? (
-          <ActivityIndicator color={colors.catTaxes} size="small" />
+          <ActivityIndicator color={colors.muted} size="small" />
         ) : (
           <Text style={styles.meValue}>{meLabel}</Text>
         )}
@@ -180,9 +189,9 @@ export function HomeTicker() {
       <View style={styles.divider} />
 
       <View style={styles.statCol}>
-        <MaterialIcons name="person" size={18} color={colors.ink} />
+        <MaterialIcons name="person" size={16} color={colors.muted} />
         {loading && !stats ? (
-          <ActivityIndicator color={colors.ok} size="small" />
+          <ActivityIndicator color={colors.muted} size="small" />
         ) : (
           <Text style={styles.usersValue}>{usersLabel}</Text>
         )}
@@ -212,60 +221,62 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    minHeight: 44,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    minHeight: 36,
   },
   dayCol: {
-    width: 22,
-    height: 32,
+    width: 36,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
-  dayLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.ink,
-    letterSpacing: 0.4,
-    textTransform: "lowercase",
+  dayLabelWrap: {
     transform: [{ rotate: "-90deg" }],
-    width: 52,
+    alignItems: "center",
+    width: 64,
+  },
+  dayLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: colors.muted,
+    letterSpacing: 0.2,
+    lineHeight: 12,
     textAlign: "center",
   },
   divider: {
     width: StyleSheet.hairlineWidth,
     alignSelf: "stretch",
-    backgroundColor: colors.ink,
-    marginHorizontal: 8,
-    opacity: 0.35,
+    backgroundColor: colors.border,
+    marginHorizontal: 4,
   },
   statCol: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 5,
   },
   meUnit: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.ink,
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.muted,
   },
   meValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: colors.catTaxes,
-    lineHeight: 24,
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#6B8499",
+    lineHeight: 20,
   },
   usersValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: colors.ok,
-    lineHeight: 24,
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#6B8A78",
+    lineHeight: 20,
   },
   spinnerHit: {
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+    paddingHorizontal: 2,
+    paddingVertical: 1,
     alignItems: "center",
     justifyContent: "center",
   },
