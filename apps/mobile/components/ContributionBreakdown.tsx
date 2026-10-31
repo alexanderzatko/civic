@@ -12,11 +12,13 @@ import { colors } from "@/constants/theme";
 import { t } from "@/lib/i18n";
 
 type MeritSourceId = "taxes" | "charity" | "volunteer";
+type AggregateSourceId = "taxes_and_gifts" | "volunteer";
 
 type Props = {
   profile: Pick<
     UserLookup,
     | "by_category"
+    | "me_sources_detail"
     | "taxes_last_3_months"
     | "top_charities"
     | "top_volunteer_projects"
@@ -52,6 +54,26 @@ const SOURCE_META: {
   },
 ];
 
+const AGGREGATE_META: {
+  id: AggregateSourceId;
+  color: string;
+  catKey: string;
+  cardKey: string;
+}[] = [
+  {
+    id: "taxes_and_gifts",
+    color: colors.catTaxesGifts,
+    catKey: "community.cat_taxes_gifts",
+    cardKey: "community.card_taxes_gifts",
+  },
+  {
+    id: "volunteer",
+    color: colors.catVolunteer,
+    catKey: "community.cat_volunteer",
+    cardKey: "community.card_volunteer",
+  },
+];
+
 function formatMe(n: number): string {
   return displayMerits(n).toLocaleString("sk-SK");
 }
@@ -74,10 +96,36 @@ function topMeritSource(by: {
   return best;
 }
 
+function topAggregateSource(by: {
+  taxes_and_gifts?: number;
+  volunteer: number;
+}): AggregateSourceId {
+  const combined = Number(by.taxes_and_gifts) || 0;
+  return by.volunteer > combined ? "volunteer" : "taxes_and_gifts";
+}
+
 export function ContributionBreakdown({
   profile,
   emptyTone = "other",
 }: Props) {
+  const aggregate = profile.me_sources_detail === "aggregate";
+
+  if (aggregate) {
+    return (
+      <AggregateBreakdown profile={profile} emptyTone={emptyTone} />
+    );
+  }
+
+  return <DetailedBreakdown profile={profile} emptyTone={emptyTone} />;
+}
+
+function DetailedBreakdown({
+  profile,
+  emptyTone,
+}: {
+  profile: Props["profile"];
+  emptyTone: "self" | "other";
+}) {
   const [activeId, setActiveId] = useState<MeritSourceId>(() =>
     topMeritSource(profile.by_category),
   );
@@ -150,7 +198,6 @@ export function ContributionBreakdown({
           style={[
             styles.drawer,
             { borderColor: activeMeta.color },
-            // Flush with the active outer tab so the side edge is one line.
             isFirst && styles.drawerFlushLeft,
             isLast && styles.drawerFlushRight,
           ]}
@@ -189,34 +236,159 @@ export function ContributionBreakdown({
               <Text style={styles.drawerHint}>{charityNone}</Text>
             ))}
 
-          {activeId === "volunteer" &&
-            (valueFor("volunteer") > 0 ||
-            volunteerRows.length > 0 ||
-            profile.nace_expertise.length > 0 ? (
-              <>
-                <Text style={styles.drawerHint}>
-                  {t("community.volunteer_hint")}
-                </Text>
-                <ProjectMeTable
-                  rows={volunteerRows}
-                  emptyLabel={t("community.volunteer_empty")}
-                />
-                <NaceExpertiseIcons
-                  sections={profile.nace_expertise}
-                  title={t("community.expertise_title")}
-                />
-              </>
-            ) : valueFor("volunteer") < 0 ? (
-              <Text style={styles.drawerHint}>
-                {t("community.volunteer_penalty_hint")}
-              </Text>
-            ) : (
-              <Text style={styles.drawerHint}>{volunteerNone}</Text>
-            ))}
+          {activeId === "volunteer" && (
+            <VolunteerDrawer
+              me={valueFor("volunteer")}
+              rows={volunteerRows}
+              nace={profile.nace_expertise}
+              noneLabel={volunteerNone}
+            />
+          )}
         </View>
       </View>
     </View>
   );
+}
+
+function AggregateBreakdown({
+  profile,
+  emptyTone,
+}: {
+  profile: Props["profile"];
+  emptyTone: "self" | "other";
+}) {
+  const [activeId, setActiveId] = useState<AggregateSourceId>(() =>
+    topAggregateSource(profile.by_category),
+  );
+
+  useEffect(() => {
+    setActiveId(topAggregateSource(profile.by_category));
+  }, [profile.by_category.taxes_and_gifts, profile.by_category.volunteer]);
+
+  const combined = Number(profile.by_category.taxes_and_gifts) || 0;
+  const volunteer = profile.by_category.volunteer;
+  const volunteerRows = capProjectRowsToCategory(
+    profile.top_volunteer_projects,
+    volunteer,
+  );
+  const volunteerNone =
+    emptyTone === "self"
+      ? t("home.volunteer_none")
+      : t("community.volunteer_none");
+  const combinedNone =
+    emptyTone === "self"
+      ? t("home.taxes_gifts_none")
+      : t("community.taxes_gifts_none");
+
+  const activeMeta = AGGREGATE_META.find((s) => s.id === activeId)!;
+  const isFirst = activeId === "taxes_and_gifts";
+  const isLast = activeId === "volunteer";
+
+  return (
+    <View style={styles.wrap}>
+      <Text style={styles.headerTitle}>{t("community.mix_title")}</Text>
+
+      <View style={styles.cabinet}>
+        <View style={styles.tabs} accessibilityRole="tablist">
+          {AGGREGATE_META.map((s) => {
+            const active = s.id === activeId;
+            const value =
+              s.id === "taxes_and_gifts" ? combined : volunteer;
+            return (
+              <Pressable
+                key={s.id}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                onPress={() => setActiveId(s.id)}
+                style={[
+                  styles.tab,
+                  active ? styles.tabActive : styles.tabInactive,
+                  active && { borderColor: s.color },
+                ]}
+              >
+                <Text
+                  style={[styles.tabLabel, { color: s.color }]}
+                  numberOfLines={1}
+                >
+                  {t(s.catKey)}
+                </Text>
+                <Text style={[styles.tabValue, active && { color: s.color }]}>
+                  {formatMe(value)} {t("common.me")}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View
+          style={[
+            styles.drawer,
+            { borderColor: activeMeta.color },
+            isFirst && styles.drawerFlushLeft,
+            isLast && styles.drawerFlushRight,
+          ]}
+        >
+          <Text style={[styles.drawerTitle, { color: activeMeta.color }]}>
+            {t(activeMeta.cardKey)}
+          </Text>
+
+          {activeId === "taxes_and_gifts" &&
+            (combined > 0 ? (
+              <Text style={styles.drawerHint}>
+                {t("community.taxes_gifts_hint")}
+              </Text>
+            ) : (
+              <Text style={styles.drawerHint}>{combinedNone}</Text>
+            ))}
+
+          {activeId === "volunteer" && (
+            <VolunteerDrawer
+              me={volunteer}
+              rows={volunteerRows}
+              nace={profile.nace_expertise}
+              noneLabel={volunteerNone}
+            />
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function VolunteerDrawer({
+  me,
+  rows,
+  nace,
+  noneLabel,
+}: {
+  me: number;
+  rows: UserLookup["top_volunteer_projects"];
+  nace: UserLookup["nace_expertise"];
+  noneLabel: string;
+}) {
+  if (me > 0 || rows.length > 0 || nace.length > 0) {
+    return (
+      <>
+        <Text style={styles.drawerHint}>{t("community.volunteer_hint")}</Text>
+        <ProjectMeTable
+          rows={rows}
+          emptyLabel={t("community.volunteer_empty")}
+        />
+        <NaceExpertiseIcons
+          sections={nace}
+          title={t("community.expertise_title")}
+        />
+      </>
+    );
+  }
+  if (me < 0) {
+    return (
+      <Text style={styles.drawerHint}>
+        {t("community.volunteer_penalty_hint")}
+      </Text>
+    );
+  }
+  return <Text style={styles.drawerHint}>{noneLabel}</Text>;
 }
 
 const TAB_RADIUS = 10;
@@ -248,7 +420,6 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     backgroundColor: colors.surface,
-    // Cover the drawer’s top border under this tab.
     marginBottom: -BORDER,
     paddingBottom: 12 + BORDER,
     zIndex: 2,
@@ -276,6 +447,6 @@ const styles = StyleSheet.create({
   drawerFlushRight: {
     borderTopRightRadius: 0,
   },
-  drawerTitle: { fontSize: 16, fontWeight: "600" },
-  drawerHint: { fontSize: 13, color: colors.muted },
+  drawerTitle: { fontSize: 15, fontWeight: "700" },
+  drawerHint: { fontSize: 13, color: colors.muted, lineHeight: 18 },
 });

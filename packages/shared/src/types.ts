@@ -163,6 +163,20 @@ export interface ReceiptHistoryPreferenceResult {
 }
 
 /**
+ * Who may see this user’s Taxes vs Gifts ME-source detail.
+ * Default / unset on Rovas → `everyone`. See `me-sources-privacy`.
+ */
+export type MeSourcesShare = "everyone" | "reciprocal" | "aggregate";
+
+/** Resolved detail level for a viewer looking at a subject’s ME sources. */
+export type MeSourcesDetail = "detailed" | "aggregate";
+
+/** Response from `POST /me/me-sources-preference`. */
+export interface MeSourcesPreferenceResult {
+  me_sources_share: MeSourcesShare;
+}
+
+/**
  * Response from `POST /me/give-chrons`
  * (proxies Rovas `POST /rovas/civic_give_chrons` — 1 Chron = 1 Merit).
  */
@@ -189,6 +203,11 @@ export interface MeProfile {
    * `null` until the user answers (survives reinstall via Rovas).
    */
   receipt_history_retention?: ReceiptHistoryRetention | null;
+  /**
+   * Who may see Taxes vs Gifts detail. Defaults to `everyone` when omitted.
+   * See Rovas task `me-sources-privacy`.
+   */
+  me_sources_share?: MeSourcesShare;
   client_id: string;
   scope: string | null;
   expires_at: number;
@@ -200,8 +219,8 @@ export interface MeProfile {
  * Percentile / rank ladder are computed on Civic from `/rank/distribution`.
  *
  * `by_category` is Civic’s taxes/charity/volunteer mix. When Rovas sends
- * `by_source`, the API remaps it (penalty split across non-zero buckets
- * proportionally) before returning.
+ * `by_source` and `me_sources_detail` is not `aggregate`, the API remaps it
+ * (penalty split across non-zero buckets proportionally) before returning.
  */
 export interface UserLookup {
   rovas_uid: string;
@@ -211,6 +230,11 @@ export interface UserLookup {
   /** Year the Rovas account was created (0 when not returned by Rovas). */
   member_since_year: number;
   by_category: ContributionCategoryBreakdown;
+  /**
+   * Viewer-resolved ME-source detail. `aggregate` merges Taxes+Gifts
+   * (`taxes_and_gifts`) and clears tax/gift drill-downs.
+   */
+  me_sources_detail: MeSourcesDetail;
   /** NACE section expertise icons (Merit Index); empty when none. */
   nace_expertise: NaceExpertiseSection[];
   /** Last ≤3 calendar months of VAT-claim Merits; empty if none. */
@@ -305,6 +329,11 @@ export interface ContributionCategoryBreakdown {
   taxes: number;
   charity: number;
   volunteer: number;
+  /**
+   * Taxes+Gifts merged when `me_sources_detail` is `aggregate`.
+   * Absent (or unused) when detailed.
+   */
+  taxes_and_gifts?: number;
 }
 
 export interface ContributionsSummary {
@@ -449,10 +478,12 @@ export interface MeritIndexRow {
   country_iso2: string | null;
   country_label: string | null;
   /**
-   * Civic ME-source mix. When Rovas includes `by_source`, Civic remaps it
-   * (penalty split across non-zero buckets proportionally) into these buckets.
+   * Civic ME-source mix. When Rovas includes `by_source` and detail is not
+   * aggregate, Civic remaps it into these buckets.
    */
   by_category: ContributionCategoryBreakdown;
+  /** Viewer-resolved; `aggregate` merges Taxes+Gifts on the bar. */
+  me_sources_detail: MeSourcesDetail;
   nace_expertise: NaceExpertiseSection[];
 }
 
@@ -464,6 +495,11 @@ export interface MeritIndexPage {
   sort: MeritIndexSort;
   order: MeritIndexOrder;
   items: MeritIndexRow[];
+  /**
+   * True when `source_category` is taxes|charity and Rovas omitted
+   * privacy-restricted users.
+   */
+  privacy_filter_active?: boolean;
   /** Present when response came from the period index. */
   period?: MeritSpotlightPeriod;
   period_start?: string;

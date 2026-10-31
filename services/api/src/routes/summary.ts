@@ -77,6 +77,7 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         total_chr: profile.total_chr,
         language: profile.language,
         receipt_history_retention: profile.receipt_history_retention,
+        me_sources_share: profile.me_sources_share,
         client_id: user.token.client_id,
         scope: user.token.scope ?? null,
         expires_at: user.token.expires,
@@ -111,6 +112,37 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
           user.accessToken,
           retention,
         );
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
+
+  /**
+   * Set ME sources share preference (everyone | reciprocal | aggregate).
+   * Proxies Rovas `POST /rovas/civic_me_sources_preference`.
+   */
+  app.post(
+    "/me/me-sources-preference",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const body = (req.body ?? {}) as { share?: unknown };
+      const share =
+        body.share === "everyone" ||
+        body.share === "reciprocal" ||
+        body.share === "aggregate"
+          ? body.share
+          : null;
+      if (!share) {
+        return reply.code(422).send({
+          error: "invalid_input",
+          message:
+            'Body must include share: "everyone" | "reciprocal" | "aggregate".',
+        });
+      }
+      try {
+        return await ctx.rovas.setMeSourcesPreference(user.accessToken, share);
       } catch (err) {
         return sendRovasError(reply, err);
       }

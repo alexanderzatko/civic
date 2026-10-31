@@ -1,5 +1,7 @@
 import type {
   ContributionCategoryBreakdown,
+  MeSourcesDetail,
+  MeSourcesShare,
   MeritHistoryItem,
   MeritHistoryPage,
   MeritHistorySourceKind,
@@ -81,11 +83,20 @@ export type RovasMe = {
    * See Rovas task `receipt-history-retention`.
    */
   receipt_history_retention: RovasReceiptHistoryRetention | null;
+  /**
+   * Who may see Taxes vs Gifts detail. Defaults to `everyone`.
+   * See Rovas task `me-sources-privacy`.
+   */
+  me_sources_share: MeSourcesShare;
 };
 
 export type RovasReceiptHistoryPreferenceResult = {
   receipt_history_retention: RovasReceiptHistoryRetention;
   scrubbed_claims: number;
+};
+
+export type RovasMeSourcesPreferenceResult = {
+  me_sources_share: MeSourcesShare;
 };
 
 /** Response from Rovas `POST /rovas/civic_give_chrons` (1 CHR = 1 ME). */
@@ -138,6 +149,7 @@ export class RovasClient {
         created?: unknown;
         language?: unknown;
         receipt_history_retention?: unknown;
+        me_sources_share?: unknown;
       }
     >("/rovas/me", accessToken);
     if (
@@ -164,6 +176,7 @@ export class RovasClient {
       receipt_history_retention: parseReceiptHistoryRetention(
         body.receipt_history_retention,
       ),
+      me_sources_share: parseMeSourcesShare(body.me_sources_share),
     };
   }
 
@@ -348,25 +361,37 @@ export class RovasClient {
         return Number.isFinite(y) && y > 0 ? y : 0;
       })(),
       ...(() => {
+        const detail = parseMeSourcesDetail(
+          (body as { me_sources_detail?: unknown }).me_sources_detail,
+        );
         const by = normalizeCategories(
           body.by_category,
           (body as { by_source?: unknown }).by_source,
+          detail,
         );
         // Cap project tables to post-penalty category ME (Rovas keeps gross).
+        // Aggregate: tax/gift drill-downs are empty; volunteer still capped.
         return {
           by_category: by,
-          top_charities: capProjectRowsToCategory(
-            normalizeProjectRows(body.top_charities),
-            by.charity,
-          ),
+          me_sources_detail: detail,
+          top_charities:
+            detail === "aggregate"
+              ? []
+              : capProjectRowsToCategory(
+                  normalizeProjectRows(body.top_charities),
+                  by.charity,
+                ),
           top_volunteer_projects: capProjectRowsToCategory(
             normalizeProjectRows(body.top_volunteer_projects),
             by.volunteer,
           ),
+          taxes_last_3_months:
+            detail === "aggregate"
+              ? []
+              : normalizeTaxMonths(body.taxes_last_3_months),
         };
       })(),
       nace_expertise: normalizeNaceExpertise(body.nace_expertise),
-      taxes_last_3_months: normalizeTaxMonths(body.taxes_last_3_months),
     };
   }
 
@@ -1177,6 +1202,29 @@ export class RovasClient {
   }
 
   /**
+   * Set ME sources share preference (who may see Taxes vs Gifts detail).
+   * `POST /rovas/civic_me_sources_preference`
+   */
+  async setMeSourcesPreference(
+    accessToken: string,
+    share: MeSourcesShare,
+  ): Promise<RovasMeSourcesPreferenceResult> {
+    const body = await this.postJson<Partial<RovasMeSourcesPreferenceResult>>(
+      "/rovas/civic_me_sources_preference",
+      accessToken,
+      { share },
+    );
+    const parsed = parseMeSourcesShareStrict(body.me_sources_share);
+    if (!parsed) {
+      throw new RovasClientError(
+        "Rovas me sources preference response missing share",
+        502,
+      );
+    }
+    return { me_sources_share: parsed };
+  }
+
+  /**
    * Convert Chrons to Merits (1:1).
    * `POST /rovas/civic_give_chrons`
    */
@@ -1369,7 +1417,20 @@ export type RovasClaimVatReceiptResponse = {
 function normalizeCategories(
   raw: Partial<ContributionCategoryBreakdown> | undefined,
   bySource?: unknown,
+  detail: MeSourcesDetail = "detailed",
 ): ContributionCategoryBreakdown {
+  if (detail === "aggregate") {
+    const taxes = Number(raw?.taxes) || 0;
+    const charity = Number(raw?.charity) || 0;
+    const volunteer = Number(raw?.volunteer) || 0;
+    const combined = Number(raw?.taxes_and_gifts);
+    return {
+      taxes: 0,
+      charity: 0,
+      volunteer,
+      taxes_and_gifts: Number.isFinite(combined) ? combined : taxes + charity,
+    };
+  }
   return resolveContributionCategories(
     raw,
     normalizeMeritSources(bySource),
@@ -1755,10 +1816,19 @@ function normalizeMeritIndexRow(raw: unknown): MeritIndexRow | null {
       typeof r.country_label === "string" && r.country_label
         ? r.country_label
         : null,
-    by_category: normalizeCategories(
-      r.by_category,
-      (r as { by_source?: unknown }).by_source,
-    ),
+    ...(() => {
+      const detail = parseMeSourcesDetail(
+        (r as { me_sources_detail?: unknown }).me_sources_detail,
+      );
+      return {
+        by_category: normalizeCategories(
+          r.by_category,
+          (r as { by_source?: unknown }).by_source,
+          detail,
+        ),
+        me_sources_detail: detail,
+      };
+    })(),
     nace_expertise: normalizeNaceExpertise(r.nace_expertise),
   };
 }
@@ -1958,6 +2028,9 @@ function normalizeMeritIndexPage(
     sort,
     order,
     items,
+    ...(raw.privacy_filter_active === true
+      ? { privacy_filter_active: true }
+      : {}),
     ...(period
       ? {
           period,
@@ -2045,6 +2118,24 @@ function parseReceiptHistoryRetention(
   value: unknown,
 ): RovasReceiptHistoryRetention | null {
   return value === "keep" || value === "policy" ? value : null;
+}
+
+/** Unset / unknown → everyone (Rovas default). */
+function parseMeSourcesShare(value: unknown): MeSourcesShare {
+  return value === "reciprocal" || value === "aggregate" || value === "everyone"
+    ? value
+    : "everyone";
+}
+
+function parseMeSourcesShareStrict(value: unknown): MeSourcesShare | null {
+  return value === "everyone" || value === "reciprocal" || value === "aggregate"
+    ? value
+    : null;
+}
+
+/** Unset → detailed (pre-privacy Rovas or self). */
+function parseMeSourcesDetail(value: unknown): MeSourcesDetail {
+  return value === "aggregate" ? "aggregate" : "detailed";
 }
 
 function unwrapList(body: unknown): unknown[] {

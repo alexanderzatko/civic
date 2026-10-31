@@ -153,6 +153,13 @@ export default function ImpactScreen() {
 
       <ImpactFilterBar filters={filters} onChange={setFilters} />
 
+      {filters.source_category === "taxes" ||
+      filters.source_category === "charity" ? (
+        <Text style={styles.privacyHint}>
+          {t("impact.privacy_filter_hint")}
+        </Text>
+      ) : null}
+
       {loading ? (
         <ActivityIndicator color={colors.brand} style={{ marginVertical: 24 }} />
       ) : null}
@@ -219,7 +226,10 @@ export default function ImpactScreen() {
                     />
                   </View>
                   <View style={styles.colSources}>
-                    <MeritSourceBar by={row.by_category} />
+                    <MeritSourceBar
+                      by={row.by_category}
+                      detail={row.me_sources_detail}
+                    />
                   </View>
                   <Text style={[styles.td, styles.colCountry]} numberOfLines={1}>
                     {row.country_iso2 ?? "—"}
@@ -288,6 +298,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   hint: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  privacyHint: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: -4,
+  },
   error: { color: colors.danger, fontSize: 14 },
   table: {
     borderWidth: 1,

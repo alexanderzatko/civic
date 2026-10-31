@@ -11,6 +11,7 @@ import {
 } from "@/lib/analytics";
 import { AuthProvider } from "@/lib/auth";
 import { ChronPreferenceProvider } from "@/lib/chron-preference";
+import { MeSourcesPreferenceProvider } from "@/lib/me-sources-preference";
 import { ReceiptHistoryPreferenceProvider } from "@/lib/receipt-history-preference";
 import { civicStackScreenOptions } from "@/lib/civic-screen-options";
 import { LocaleProvider, useLocale } from "@/lib/locale";
@@ -102,9 +103,11 @@ export default function RootLayout() {
         <LocaleProvider>
           <ChronPreferenceProvider>
             <ReceiptHistoryPreferenceProvider>
-              <AnalyticsBridge />
-              <AnalyticsIdentify />
-              <RootNavigator />
+              <MeSourcesPreferenceProvider>
+                <AnalyticsBridge />
+                <AnalyticsIdentify />
+                <RootNavigator />
+              </MeSourcesPreferenceProvider>
             </ReceiptHistoryPreferenceProvider>
           </ChronPreferenceProvider>
         </LocaleProvider>

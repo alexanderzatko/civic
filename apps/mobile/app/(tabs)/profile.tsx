@@ -11,7 +11,11 @@ import {
   Text,
   View,
 } from "react-native";
-import { type MeritHistoryItem, type ReceiptHistoryRetention } from "@civic/shared";
+import {
+  type MeSourcesShare,
+  type MeritHistoryItem,
+  type ReceiptHistoryRetention,
+} from "@civic/shared";
 import { MeritHistoryList } from "@/components/MeritHistoryList";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
@@ -21,8 +25,15 @@ import { visibleDisplayName } from "@/lib/format-member-handle";
 import { CIVIC_LOCALES, type Locale, t } from "@/lib/i18n";
 import { getPrivacyUrl } from "@/lib/legal-urls";
 import { useLocale } from "@/lib/locale";
+import { useMeSourcesPreference } from "@/lib/me-sources-preference";
 import { useReceiptHistoryPreference } from "@/lib/receipt-history-preference";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
+
+const ME_SOURCES_OPTIONS: MeSourcesShare[] = [
+  "everyone",
+  "reciprocal",
+  "aggregate",
+];
 
 const PAGE_SIZE = 20;
 
@@ -52,7 +63,13 @@ export default function ProfileScreen() {
     ready: retentionReady,
     setRetention,
   } = useReceiptHistoryPreference();
+  const {
+    share: meSourcesShare,
+    ready: meSourcesReady,
+    setShare: setMeSourcesShare,
+  } = useMeSourcesPreference();
   const [retentionSaving, setRetentionSaving] = useState(false);
+  const [meSourcesSaving, setMeSourcesSaving] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [totalChr, setTotalChr] = useState<number | null>(null);
@@ -171,6 +188,26 @@ export default function ProfileScreen() {
     [setRetention],
   );
 
+  const onSelectMeSourcesShare = useCallback(
+    (value: MeSourcesShare) => {
+      if (!meSourcesReady || meSourcesSaving || value === meSourcesShare) {
+        return;
+      }
+      setMeSourcesSaving(true);
+      void setMeSourcesShare(value)
+        .catch(() => {
+          Alert.alert(
+            t("profile.me_sources_save_error_title"),
+            t("profile.me_sources_save_error_body"),
+          );
+        })
+        .finally(() => {
+          setMeSourcesSaving(false);
+        });
+    },
+    [meSourcesReady, meSourcesSaving, meSourcesShare, setMeSourcesShare],
+  );
+
   const onToggleKeepReceipts = useCallback(
     (keep: boolean) => {
       if (!retentionReady || retentionSaving) return;
@@ -285,6 +322,44 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.pillbox}>
+          <Text style={styles.pillLabel}>{t("profile.me_sources_section")}</Text>
+          <Text style={styles.prefHint}>{t("profile.me_sources_hint")}</Text>
+          {!meSourcesReady || meSourcesSaving ? (
+            <ActivityIndicator color={colors.brand} />
+          ) : (
+            <View style={styles.meSourcesOptions}>
+              {ME_SOURCES_OPTIONS.map((option) => {
+                const selected = meSourcesShare === option;
+                return (
+                  <Pressable
+                    key={option}
+                    style={[
+                      styles.meSourcesOption,
+                      selected && styles.meSourcesOptionSelected,
+                    ]}
+                    onPress={() => onSelectMeSourcesShare(option)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                  >
+                    <Text
+                      style={[
+                        styles.meSourcesOptionTitle,
+                        selected && styles.meSourcesOptionTitleSelected,
+                      ]}
+                    >
+                      {t(`profile.me_sources_${option}_title`)}
+                    </Text>
+                    <Text style={styles.meSourcesOptionBody}>
+                      {t(`profile.me_sources_${option}_body`)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.pillbox}>
           <Text style={styles.pillLabel}>{t("profile.taxes_section")}</Text>
           <Text style={styles.prefHint}>{t("profile.taxes_hint")}</Text>
           <View style={styles.prefRow}>
@@ -383,6 +458,31 @@ const styles = StyleSheet.create({
   },
   prefLabel: { flex: 1, color: colors.ink, fontWeight: "600", lineHeight: 20 },
   prefHint: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  meSourcesOptions: { gap: 8 },
+  meSourcesOption: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
+    backgroundColor: colors.bg,
+  },
+  meSourcesOptionSelected: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSoft,
+  },
+  meSourcesOptionTitle: {
+    color: colors.ink,
+    fontWeight: "700",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  meSourcesOptionTitleSelected: { color: colors.brand },
+  meSourcesOptionBody: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   privacyLink: {
     color: colors.brand,
     fontSize: 13,

@@ -17,6 +17,9 @@ export const colors = {
   catTaxesSoft: "rgba(59, 110, 165, 0.18)",
   catCharity: "#1B6B4A",
   catCharitySoft: "rgba(27, 107, 74, 0.18)",
+  /** Taxes+Gifts merged (ME sources aggregate privacy). */
+  catTaxesGifts: "#2A6B77",
+  catTaxesGiftsSoft: "rgba(42, 107, 119, 0.18)",
   catVolunteer: "#C47A2C",
   catVolunteerSoft: "rgba(196, 122, 44, 0.18)",
   /** Rovas pending-verifications + watched-comment banners (`#FFA108`). */

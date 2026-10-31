@@ -131,6 +131,8 @@ export type MeIdentity = {
   language?: string | null;
   /** Keep vs 90-day policy; `null` until answered (Rovas-backed). */
   receipt_history_retention?: "keep" | "policy" | null;
+  /** Who may see Taxes vs Gifts detail; defaults to everyone. */
+  me_sources_share?: "everyone" | "reciprocal" | "aggregate";
   client_id: string;
   scope: string | null;
   expires_at: number;
@@ -139,6 +141,12 @@ export type MeIdentity = {
 export type ReceiptHistoryPreferenceResult = {
   receipt_history_retention: "keep" | "policy";
   scrubbed_claims: number;
+};
+
+export type MeSourcesShare = "everyone" | "reciprocal" | "aggregate";
+
+export type MeSourcesPreferenceResult = {
+  me_sources_share: MeSourcesShare;
 };
 
 export type MyContributionsSummary = ContributionsSummary & {
@@ -417,6 +425,16 @@ export function setReceiptHistoryPreference(
       body: JSON.stringify({ retention }),
     },
   );
+}
+
+export function setMeSourcesPreference(
+  share: MeSourcesShare,
+): Promise<MeSourcesPreferenceResult> {
+  return apiFetch<MeSourcesPreferenceResult>("/me/me-sources-preference", {
+    method: "POST",
+    auth: "required",
+    body: JSON.stringify({ share }),
+  });
 }
 
 /** Convert Chrons → Merits (1:1). Proxies Rovas `POST /rovas/civic_give_chrons`. */

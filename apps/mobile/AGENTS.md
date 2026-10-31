@@ -44,10 +44,12 @@ the repo README.
 ## Rovas integration
 
 Any **Rovas-side** work Civic needs (API fields, Services resources, OAuth,
-rules) must be written for the Rovas agent in
-`~/Documents/homeProjects/rovas/docs/integration/civic.md` — not left only in
-chat. Civic-side companion: `docs/rovas-integration.md`. See also the Cursor
-rule `.cursor/rules/rovas-integration-docs.mdc`.
+rules) must be written as a task under
+`~/Documents/homeProjects/rovas/docs/integration/civic_tasks/active/` and
+linked from that repo’s `civic.md` Task directory — not left only in chat.
+**Do not implement or edit Rovas Drupal/PHP code from Civic**; the Rovas agent
+owns that. Civic-side companion: `docs/rovas-integration.md`. See also the
+Cursor rule `.cursor/rules/rovas-integration-docs.mdc`.
 
 ## Product analytics (PostHog Cloud EU)
 
