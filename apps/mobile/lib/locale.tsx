@@ -18,6 +18,10 @@ import {
   type Locale,
 } from "@/lib/i18n";
 
+// Sync before first paint so a Slovak device does not flash English while
+// SecureStore override is loading (override still wins once ready).
+applyLocale(deviceLocale());
+
 const OVERRIDE_KEY = "civic.locale.override";
 
 type LocaleContextValue = {

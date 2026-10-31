@@ -11,6 +11,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "app.civic.mobile",
       "infoPlist": {
+        "CFBundleDevelopmentRegion": "sk",
+        "CFBundleAllowMixedLocalizations": true,
         "NSCameraUsageDescription": "Civic potrebuje kameru na skenovanie QR kódu z eKasa bločka.",
         "NSLocationWhenInUseUsageDescription": "Civic používa polohu pri registrácii meritov z bločka (kontrola dôveryhodnosti).",
         "NSPhotoLibraryUsageDescription": "Civic používa fotky ako dôkaz dobrovoľníckej práce.",
@@ -102,7 +104,16 @@
       "expo-font",
       "expo-web-browser",
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": {
+            "ios": ["sk", "en"],
+            "android": ["sk", "en"]
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
