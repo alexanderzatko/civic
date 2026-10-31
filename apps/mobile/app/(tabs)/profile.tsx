@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   },
   meSourcesOptionSelected: {
     borderColor: colors.brand,
-    backgroundColor: colors.brandSoft,
+    backgroundColor: "rgba(11, 61, 46, 0.08)",
   },
   meSourcesOptionTitle: {
     color: colors.ink,
