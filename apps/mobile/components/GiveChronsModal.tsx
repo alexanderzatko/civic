@@ -83,7 +83,7 @@ export function GiveChronsModal({
           onPress={() => {}}
           accessibilityViewIsModal
         >
-          <Text style={styles.title}>{t("earn.give_chrons")}</Text>
+          <Text style={styles.title}>{t("earn.give_chrons_title")}</Text>
           {success ? (
             <>
               <Text style={styles.success}>
