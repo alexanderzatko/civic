@@ -86,6 +86,7 @@ export type {
   ReceiptDetailError,
   ReceiptDetailItem,
   ReceiptDetailResponse,
+  ReceiptHistoryFilters,
   ReceiptHistoryShare,
   ReceiptHistoryView,
   ReceiptReceivedHistory,

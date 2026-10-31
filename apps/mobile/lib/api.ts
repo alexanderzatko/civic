@@ -11,6 +11,7 @@ import type {
   ProjectWorkReportPage,
   RankDistribution,
   ReceiptDetailResponse,
+  ReceiptHistoryFilters,
   ReceiptHistoryView,
   ReceiptReceivedHistory,
   ReceiptSubmittedHistory,
@@ -264,19 +265,31 @@ export function claimReceipt(
 
 export function fetchReceiptHistory(
   view: "submitted",
-  opts?: { limit?: number; offset?: number },
+  opts?: { limit?: number; offset?: number } & ReceiptHistoryFilters,
 ): Promise<ReceiptSubmittedHistory>;
 export function fetchReceiptHistory(
   view: "received",
-  opts?: { limit?: number; offset?: number },
+  opts?: { limit?: number; offset?: number } & ReceiptHistoryFilters,
 ): Promise<ReceiptReceivedHistory>;
 export function fetchReceiptHistory(
   view: ReceiptHistoryView,
-  opts?: { limit?: number; offset?: number },
+  opts?: { limit?: number; offset?: number } & ReceiptHistoryFilters,
 ): Promise<ReceiptSubmittedHistory | ReceiptReceivedHistory> {
   const params = new URLSearchParams({ view });
   if (opts?.limit != null) params.set("limit", String(opts.limit));
   if (opts?.offset != null) params.set("offset", String(opts.offset));
+  const merchant = opts?.merchant?.trim();
+  if (merchant) params.set("merchant", merchant);
+  if (opts?.date_from) params.set("date_from", opts.date_from);
+  if (opts?.date_to) params.set("date_to", opts.date_to);
+  if (view === "submitted") {
+    if (opts?.min_vat_eur != null) {
+      params.set("min_vat_eur", String(opts.min_vat_eur));
+    }
+    if (opts?.max_vat_eur != null) {
+      params.set("max_vat_eur", String(opts.max_vat_eur));
+    }
+  }
   return apiFetch(`/receipts?${params}`, { auth: "required" });
 }
 

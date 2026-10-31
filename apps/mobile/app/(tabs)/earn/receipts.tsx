@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -18,6 +18,7 @@ import {
 import {
   type ClaimReceiptErrorCode,
   type ClaimReceiptResponse,
+  type ReceiptHistoryFilters,
   type ReceiptHistoryRetention,
   type ReceiptHistoryView,
   type ReceiptReceivedItem,
@@ -63,6 +64,60 @@ type MeProfile = {
   display_name: string;
 };
 
+type HistoryFilterDraft = {
+  merchant: string;
+  dateFrom: string;
+  dateTo: string;
+  minVat: string;
+  maxVat: string;
+};
+
+const EMPTY_HISTORY_FILTERS: HistoryFilterDraft = {
+  merchant: "",
+  dateFrom: "",
+  dateTo: "",
+  minVat: "",
+  maxVat: "",
+};
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function historyFiltersActive(f: HistoryFilterDraft): boolean {
+  return Boolean(
+    f.merchant.trim() ||
+      f.dateFrom.trim() ||
+      f.dateTo.trim() ||
+      f.minVat.trim() ||
+      f.maxVat.trim(),
+  );
+}
+
+function toApiFilters(
+  f: HistoryFilterDraft,
+  view: ReceiptHistoryView,
+): ReceiptHistoryFilters {
+  const out: ReceiptHistoryFilters = {};
+  const merchant = f.merchant.trim();
+  if (merchant) out.merchant = merchant;
+  const dateFrom = f.dateFrom.trim();
+  const dateTo = f.dateTo.trim();
+  if (ISO_DATE_RE.test(dateFrom)) out.date_from = dateFrom;
+  if (ISO_DATE_RE.test(dateTo)) out.date_to = dateTo;
+  if (view === "submitted") {
+    const minRaw = f.minVat.trim().replace(",", ".");
+    const maxRaw = f.maxVat.trim().replace(",", ".");
+    if (minRaw !== "") {
+      const n = Number(minRaw);
+      if (Number.isFinite(n)) out.min_vat_eur = n;
+    }
+    if (maxRaw !== "") {
+      const n = Number(maxRaw);
+      if (Number.isFinite(n)) out.max_vat_eur = n;
+    }
+  }
+  return out;
+}
+
 export default function ReceiptsScreen() {
   useLocale();
   const { status: authStatus } = useAuth();
@@ -101,6 +156,15 @@ export default function ReceiptsScreen() {
   const [historyError, setHistoryError] = useState(false);
   const [detailUid, setDetailUid] = useState<string | null>(null);
   const [retentionModalOpen, setRetentionModalOpen] = useState(false);
+  const [filterDraft, setFilterDraft] = useState<HistoryFilterDraft>(
+    EMPTY_HISTORY_FILTERS,
+  );
+  const [appliedFilters, setAppliedFilters] = useState<HistoryFilterDraft>(
+    EMPTY_HISTORY_FILTERS,
+  );
+  const filterDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const filtersActive = historyFiltersActive(appliedFilters);
 
   const seedRecipients = useCallback(async (profile: MeProfile) => {
     const memory = await loadRecipientMemory();
@@ -132,6 +196,8 @@ export default function ReceiptsScreen() {
       setSubmittedItems([]);
       setReceivedItems([]);
       setHistoryError(false);
+      setFilterDraft(EMPTY_HISTORY_FILTERS);
+      setAppliedFilters(EMPTY_HISTORY_FILTERS);
       return;
     }
     let cancelled = false;
@@ -157,9 +223,11 @@ export default function ReceiptsScreen() {
     if (!signedIn) return;
     setHistoryLoading(true);
     setHistoryError(false);
+    const shared = toApiFilters(appliedFilters, "received");
+    const submittedOpts = toApiFilters(appliedFilters, "submitted");
     void Promise.all([
-      fetchReceiptHistory("submitted"),
-      fetchReceiptHistory("received"),
+      fetchReceiptHistory("submitted", submittedOpts),
+      fetchReceiptHistory("received", shared),
     ])
       .then(([submitted, received]) => {
         setSubmittedItems(submitted.items);
@@ -171,13 +239,28 @@ export default function ReceiptsScreen() {
       .finally(() => {
         setHistoryLoading(false);
       });
-  }, [signedIn]);
+  }, [signedIn, appliedFilters]);
 
   useMeritsAutoRefresh(refreshHistory);
 
   useEffect(() => {
     if (signedIn) refreshHistory();
   }, [signedIn, refreshHistory]);
+
+  useEffect(() => {
+    if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
+    filterDebounceRef.current = setTimeout(() => {
+      setAppliedFilters(filterDraft);
+    }, 300);
+    return () => {
+      if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
+    };
+  }, [filterDraft]);
+
+  const clearHistoryFilters = useCallback(() => {
+    setFilterDraft(EMPTY_HISTORY_FILTERS);
+    setAppliedFilters(EMPTY_HISTORY_FILTERS);
+  }, []);
 
   // If verify finished before /me resolved, seed split once profile arrives.
   useEffect(() => {
@@ -579,6 +662,10 @@ export default function ReceiptsScreen() {
         received={receivedItems}
         loading={historyLoading}
         error={historyError}
+        filters={filterDraft}
+        filtersActive={filtersActive}
+        onFiltersChange={setFilterDraft}
+        onClearFilters={clearHistoryFilters}
         onOpenDetail={setDetailUid}
       />
 
@@ -612,6 +699,10 @@ function ReceiptHistorySection({
   received,
   loading,
   error,
+  filters,
+  filtersActive,
+  onFiltersChange,
+  onClearFilters,
   onOpenDetail,
 }: {
   signedIn: boolean;
@@ -622,6 +713,10 @@ function ReceiptHistorySection({
   received: ReceiptReceivedItem[];
   loading: boolean;
   error: boolean;
+  filters: HistoryFilterDraft;
+  filtersActive: boolean;
+  onFiltersChange: (next: HistoryFilterDraft) => void;
+  onClearFilters: () => void;
   onOpenDetail: (receiptUid: string) => void;
 }) {
   if (!signedIn) {
@@ -634,6 +729,9 @@ function ReceiptHistorySection({
 
   const isSubmitted = tab === "submitted";
   const items = isSubmitted ? submitted : received;
+  const patchFilters = (partial: Partial<HistoryFilterDraft>) => {
+    onFiltersChange({ ...filters, ...partial });
+  };
 
   return (
     <View style={styles.history}>
@@ -677,12 +775,101 @@ function ReceiptHistorySection({
           : t("receipts.history_received_hint")}
       </Text>
 
+      <View style={styles.filterStrip}>
+        <Text style={styles.filterLabel}>
+          {t("receipts.history_filter_merchant")}
+        </Text>
+        <TextInput
+          style={styles.input}
+          value={filters.merchant}
+          onChangeText={(merchant) => patchFilters({ merchant })}
+          placeholder={t("receipts.history_filter_merchant_placeholder")}
+          placeholderTextColor={colors.muted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+        />
+        <View style={styles.filterRow}>
+          <View style={styles.filterHalf}>
+            <Text style={styles.filterLabel}>
+              {t("receipts.history_filter_date_from")}
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={filters.dateFrom}
+              onChangeText={(dateFrom) => patchFilters({ dateFrom })}
+              placeholder={t("receipts.history_filter_date_placeholder")}
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="numbers-and-punctuation"
+            />
+          </View>
+          <View style={styles.filterHalf}>
+            <Text style={styles.filterLabel}>
+              {t("receipts.history_filter_date_to")}
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={filters.dateTo}
+              onChangeText={(dateTo) => patchFilters({ dateTo })}
+              placeholder={t("receipts.history_filter_date_placeholder")}
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="numbers-and-punctuation"
+            />
+          </View>
+        </View>
+        {isSubmitted ? (
+          <View style={styles.filterRow}>
+            <View style={styles.filterHalf}>
+              <Text style={styles.filterLabel}>
+                {t("receipts.history_filter_vat_min")}
+              </Text>
+              <TextInput
+                style={styles.input}
+                value={filters.minVat}
+                onChangeText={(minVat) => patchFilters({ minVat })}
+                placeholder="0"
+                placeholderTextColor={colors.muted}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={styles.filterHalf}>
+              <Text style={styles.filterLabel}>
+                {t("receipts.history_filter_vat_max")}
+              </Text>
+              <TextInput
+                style={styles.input}
+                value={filters.maxVat}
+                onChangeText={(maxVat) => patchFilters({ maxVat })}
+                placeholder="100"
+                placeholderTextColor={colors.muted}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+        ) : null}
+        {filtersActive ? (
+          <Pressable style={styles.filterClear} onPress={onClearFilters}>
+            <Text style={styles.filterClearText}>
+              {t("receipts.history_filter_clear")}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+
       {loading && items.length === 0 ? (
         <ActivityIndicator color={colors.brand} style={{ marginTop: 16 }} />
       ) : error && items.length === 0 ? (
         <Text style={styles.empty}>{t("receipts.history_error")}</Text>
       ) : items.length === 0 ? (
-        <Text style={styles.empty}>{t("receipts.history_empty")}</Text>
+        <Text style={styles.empty}>
+          {filtersActive
+            ? t("receipts.history_empty_filtered")
+            : t("receipts.history_empty")}
+        </Text>
       ) : isSubmitted ? (
         <View style={styles.historyTable}>
           <View style={styles.historyHeaderRow}>
@@ -1102,6 +1289,33 @@ const styles = StyleSheet.create({
   historyHint: {
     fontSize: 12,
     color: colors.muted,
+  },
+  filterStrip: {
+    marginTop: 4,
+    gap: 8,
+  },
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.muted,
+  },
+  filterRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  filterHalf: {
+    flex: 1,
+    gap: 4,
+  },
+  filterClear: {
+    alignSelf: "flex-start",
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  filterClearText: {
+    color: colors.brandSoft,
+    fontWeight: "700",
+    fontSize: 14,
   },
   historyTable: {
     marginTop: 8,

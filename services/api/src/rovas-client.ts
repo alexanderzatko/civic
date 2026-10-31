@@ -24,6 +24,7 @@ import type {
   ProjectWorkReportPage,
   RankDistribution,
   ReceiptClaimsSummary,
+  ReceiptHistoryFilters,
   ReceiptHistoryView,
   ReceiptReceivedHistory,
   ReceiptReceivedItem,
@@ -1080,11 +1081,12 @@ export class RovasClient {
   /**
    * Paginated claim history.
    * `GET /rovas/civic_claims?view=submitted|received&limit=&offset=`
+   * (+ optional merchant / date / VAT filters — see civic-claims-filters).
    */
   async fetchClaims(
     accessToken: string,
     view: ReceiptHistoryView,
-    opts?: { limit?: number; offset?: number },
+    opts?: { limit?: number; offset?: number } & ReceiptHistoryFilters,
   ): Promise<ReceiptSubmittedHistory | ReceiptReceivedHistory> {
     const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100);
     const offset = Math.max(opts?.offset ?? 0, 0);
@@ -1093,6 +1095,18 @@ export class RovasClient {
       limit: String(limit),
       offset: String(offset),
     });
+    const merchant = opts?.merchant?.trim();
+    if (merchant) params.set("merchant", merchant);
+    if (opts?.date_from) params.set("date_from", opts.date_from);
+    if (opts?.date_to) params.set("date_to", opts.date_to);
+    if (view === "submitted") {
+      if (opts?.min_vat_eur != null) {
+        params.set("min_vat_eur", String(opts.min_vat_eur));
+      }
+      if (opts?.max_vat_eur != null) {
+        params.set("max_vat_eur", String(opts.max_vat_eur));
+      }
+    }
     const body = await this.getJson<Partial<ReceiptSubmittedHistory | ReceiptReceivedHistory>>(
       `/rovas/civic_claims?${params}`,
       accessToken,

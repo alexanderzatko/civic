@@ -172,6 +172,11 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         view?: string;
         limit?: string;
         offset?: string;
+        merchant?: string;
+        date_from?: string;
+        date_to?: string;
+        min_vat_eur?: string;
+        max_vat_eur?: string;
       };
       const view = q.view === "received" ? "received" : "submitted";
       const limitRaw = q.limit != null ? Number(q.limit) : 50;
@@ -183,10 +188,65 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         ? Math.max(Math.trunc(offsetRaw), 0)
         : 0;
 
+      const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+      const dateFrom =
+        typeof q.date_from === "string" && q.date_from.trim()
+          ? q.date_from.trim()
+          : undefined;
+      const dateTo =
+        typeof q.date_to === "string" && q.date_to.trim()
+          ? q.date_to.trim()
+          : undefined;
+      if (dateFrom && !dateRe.test(dateFrom)) {
+        return reply.code(400).send({
+          error: "invalid_date_from",
+          message: "date_from must be YYYY-MM-DD",
+        });
+      }
+      if (dateTo && !dateRe.test(dateTo)) {
+        return reply.code(400).send({
+          error: "invalid_date_to",
+          message: "date_to must be YYYY-MM-DD",
+        });
+      }
+
+      const merchant =
+        typeof q.merchant === "string" && q.merchant.trim()
+          ? q.merchant.trim()
+          : undefined;
+
+      let minVat: number | undefined;
+      let maxVat: number | undefined;
+      if (q.min_vat_eur != null && String(q.min_vat_eur).trim() !== "") {
+        const n = Number(q.min_vat_eur);
+        if (!Number.isFinite(n)) {
+          return reply.code(400).send({
+            error: "invalid_min_vat_eur",
+            message: "min_vat_eur must be a number",
+          });
+        }
+        minVat = n;
+      }
+      if (q.max_vat_eur != null && String(q.max_vat_eur).trim() !== "") {
+        const n = Number(q.max_vat_eur);
+        if (!Number.isFinite(n)) {
+          return reply.code(400).send({
+            error: "invalid_max_vat_eur",
+            message: "max_vat_eur must be a number",
+          });
+        }
+        maxVat = n;
+      }
+
       try {
         return await ctx.rovas.fetchClaims(user.accessToken, view, {
           limit,
           offset,
+          merchant,
+          date_from: dateFrom,
+          date_to: dateTo,
+          min_vat_eur: minVat,
+          max_vat_eur: maxVat,
         });
       } catch (err) {
         if (err instanceof RovasClientError) {

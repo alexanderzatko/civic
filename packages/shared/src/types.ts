@@ -563,6 +563,21 @@ export interface MeritRate {
 /** History tab for `GET /receipts?view=` (proxies Rovas civic_claims). */
 export type ReceiptHistoryView = "submitted" | "received";
 
+/**
+ * Optional filters for `GET /receipts` / Rovas `GET /rovas/civic_claims`.
+ * Applied before pagination; see Rovas task `civic-claims-filters`.
+ * VAT bounds apply only when `view=submitted`.
+ */
+export interface ReceiptHistoryFilters {
+  merchant?: string;
+  /** Inclusive start date `YYYY-MM-DD` on `purchase_at`. */
+  date_from?: string;
+  /** Inclusive end date `YYYY-MM-DD` on `purchase_at`. */
+  date_to?: string;
+  min_vat_eur?: number;
+  max_vat_eur?: number;
+}
+
 export interface ReceiptHistoryShare {
   beneficiary_rovas_uid: string;
   share_pct: number;
