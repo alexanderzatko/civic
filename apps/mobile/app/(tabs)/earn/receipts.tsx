@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +11,10 @@ import {
   View,
   type LayoutChangeEvent,
 } from "react-native";
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Link } from "expo-router";
 import {
   CameraView,
@@ -66,36 +72,27 @@ type MeProfile = {
 
 type HistoryFilterDraft = {
   merchant: string;
+  /** ISO `YYYY-MM-DD`, or empty when unset. */
   dateFrom: string;
+  /** ISO `YYYY-MM-DD`, or empty when unset. */
   dateTo: string;
-  minVat: string;
-  maxVat: string;
 };
+
+type HistoryDateField = "dateFrom" | "dateTo";
 
 const EMPTY_HISTORY_FILTERS: HistoryFilterDraft = {
   merchant: "",
   dateFrom: "",
   dateTo: "",
-  minVat: "",
-  maxVat: "",
 };
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function historyFiltersActive(f: HistoryFilterDraft): boolean {
-  return Boolean(
-    f.merchant.trim() ||
-      f.dateFrom.trim() ||
-      f.dateTo.trim() ||
-      f.minVat.trim() ||
-      f.maxVat.trim(),
-  );
+  return Boolean(f.merchant.trim() || f.dateFrom.trim() || f.dateTo.trim());
 }
 
-function toApiFilters(
-  f: HistoryFilterDraft,
-  view: ReceiptHistoryView,
-): ReceiptHistoryFilters {
+function toApiFilters(f: HistoryFilterDraft): ReceiptHistoryFilters {
   const out: ReceiptHistoryFilters = {};
   const merchant = f.merchant.trim();
   if (merchant) out.merchant = merchant;
@@ -103,19 +100,32 @@ function toApiFilters(
   const dateTo = f.dateTo.trim();
   if (ISO_DATE_RE.test(dateFrom)) out.date_from = dateFrom;
   if (ISO_DATE_RE.test(dateTo)) out.date_to = dateTo;
-  if (view === "submitted") {
-    const minRaw = f.minVat.trim().replace(",", ".");
-    const maxRaw = f.maxVat.trim().replace(",", ".");
-    if (minRaw !== "") {
-      const n = Number(minRaw);
-      if (Number.isFinite(n)) out.min_vat_eur = n;
-    }
-    if (maxRaw !== "") {
-      const n = Number(maxRaw);
-      if (Number.isFinite(n)) out.max_vat_eur = n;
-    }
-  }
   return out;
+}
+
+function formatIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function isoToDate(value: string): Date {
+  if (!ISO_DATE_RE.test(value)) {
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+    return d;
+  }
+  const [y, m, day] = value.split("-").map(Number);
+  return new Date(y, m - 1, day, 12, 0, 0, 0);
+}
+
+/** Display `YYYY-MM-DD` as `dd.mm.yyyy` (same convention as volunteer form). */
+function formatFilterDateDisplay(iso: string): string {
+  const d = isoToDate(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${d.getFullYear()}`;
 }
 
 export default function ReceiptsScreen() {
@@ -223,11 +233,10 @@ export default function ReceiptsScreen() {
     if (!signedIn) return;
     setHistoryLoading(true);
     setHistoryError(false);
-    const shared = toApiFilters(appliedFilters, "received");
-    const submittedOpts = toApiFilters(appliedFilters, "submitted");
+    const opts = toApiFilters(appliedFilters);
     void Promise.all([
-      fetchReceiptHistory("submitted", submittedOpts),
-      fetchReceiptHistory("received", shared),
+      fetchReceiptHistory("submitted", opts),
+      fetchReceiptHistory("received", opts),
     ])
       .then(([submitted, received]) => {
         setSubmittedItems(submitted.items);
@@ -719,6 +728,9 @@ function ReceiptHistorySection({
   onClearFilters: () => void;
   onOpenDetail: (receiptUid: string) => void;
 }) {
+  const [datePickerField, setDatePickerField] =
+    useState<HistoryDateField | null>(null);
+
   if (!signedIn) {
     return (
       <View style={styles.history}>
@@ -732,6 +744,15 @@ function ReceiptHistorySection({
   const patchFilters = (partial: Partial<HistoryFilterDraft>) => {
     onFiltersChange({ ...filters, ...partial });
   };
+
+  const onDatePicked = (field: HistoryDateField, selected: Date) => {
+    patchFilters({ [field]: formatIsoDate(selected) });
+  };
+
+  const pickerValue =
+    datePickerField != null
+      ? isoToDate(filters[datePickerField])
+      : isoToDate("");
 
   return (
     <View style={styles.history}>
@@ -794,63 +815,59 @@ function ReceiptHistorySection({
             <Text style={styles.filterLabel}>
               {t("receipts.history_filter_date_from")}
             </Text>
-            <TextInput
-              style={styles.input}
-              value={filters.dateFrom}
-              onChangeText={(dateFrom) => patchFilters({ dateFrom })}
-              placeholder={t("receipts.history_filter_date_placeholder")}
-              placeholderTextColor={colors.muted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="numbers-and-punctuation"
-            />
+            <Pressable
+              style={[styles.input, styles.dateBtn]}
+              onPress={() => setDatePickerField("dateFrom")}
+              accessibilityRole="button"
+              accessibilityLabel={t("receipts.history_filter_date_from_a11y")}
+            >
+              <Text
+                style={
+                  filters.dateFrom
+                    ? styles.dateBtnText
+                    : styles.dateBtnPlaceholder
+                }
+              >
+                {filters.dateFrom
+                  ? formatFilterDateDisplay(filters.dateFrom)
+                  : t("receipts.history_filter_date_placeholder")}
+              </Text>
+              <MaterialIcons
+                name="calendar-today"
+                size={18}
+                color={colors.brand}
+              />
+            </Pressable>
           </View>
           <View style={styles.filterHalf}>
             <Text style={styles.filterLabel}>
               {t("receipts.history_filter_date_to")}
             </Text>
-            <TextInput
-              style={styles.input}
-              value={filters.dateTo}
-              onChangeText={(dateTo) => patchFilters({ dateTo })}
-              placeholder={t("receipts.history_filter_date_placeholder")}
-              placeholderTextColor={colors.muted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="numbers-and-punctuation"
-            />
+            <Pressable
+              style={[styles.input, styles.dateBtn]}
+              onPress={() => setDatePickerField("dateTo")}
+              accessibilityRole="button"
+              accessibilityLabel={t("receipts.history_filter_date_to_a11y")}
+            >
+              <Text
+                style={
+                  filters.dateTo
+                    ? styles.dateBtnText
+                    : styles.dateBtnPlaceholder
+                }
+              >
+                {filters.dateTo
+                  ? formatFilterDateDisplay(filters.dateTo)
+                  : t("receipts.history_filter_date_placeholder")}
+              </Text>
+              <MaterialIcons
+                name="calendar-today"
+                size={18}
+                color={colors.brand}
+              />
+            </Pressable>
           </View>
         </View>
-        {isSubmitted ? (
-          <View style={styles.filterRow}>
-            <View style={styles.filterHalf}>
-              <Text style={styles.filterLabel}>
-                {t("receipts.history_filter_vat_min")}
-              </Text>
-              <TextInput
-                style={styles.input}
-                value={filters.minVat}
-                onChangeText={(minVat) => patchFilters({ minVat })}
-                placeholder="0"
-                placeholderTextColor={colors.muted}
-                keyboardType="decimal-pad"
-              />
-            </View>
-            <View style={styles.filterHalf}>
-              <Text style={styles.filterLabel}>
-                {t("receipts.history_filter_vat_max")}
-              </Text>
-              <TextInput
-                style={styles.input}
-                value={filters.maxVat}
-                onChangeText={(maxVat) => patchFilters({ maxVat })}
-                placeholder="100"
-                placeholderTextColor={colors.muted}
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
-        ) : null}
         {filtersActive ? (
           <Pressable style={styles.filterClear} onPress={onClearFilters}>
             <Text style={styles.filterClearText}>
@@ -859,6 +876,59 @@ function ReceiptHistorySection({
           </Pressable>
         ) : null}
       </View>
+
+      {datePickerField ? (
+        Platform.OS === "ios" ? (
+          <Modal
+            visible
+            transparent
+            animationType="slide"
+            onRequestClose={() => setDatePickerField(null)}
+          >
+            <Pressable
+              style={styles.dateModalBackdrop}
+              onPress={() => setDatePickerField(null)}
+            >
+              <Pressable style={styles.dateModalCard} onPress={() => {}}>
+                <DateTimePicker
+                  value={pickerValue}
+                  mode="date"
+                  display="spinner"
+                  maximumDate={new Date()}
+                  onChange={(_event: DateTimePickerEvent, selected?: Date) => {
+                    if (selected && datePickerField) {
+                      onDatePicked(datePickerField, selected);
+                    }
+                  }}
+                />
+                <Pressable
+                  style={styles.dateModalDone}
+                  onPress={() => setDatePickerField(null)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.dateModalDoneText}>
+                    {t("common.close")}
+                  </Text>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={pickerValue}
+            mode="date"
+            display="default"
+            maximumDate={new Date()}
+            onChange={(event: DateTimePickerEvent, selected?: Date) => {
+              setDatePickerField(null);
+              if (event.type === "dismissed") return;
+              if (selected && datePickerField) {
+                onDatePicked(datePickerField, selected);
+              }
+            }}
+          />
+        )
+      ) : null}
 
       {loading && items.length === 0 ? (
         <ActivityIndicator color={colors.brand} style={{ marginTop: 16 }} />
@@ -1316,6 +1386,44 @@ const styles = StyleSheet.create({
     color: colors.brandSoft,
     fontWeight: "700",
     fontSize: 14,
+  },
+  dateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 6,
+  },
+  dateBtnText: {
+    color: colors.ink,
+    fontSize: 15,
+    flexShrink: 1,
+  },
+  dateBtnPlaceholder: {
+    color: colors.muted,
+    fontSize: 15,
+    flexShrink: 1,
+  },
+  dateModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  dateModalCard: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 24,
+    paddingTop: 8,
+  },
+  dateModalDone: {
+    alignSelf: "flex-end",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  dateModalDoneText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.brand,
   },
   historyTable: {
     marginTop: 8,
