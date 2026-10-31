@@ -42,12 +42,12 @@ Civic account.
 | Prínos (ME•ter) | Merit Index leaderboard + filters |
 | Auth | Rovas OAuth (Authorization Code + PKCE) |
 | API deploy | `https://civic-api.rovas.app` |
-| Mobile builds | Dev client (iOS) + release APK (Android); EAS + Firebase App Distribution |
+| Mobile builds | Dev client (iOS) + TestFlight; release APK (Android); EAS + Firebase App Distribution |
 
 Still deferred: in-app gifts/invest flows, GPS location fraud heuristics, income-tax
 Merits / ÚPVS, Trusted User via Slovak eID (Rovas-side design:
 [`../rovas/docs/trusted-user-eid.md`](../rovas/docs/trusted-user-eid.md)), App Store /
-Play production release, Postgres.
+Play **public** production release, Postgres.
 
 UI browsing can use Expo Go; **camera + OAuth** need a development build (Expo Go
 cannot claim `civic://`).
@@ -328,6 +328,87 @@ Symptoms of dead Metro: gray Recently Opened `exp.direct`, “No development
 servers found”, “error loading app”.
 
 OAuth details: [`docs/rovas-integration.md`](docs/rovas-integration.md).
+
+## iOS testing (TestFlight)
+
+Preferred path for selected iOS testers: EAS builds an **App Store** IPA
+(`production` profile), then `eas submit` uploads it to **App Store Connect →
+TestFlight**. Testers install via the TestFlight app. This does **not** require
+a public App Store release — only an App Store Connect app record.
+
+Day-to-day development on your own phone still uses the [Physical iPhone](#physical-iphone-camera--login)
+dev client + Metro. Prefer TestFlight when testers need a standalone binary
+(no Mac / Metro).
+
+Do **not** Archive from Xcode and assign your team to dozens of CocoaPods
+targets — use EAS for signing and upload.
+
+### One-time Apple / Expo setup
+
+1. Paid [Apple Developer](https://developer.apple.com) account in Xcode
+   (**Settings → Accounts**).
+2. [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list)
+   → register an **App ID** with bundle id `app.civic.mobile`.
+   **Description** is only a portal label (e.g. `Civic`); leave Capabilities
+   unchecked unless you know you need one.
+3. [App Store Connect](https://appstoreconnect.apple.com) → **My Apps** → create
+   an iOS app with that bundle id (EAS Submit can also create the record on
+   first upload if the name `Civic` is taken, rename later).
+4. From `apps/mobile`, ensure the Expo project is linked (`npx eas-cli init` if
+   needed). First interactive iOS build creates the Apple Distribution
+   certificate + App Store provisioning profile on EAS (answer **Y** to
+   generate when prompted).
+5. Export compliance: Civic only uses standard HTTPS/TLS — answer **Y** when
+   EAS asks whether the app uses only standard/exempt encryption.
+
+### Environment (baked into the IPA)
+
+`EXPO_PUBLIC_*` values are compiled into the binary. EAS does **not** use your
+local `apps/mobile/.env`. Without overrides, OAuth falls back to
+`https://dev.rovas.app` (`lib/oauth.ts`).
+
+The `production` profile in [`apps/mobile/eas.json`](apps/mobile/eas.json) sets:
+
+| Variable | Value |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | `https://civic-api.rovas.app` |
+| `EXPO_PUBLIC_ROVAS_BASE_URL` | `https://rovas.app` |
+| `EXPO_PUBLIC_ROVAS_OAUTH_CLIENT_ID` | `civic` |
+
+Confirm the production Rovas `civic` OAuth client still allows
+`civic://oauth/callback`. After install, login should open **rovas.app** (not
+`dev.rovas.app`).
+
+### Ship a build to TestFlight
+
+```bash
+cd apps/mobile
+npx eas-cli build -p ios --profile production
+npx eas-cli submit -p ios --latest
+```
+
+On first submit, answer **Y** to generate an App Store Connect API Key (EAS
+stores it for later uploads). Submission can sit on “waiting for an available
+submitter” for several minutes; **Ctrl+C** is fine — the job continues on Expo
+(check the submission URL printed in the terminal).
+
+Then in App Store Connect:
+
+1. **My Apps → Civic → TestFlight** — wait for processing (often 5–20+ min;
+   email when ready). App Store Connect may show a grey placeholder icon until
+   the build finishes processing.
+2. Answer export compliance if prompted (exempt / standard encryption).
+3. **Internal Testing**: add App Store Connect users → they install with the
+   **TestFlight** app.
+4. **External Testing**: create a group + invite emails; Apple’s short beta
+   review is required once for the first external build.
+
+Confirm the installed build on **About** (header info icon → About):
+`Version x.y.z (build N)`. EAS `autoIncrement` on `production` bumps the iOS
+build number each ship. Bump `expo.version` in
+[`apps/mobile/app.json`](apps/mobile/app.json) (and keep
+[`apps/mobile/package.json`](apps/mobile/package.json) in sync) only for
+meaningful cuts — same scheme as [Android version numbering](#version-numbering).
 
 ## Android testing (Firebase App Distribution)
 
