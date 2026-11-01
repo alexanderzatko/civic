@@ -110,6 +110,7 @@ function Chip({
           styles.chipText,
           color ? { color } : null,
           active && !color ? styles.chipTextActive : null,
+          active ? styles.chipTextSelected : null,
         ]}
         numberOfLines={1}
       >
@@ -463,6 +464,7 @@ const styles = StyleSheet.create({
   },
   chipText: { fontSize: 13, fontWeight: "600", color: colors.ink },
   chipTextActive: { color: colors.brandSoft },
+  chipTextSelected: { fontWeight: "700" },
   picker: {
     flexDirection: "row",
     alignItems: "center",

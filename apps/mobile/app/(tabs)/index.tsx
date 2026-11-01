@@ -327,16 +327,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   communityMe: {
-    fontSize: 24,
+    fontSize: 40,
     fontWeight: "600",
     color: colors.ink,
-    lineHeight: 28,
+    lineHeight: 44,
   },
   holdersCount: {
-    fontSize: 24,
+    fontSize: 40,
     fontWeight: "600",
     color: colors.ink,
-    lineHeight: 28,
+    lineHeight: 44,
     marginTop: 14,
   },
   holdersLabel: {
