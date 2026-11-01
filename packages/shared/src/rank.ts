@@ -215,8 +215,10 @@ export function medianBucketIndex(distribution: RankDistribution): number {
  * Prefer the sum of histogram buckets (same as the mockup) — Rovas
  * `total_users` also counts zero-ME accounts that are excluded from bins,
  * which would squash every runner toward the left of the track.
+ *
+ * Same figure is the Merit-holder count (users with ME > 0 in the histogram).
  */
-function histogramPopulation(distribution: RankDistribution): number {
+export function histogramPopulation(distribution: RankDistribution): number {
   const fromBuckets = distribution.buckets.reduce((sum, b) => sum + b.count, 0);
   if (fromBuckets > 0) return fromBuckets;
   return distribution.total_users ?? 0;

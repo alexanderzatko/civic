@@ -10,6 +10,7 @@
   "home.intro_me": "Merits (ME)*",
   "home.intro_end": " — units of economic value given through taxes, gifts, or volunteering. Merits are not money and cannot be transferred between individuals.",
   "home.community_total_label": "Total value of registered contributions",
+  "home.merit_holders_label": "Merit holders",
   "home.ticker_prefix": "In Civic",
   "home.ticker_today": "today",
   "home.ticker_a11y": "In Civic today: {{me}} ME registered, {{users}} active contributors",

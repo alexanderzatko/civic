@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     borderColor: colors.brand,
   },
   chipSelected: {
-    borderWidth: 2.5,
+    borderWidth: 3.75,
   },
   chipText: { fontSize: 13, fontWeight: "600", color: colors.ink },
   chipTextActive: { color: colors.brandSoft },

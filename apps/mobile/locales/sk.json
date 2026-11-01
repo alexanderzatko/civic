@@ -10,6 +10,7 @@
   "home.intro_me": "meritoch (ME)*",
   "home.intro_end": " — jednotkách ekonomickej hodnoty odovzdanej cez dane, dary alebo dobrovoľníctvo. Merity nie sú peniaze a nie je možné ich prenášať medzi jednotlivcami.",
   "home.community_total_label": "Celková hodnota registrovaných príspevkov",
+  "home.merit_holders_label": "Držitelia meritov",
   "home.ticker_prefix": "V Civic",
   "home.ticker_today": "dnes",
   "home.ticker_a11y": "V Civic dnes: {{me}} ME zaregistrovaných, {{users}} aktívnych prispievateľov",

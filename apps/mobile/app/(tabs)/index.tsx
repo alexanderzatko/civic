@@ -11,6 +11,7 @@ import { Link } from "expo-router";
 import {
   DEFAULT_SETTINGS,
   displayMerits,
+  histogramPopulation,
   type MeritRate,
   type RankDistribution,
   type UserLookup,
@@ -35,6 +36,10 @@ import { useLocale } from "@/lib/locale";
 
 function formatMe(n: number): string {
   return displayMerits(n).toLocaleString("sk-SK");
+}
+
+function formatCount(n: number): string {
+  return n.toLocaleString("sk-SK");
 }
 
 function meritsToEur(me: number, rate: MeritRate | null): number {
@@ -224,13 +229,23 @@ export default function HomeScreen() {
               <Text style={styles.eurHint}>
                 {formatEurApprox(communityMe, meritRate)}
               </Text>
+              <Text style={styles.communityLabel}>
+                {t("home.community_total_label")}
+              </Text>
+
+              {rank ? (
+                <>
+                  <Text style={styles.holdersCount}>
+                    {formatCount(histogramPopulation(rank))}
+                  </Text>
+                  <Text style={styles.holdersLabel}>
+                    {t("home.merit_holders_label")}
+                  </Text>
+                </>
+              ) : null}
             </>
           )}
         </View>
-
-        <Text style={styles.communityLabel}>
-          {t("home.community_total_label")}
-        </Text>
 
         {!loading && rank ? (
           <RankDistributionChart
@@ -309,12 +324,26 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.ink,
     textAlign: "center",
+    marginTop: 2,
   },
   communityMe: {
     fontSize: 24,
     fontWeight: "600",
     color: colors.ink,
     lineHeight: 28,
+  },
+  holdersCount: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: colors.ink,
+    lineHeight: 28,
+    marginTop: 14,
+  },
+  holdersLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.ink,
+    textAlign: "center",
   },
   eurHint: {
     fontSize: 13,

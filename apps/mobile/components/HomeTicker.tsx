@@ -168,10 +168,12 @@ export function HomeTicker() {
   return (
     <View style={styles.stripe} accessibilityLabel={a11y}>
       <View style={styles.dayCol}>
-        {/* Rotated block: "In Civic" stays on one line; "today" wraps below. */}
+        {/* Rotated block: "In Civic" on one line; "today"/"dnes" below (bold). */}
         <View style={styles.dayLabelWrap}>
           <Text style={styles.dayLabel}>{t("home.ticker_prefix")}</Text>
-          <Text style={styles.dayLabel}>{t("home.ticker_today")}</Text>
+          <Text style={[styles.dayLabel, styles.dayLabelToday]}>
+            {t("home.ticker_today")}
+          </Text>
         </View>
       </View>
 
@@ -223,18 +225,20 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     paddingVertical: 4,
     paddingHorizontal: 6,
-    minHeight: 36,
+    minHeight: 44,
   },
   dayCol: {
-    width: 36,
-    height: 40,
+    // Room for two rotated lines ("In Civic" / "today") without clipping.
+    width: 30,
+    height: 56,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "visible",
   },
   dayLabelWrap: {
     transform: [{ rotate: "-90deg" }],
     alignItems: "center",
-    width: 64,
+    width: 72,
   },
   dayLabel: {
     fontSize: 10,
@@ -243,6 +247,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     lineHeight: 12,
     textAlign: "center",
+  },
+  dayLabelToday: {
+    fontWeight: "700",
   },
   divider: {
     width: StyleSheet.hairlineWidth,
