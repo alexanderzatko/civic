@@ -107,7 +107,8 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 
 | Route | Notes |
 |-------|--------|
-| `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, total_chr?, created?, language?, receipt_history_retention?, me_sources_share?, client_id, scope, expires_at }`. `total_chr` (Chron wallet) for Profil — see Rovas **Next work: Chron balance on /rovas/me**. `created` (ISO-8601 account registration) is required for Civic fraud rule C — see Rovas **Next work: expose account created on /rovas/me**. `language` (Drupal preferred langcode) drives signed-in UI locale — see Rovas **Next work: expose preferred language on /rovas/me**. `receipt_history_retention` (`null` \| `"keep"` \| `"policy"`) gates receipt claim + Profile Taxes settings — see Rovas **[receipt-history-retention](../../rovas/docs/integration/civic_tasks/done/receipt-history-retention.md)**. `me_sources_share` (`everyone` \| `reciprocal` \| `aggregate`, default `everyone`) — who may see Taxes vs Gifts detail; see Rovas **[me-sources-privacy](../../rovas/docs/integration/civic_tasks/active/me-sources-privacy.md)**. |
+| `GET /me` | Proxies Rovas `/rovas/me` → `{ rovas_uid, username, display_name, total_me, total_chr?, created?, language?, receipt_history_retention?, me_sources_share?, trusted_user?, trusted_notify?, client_id, scope, expires_at }`. `total_chr` (Chron wallet) for Profil — see Rovas **Next work: Chron balance on /rovas/me**. `created` (ISO-8601 account registration) is required for Civic fraud rule C — see Rovas **Next work: expose account created on /rovas/me**. `language` (Drupal preferred langcode) drives signed-in UI locale — see Rovas **Next work: expose preferred language on /rovas/me**. `receipt_history_retention` (`null` \| `"keep"` \| `"policy"`) gates receipt claim + Profile Taxes settings — see Rovas **[receipt-history-retention](../../rovas/docs/integration/civic_tasks/done/receipt-history-retention.md)**. `me_sources_share` (`everyone` \| `reciprocal` \| `aggregate`, default `everyone`) — who may see Taxes vs Gifts detail; see Rovas **[me-sources-privacy](../../rovas/docs/integration/civic_tasks/active/me-sources-privacy.md)**. `trusted_user` + `trusted_notify` (`0`\|`1`\|`2`) drive the Trusted congratulations banner — see Rovas **[trusted-user-notify](../../rovas/docs/integration/civic_tasks/active/trusted-user-notify.md)**. |
+| `POST /me/dismiss-trusted-notify` | Empty JSON body → Rovas `POST /rovas/civic_dismiss_trusted_notify`. Returns `{ trusted_user, trusted_notify }`. Permanently dismisses the Trusted congratulations banner (same `field_trusted_notify = 2` as Rovas web). See Rovas **[trusted-user-notify](../../rovas/docs/integration/civic_tasks/active/trusted-user-notify.md)**. |
 | `POST /me/receipt-history-preference` | Body `{ retention: "keep" \| "policy" }` → Rovas `POST /rovas/civic_receipt_history_preference`. Returns `{ receipt_history_retention, scrubbed_claims }`. Keep→policy may scrub aged merchant/purchase detail (irreversible). Survives app reinstall. See Rovas **receipt-history-retention**. |
 | `POST /me/me-sources-preference` | Body `{ share: "everyone" \| "reciprocal" \| "aggregate" }` → Rovas `POST /rovas/civic_me_sources_preference`. Returns `{ me_sources_share }`. Controls whether other users see detailed ME sources or Taxes+Gifts aggregate. See Rovas **[me-sources-privacy](../../rovas/docs/integration/civic_tasks/active/me-sources-privacy.md)**. |
 | `POST /me/give-chrons` | Body `{ amount }` (positive Chrons) → Rovas `POST /rovas/civic_give_chrons`. Returns `{ chrons_given, merits_gained, total_chr, total_me }` (1:1 CHR→ME). Get Merits → Volunteering “Give Chrons” when `total_chr > 0`. See Rovas **[give-chrons-to-merits](../../rovas/docs/integration/civic_tasks/active/give-chrons-to-merits.md)**. |
@@ -226,6 +227,21 @@ in-Civic comment UI when reports show comments in-app.
 **Requires on rovdev:** `rovas_comment_watch` enabled + `drush74 updb` (`7028`)
 so the resource returns notices (empty `{ total: 0, items: [] }` if the module
 is off).
+
+## Trusted user congratulations (in-app)
+
+Header banner (above verification / comment notices) when `GET /me` returns
+`trusted_user: true` and `trusted_notify: 1`. Dismiss via
+`POST /me/dismiss-trusted-notify` (same permanent `field_trusted_notify = 2` as
+Rovas web — not session-only). Settings CTA opens Rovas account edit
+`#edit-trusted-user-settings` until in-app Trusted prefs exist. Polls `/me`
+while signed in (same cadence as other header notices).
+
+**Requires on rovdev:**
+**[trusted-user-notify](../../rovas/docs/integration/civic_tasks/active/trusted-user-notify.md)**
+(`7031` — `/rovas/me` fields + `POST /rovas/civic_dismiss_trusted_notify`).
+Until deployed, `/me` omits the fields and Civic treats notify as `0` (no banner).
+Independent of deferred eID Trusted eligibility.
 
 ## Civic WR usage fee (app AUR)
 

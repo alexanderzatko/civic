@@ -89,6 +89,19 @@ export type RovasMe = {
    * See Rovas task `me-sources-privacy`.
    */
   me_sources_share: MeSourcesShare;
+  /**
+   * Sticky Trusted user flag. See Rovas task `trusted-user-notify`.
+   */
+  trusted_user: boolean;
+  /**
+   * `0` default/revoked, `1` show banner, `2` permanently dismissed.
+   */
+  trusted_notify: 0 | 1 | 2;
+};
+
+export type RovasDismissTrustedNotifyResult = {
+  trusted_user: boolean;
+  trusted_notify: 0 | 1 | 2;
 };
 
 export type RovasReceiptHistoryPreferenceResult = {
@@ -151,6 +164,8 @@ export class RovasClient {
         language?: unknown;
         receipt_history_retention?: unknown;
         me_sources_share?: unknown;
+        trusted_user?: unknown;
+        trusted_notify?: unknown;
       }
     >("/rovas/me", accessToken);
     if (
@@ -178,6 +193,8 @@ export class RovasClient {
         body.receipt_history_retention,
       ),
       me_sources_share: parseMeSourcesShare(body.me_sources_share),
+      trusted_user: body.trusted_user === true,
+      trusted_notify: parseTrustedNotify(body.trusted_notify),
     };
   }
 
@@ -1239,6 +1256,24 @@ export class RovasClient {
   }
 
   /**
+   * Permanently dismiss Trusted congratulations banner.
+   * `POST /rovas/civic_dismiss_trusted_notify`
+   */
+  async dismissTrustedNotify(
+    accessToken: string,
+  ): Promise<RovasDismissTrustedNotifyResult> {
+    const body = await this.postJson<Partial<RovasDismissTrustedNotifyResult>>(
+      "/rovas/civic_dismiss_trusted_notify",
+      accessToken,
+      {},
+    );
+    return {
+      trusted_user: body.trusted_user === true,
+      trusted_notify: parseTrustedNotify(body.trusted_notify),
+    };
+  }
+
+  /**
    * Convert Chrons to Merits (1:1).
    * `POST /rovas/civic_give_chrons`
    */
@@ -2132,6 +2167,13 @@ function parseReceiptHistoryRetention(
   value: unknown,
 ): RovasReceiptHistoryRetention | null {
   return value === "keep" || value === "policy" ? value : null;
+}
+
+/** Unset / unknown → 0 (do not show banner). */
+function parseTrustedNotify(value: unknown): 0 | 1 | 2 {
+  if (value === 1 || value === "1") return 1;
+  if (value === 2 || value === "2") return 2;
+  return 0;
 }
 
 /** Unset / unknown → everyone (Rovas default). */

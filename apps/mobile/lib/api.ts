@@ -134,9 +134,18 @@ export type MeIdentity = {
   receipt_history_retention?: "keep" | "policy" | null;
   /** Who may see Taxes vs Gifts detail; defaults to everyone. */
   me_sources_share?: "everyone" | "reciprocal" | "aggregate";
+  /** Sticky Trusted user flag (Rovas `trusted-user-notify`). */
+  trusted_user?: boolean;
+  /** `0` default, `1` show banner, `2` dismissed. */
+  trusted_notify?: 0 | 1 | 2;
   client_id: string;
   scope: string | null;
   expires_at: number;
+};
+
+export type DismissTrustedNotifyResult = {
+  trusted_user: boolean;
+  trusted_notify: 0 | 1 | 2;
 };
 
 export type ReceiptHistoryPreferenceResult = {
@@ -425,6 +434,15 @@ export function fetchProjectShareholders(
 
 export function fetchMe(): Promise<MeIdentity> {
   return apiFetch("/me", { auth: "required" });
+}
+
+/** Permanently dismiss Trusted congratulations banner (Rovas-backed). */
+export function dismissTrustedNotify(): Promise<DismissTrustedNotifyResult> {
+  return apiFetch<DismissTrustedNotifyResult>("/me/dismiss-trusted-notify", {
+    method: "POST",
+    auth: "required",
+    body: JSON.stringify({}),
+  });
 }
 
 export function setReceiptHistoryPreference(

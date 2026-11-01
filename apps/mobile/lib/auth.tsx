@@ -49,6 +49,10 @@ import {
   clearPendingCommentNoticesState,
   refreshPendingCommentNotices,
 } from "@/lib/pending-comment-notices";
+import {
+  clearTrustedNotifyState,
+  refreshTrustedNotify,
+} from "@/lib/trusted-notify";
 import { capture, resetAnalytics } from "@/lib/analytics";
 import { resetSpotlightDismiss } from "@/lib/spotlight-dismiss";
 
@@ -207,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void unregisterCivicPushToken().catch(() => undefined);
     clearPendingVerificationsState();
     clearPendingCommentNoticesState();
+    clearTrustedNotifyState();
     resetSpotlightDismiss();
     await clearPendingOAuth();
     await clearTokens();
@@ -225,6 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void registerCivicPushToken();
       void refreshPendingVerifications();
       void refreshPendingCommentNotices();
+      void refreshTrustedNotify();
     } else {
       await clearSession();
     }
@@ -275,6 +281,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void registerCivicPushToken();
         void refreshPendingVerifications();
         void refreshPendingCommentNotices();
+        void refreshTrustedNotify();
         return;
       }
 

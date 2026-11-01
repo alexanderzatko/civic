@@ -78,6 +78,8 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         language: profile.language,
         receipt_history_retention: profile.receipt_history_retention,
         me_sources_share: profile.me_sources_share,
+        trusted_user: profile.trusted_user,
+        trusted_notify: profile.trusted_notify,
         client_id: user.token.client_id,
         scope: user.token.scope ?? null,
         expires_at: user.token.expires,
@@ -86,6 +88,23 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       return sendRovasError(reply, err);
     }
   });
+
+  /**
+   * Permanently dismiss Trusted congratulations banner.
+   * Proxies Rovas `POST /rovas/civic_dismiss_trusted_notify`.
+   */
+  app.post(
+    "/me/dismiss-trusted-notify",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      try {
+        return await ctx.rovas.dismissTrustedNotify(user.accessToken);
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
 
   /**
    * Set receipt scanning-history retention (keep vs 90-day policy).

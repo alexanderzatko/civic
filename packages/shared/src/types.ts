@@ -177,6 +177,18 @@ export interface MeSourcesPreferenceResult {
 }
 
 /**
+ * Trusted congratulations notify state (`field_trusted_notify` on Rovas).
+ * Banner when Trusted and value is `1`. See Rovas task `trusted-user-notify`.
+ */
+export type TrustedNotify = 0 | 1 | 2;
+
+/** Response from `POST /me/dismiss-trusted-notify`. */
+export interface DismissTrustedNotifyResult {
+  trusted_user: boolean;
+  trusted_notify: TrustedNotify;
+}
+
+/**
  * Response from `POST /me/give-chrons`
  * (proxies Rovas `POST /rovas/civic_give_chrons` — 1 Chron = 1 Merit).
  */
@@ -208,6 +220,14 @@ export interface MeProfile {
    * See Rovas task `me-sources-privacy`.
    */
   me_sources_share?: MeSourcesShare;
+  /**
+   * Sticky Trusted user flag. See Rovas task `trusted-user-notify`.
+   */
+  trusted_user?: boolean;
+  /**
+   * `0` default/revoked, `1` show banner, `2` permanently dismissed.
+   */
+  trusted_notify?: TrustedNotify;
   client_id: string;
   scope: string | null;
   expires_at: number;

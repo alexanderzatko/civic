@@ -108,6 +108,8 @@ export type {
   MeSourcesShare,
   MeSourcesDetail,
   MeSourcesPreferenceResult,
+  TrustedNotify,
+  DismissTrustedNotifyResult,
   MeritIndexCountry,
   MeritIndexFilters,
   MeritIndexOrder,
