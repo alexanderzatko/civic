@@ -131,6 +131,7 @@ export type {
   ClassifyNaceResponse,
   RewardKind,
   WorkReportGeoJsonGeometry,
+  WorkReportSimpleGeometry,
   WorkReportGeometryType,
   WorkReportMapConfig,
   WorkReportMapRasterLayer,

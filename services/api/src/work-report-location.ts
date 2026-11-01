@@ -1,4 +1,10 @@
-import type { WorkReportGeoJsonGeometry } from "@civic/shared";
+import type {
+  WorkReportGeoJsonGeometry,
+  WorkReportSimpleGeometry,
+} from "@civic/shared";
+
+/** Soft limit aligned with Expo `WORK_REPORT_MAX_FEATURES`. */
+const MAX_FEATURES = 100;
 
 function isFiniteCoord(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n);
@@ -13,7 +19,7 @@ function isPosition(value: unknown): value is [number, number] {
   );
 }
 
-function parsePoint(raw: unknown): WorkReportGeoJsonGeometry | { error: string } {
+function parsePoint(raw: unknown): WorkReportSimpleGeometry | { error: string } {
   if (!raw || typeof raw !== "object") {
     return { error: "field_location Point must be an object." };
   }
@@ -26,7 +32,7 @@ function parsePoint(raw: unknown): WorkReportGeoJsonGeometry | { error: string }
 
 function parseLineString(
   raw: unknown,
-): WorkReportGeoJsonGeometry | { error: string } {
+): WorkReportSimpleGeometry | { error: string } {
   if (!raw || typeof raw !== "object") {
     return { error: "field_location LineString must be an object." };
   }
@@ -48,7 +54,7 @@ function parseLineString(
 
 function parsePolygon(
   raw: unknown,
-): WorkReportGeoJsonGeometry | { error: string } {
+): WorkReportSimpleGeometry | { error: string } {
   if (!raw || typeof raw !== "object") {
     return { error: "field_location Polygon must be an object." };
   }
@@ -77,6 +83,49 @@ function parsePolygon(
   return { type: "Polygon", coordinates: [ring] };
 }
 
+function parseSimpleGeometry(
+  raw: unknown,
+): WorkReportSimpleGeometry | { error: string } {
+  if (!raw || typeof raw !== "object") {
+    return { error: "field_location geometries[] entries must be objects." };
+  }
+  const type = (raw as { type?: unknown }).type;
+  if (type === "Point") return parsePoint(raw);
+  if (type === "LineString") return parseLineString(raw);
+  if (type === "Polygon") return parsePolygon(raw);
+  return {
+    error:
+      "field_location GeometryCollection members must be Point, LineString, or Polygon.",
+  };
+}
+
+function parseGeometryCollection(
+  raw: unknown,
+): WorkReportGeoJsonGeometry | { error: string } {
+  if (!raw || typeof raw !== "object") {
+    return { error: "field_location GeometryCollection must be an object." };
+  }
+  const parts = (raw as { geometries?: unknown }).geometries;
+  if (!Array.isArray(parts) || parts.length === 0) {
+    return {
+      error: "field_location GeometryCollection needs a non-empty geometries array.",
+    };
+  }
+  if (parts.length > MAX_FEATURES) {
+    return {
+      error: `field_location GeometryCollection may contain at most ${MAX_FEATURES} geometries.`,
+    };
+  }
+  const geometries: WorkReportSimpleGeometry[] = [];
+  for (const part of parts) {
+    const parsed = parseSimpleGeometry(part);
+    if ("error" in parsed) return parsed;
+    geometries.push(parsed);
+  }
+  if (geometries.length === 1) return geometries[0];
+  return { type: "GeometryCollection", geometries };
+}
+
 export function parseFieldLocation(
   raw: unknown,
 ): WorkReportGeoJsonGeometry | null | { error: string } {
@@ -88,7 +137,9 @@ export function parseFieldLocation(
   if (type === "Point") return parsePoint(raw);
   if (type === "LineString") return parseLineString(raw);
   if (type === "Polygon") return parsePolygon(raw);
+  if (type === "GeometryCollection") return parseGeometryCollection(raw);
   return {
-    error: "field_location type must be Point, LineString, or Polygon.",
+    error:
+      "field_location type must be Point, LineString, Polygon, or GeometryCollection.",
   };
 }

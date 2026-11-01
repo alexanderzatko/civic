@@ -765,11 +765,20 @@ export type RewardKind = "merits" | "chrons";
 
 export type WorkReportGeometryType = "Point" | "LineString" | "Polygon";
 
-/** GeoJSON geometry for work-report map proof (RFC 7946, lon/lat order). */
-export type WorkReportGeoJsonGeometry =
+/** Single-part GeoJSON geometry for work-report map proof (RFC 7946, lon/lat). */
+export type WorkReportSimpleGeometry =
   | { type: "Point"; coordinates: [number, number] }
   | { type: "LineString"; coordinates: [number, number][] }
   | { type: "Polygon"; coordinates: [number, number][][] };
+
+/**
+ * GeoJSON geometry for work-report map proof (RFC 7946, lon/lat order).
+ * Multiple / mixed features use `GeometryCollection` (see Rovas task
+ * `work-report-geometry-collection`).
+ */
+export type WorkReportGeoJsonGeometry =
+  | WorkReportSimpleGeometry
+  | { type: "GeometryCollection"; geometries: WorkReportSimpleGeometry[] };
 
 export interface WorkReportMapRasterLayer {
   id: string;

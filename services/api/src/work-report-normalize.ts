@@ -4,6 +4,7 @@ import type {
   RewardKind,
   WorkReportDetail,
   WorkReportGeoJsonGeometry,
+  WorkReportSimpleGeometry,
   WorkReportVerificationContext,
 } from "@civic/shared";
 
@@ -45,17 +46,18 @@ export function normalizeWorkReportItem(raw: unknown): ProjectWorkReportItem | n
   };
 }
 
-function normalizeFieldLocation(raw: unknown): WorkReportGeoJsonGeometry | null {
+function normalizeSimpleFieldLocation(
+  raw: unknown,
+): WorkReportSimpleGeometry | null {
   if (!raw || typeof raw !== "object") return null;
-  const g = raw as Partial<WorkReportGeoJsonGeometry>;
+  const g = raw as { type?: unknown; coordinates?: unknown };
   const type = g.type;
   if (type !== "Point" && type !== "LineString" && type !== "Polygon") {
     return null;
   }
   if (!Array.isArray(g.coordinates)) return null;
   if (type === "Point") {
-    const coords = g.coordinates as [number, number];
-    return { type: "Point", coordinates: coords };
+    return { type: "Point", coordinates: g.coordinates as [number, number] };
   }
   if (type === "LineString") {
     return {
@@ -67,6 +69,23 @@ function normalizeFieldLocation(raw: unknown): WorkReportGeoJsonGeometry | null 
     type: "Polygon",
     coordinates: g.coordinates as [number, number][][],
   };
+}
+
+function normalizeFieldLocation(raw: unknown): WorkReportGeoJsonGeometry | null {
+  if (!raw || typeof raw !== "object") return null;
+  const g = raw as { type?: unknown; geometries?: unknown };
+  if (g.type === "GeometryCollection") {
+    if (!Array.isArray(g.geometries) || g.geometries.length === 0) return null;
+    const parts: WorkReportSimpleGeometry[] = [];
+    for (const part of g.geometries) {
+      const normalized = normalizeSimpleFieldLocation(part);
+      if (normalized) parts.push(normalized);
+    }
+    if (parts.length === 0) return null;
+    if (parts.length === 1) return parts[0];
+    return { type: "GeometryCollection", geometries: parts };
+  }
+  return normalizeSimpleFieldLocation(raw);
 }
 
 function normalizeVerificationContext(

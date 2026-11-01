@@ -71,8 +71,8 @@ export const WorkReportLeafletMap = forwardRef<WorkReportLeafletMapRef, Props>(
         centerLat: config.center.latitude,
         centerLon: config.center.longitude,
         zoom: config.zoom,
-        brand: colors.brand,
-        brandSoft: colors.brandSoft,
+        featureColor: colors.mapFeature,
+        featureColorSoft: colors.mapFeatureSoft,
       });
     }, [activeLayer, config.center.latitude, config.center.longitude, config.zoom]);
 

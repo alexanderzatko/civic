@@ -4,8 +4,8 @@ type LeafletHtmlOptions = {
   centerLat: number;
   centerLon: number;
   zoom: number;
-  brand: string;
-  brandSoft: string;
+  featureColor: string;
+  featureColorSoft: string;
 };
 
 /** Inline Leaflet map for WebView — Freemap/OSM XYZ tiles only, no Google/Apple SDK. */
@@ -16,8 +16,8 @@ export function buildWorkReportLeafletHtml(opts: LeafletHtmlOptions): string {
     centerLat: opts.centerLat,
     centerLon: opts.centerLon,
     zoom: opts.zoom,
-    brand: opts.brand,
-    brandSoft: opts.brandSoft,
+    featureColor: opts.featureColor,
+    featureColorSoft: opts.featureColorSoft,
   });
 
   return `<!DOCTYPE html>
@@ -53,7 +53,15 @@ export function buildWorkReportLeafletHtml(opts: LeafletHtmlOptions): string {
         return coords.map(function (c) { return [c[1], c[0]]; });
       }
 
-      function boundsFromGeometry(g) {
+      function listParts(g) {
+        if (!g) return [];
+        if (g.type === "GeometryCollection") {
+          return Array.isArray(g.geometries) ? g.geometries : [];
+        }
+        return [g];
+      }
+
+      function boundsFromPart(g) {
         if (!g) return null;
         if (g.type === "Point") {
           var p = g.coordinates;
@@ -68,30 +76,49 @@ export function buildWorkReportLeafletHtml(opts: LeafletHtmlOptions): string {
         return null;
       }
 
-      function renderGeometry(g) {
-        geometryLayer.clearLayers();
+      function boundsFromGeometry(g) {
+        var parts = listParts(g);
+        var bounds = null;
+        for (var i = 0; i < parts.length; i++) {
+          var b = boundsFromPart(parts[i]);
+          if (!b || !b.isValid()) continue;
+          bounds = bounds ? bounds.extend(b) : b;
+        }
+        return bounds;
+      }
+
+      function addPart(g, color, fillOpacity) {
         if (!g) return;
         if (g.type === "Point") {
           L.circleMarker([g.coordinates[1], g.coordinates[0]], {
             radius: 8,
-            color: INIT.brand,
+            color: color,
             weight: 2,
-            fillColor: INIT.brand,
+            fillColor: color,
             fillOpacity: 1,
           }).addTo(geometryLayer);
           return;
         }
         if (g.type === "LineString") {
-          L.polyline(lonLatRing(g.coordinates), { color: INIT.brand, weight: 3 }).addTo(geometryLayer);
+          L.polyline(lonLatRing(g.coordinates), { color: color, weight: 3 }).addTo(geometryLayer);
           return;
         }
         if (g.type === "Polygon") {
           L.polygon(lonLatRing(g.coordinates[0] || []), {
-            color: INIT.brand,
+            color: color,
             weight: 2,
-            fillColor: INIT.brand,
-            fillOpacity: 0.25,
+            fillColor: color,
+            fillOpacity: fillOpacity,
           }).addTo(geometryLayer);
+        }
+      }
+
+      function renderGeometry(g) {
+        geometryLayer.clearLayers();
+        if (!g) return;
+        var parts = listParts(g);
+        for (var i = 0; i < parts.length; i++) {
+          addPart(parts[i], INIT.featureColor, 0.25);
         }
       }
 
@@ -101,22 +128,26 @@ export function buildWorkReportLeafletHtml(opts: LeafletHtmlOptions): string {
         if (mode === "Point") {
           L.circleMarker([draft[0][1], draft[0][0]], {
             radius: 8,
-            color: INIT.brandSoft,
+            color: INIT.featureColorSoft,
             weight: 2,
-            fillColor: INIT.brandSoft,
+            fillColor: INIT.featureColorSoft,
             fillOpacity: 1,
           }).addTo(draftLayer);
           return;
         }
         if (mode === "LineString") {
-          L.polyline(lonLatRing(draft), { color: INIT.brandSoft, weight: 3, dashArray: "8 6" }).addTo(draftLayer);
+          L.polyline(lonLatRing(draft), {
+            color: INIT.featureColorSoft,
+            weight: 3,
+            dashArray: "8 6",
+          }).addTo(draftLayer);
           return;
         }
         if (mode === "Polygon") {
           L.polygon(lonLatRing(draft), {
-            color: INIT.brandSoft,
+            color: INIT.featureColorSoft,
             weight: 2,
-            fillColor: INIT.brandSoft,
+            fillColor: INIT.featureColorSoft,
             fillOpacity: 0.2,
           }).addTo(draftLayer);
         }
@@ -130,7 +161,13 @@ export function buildWorkReportLeafletHtml(opts: LeafletHtmlOptions): string {
         if (state.fitGeometry && state.geometry) {
           var b = boundsFromGeometry(state.geometry);
           if (b && b.isValid()) {
-            map.fitBounds(b.pad(state.geometry.type === "Point" ? 0.2 : 0.1));
+            var onlyPoint =
+              state.geometry.type === "Point" ||
+              (state.geometry.type === "GeometryCollection" &&
+                state.geometry.geometries &&
+                state.geometry.geometries.length === 1 &&
+                state.geometry.geometries[0].type === "Point");
+            map.fitBounds(b.pad(onlyPoint ? 0.2 : 0.1));
           }
         }
       }

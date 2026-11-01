@@ -5,6 +5,9 @@ export const colors = {
   muted: "#5B6B63",
   brand: "#0B3D2E",
   brandSoft: "#1A5C45",
+  /** Work-report map proof features (points / lines / polygons). */
+  mapFeature: "#89199c",
+  mapFeatureSoft: "#b44ec4",
   accent: "#C4A35A",
   /** Complementary to brand — highlights the signed-in user's own data. */
   you: "#B5532A",

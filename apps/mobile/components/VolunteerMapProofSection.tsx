@@ -26,9 +26,12 @@ import {
   pickActiveRasterLayer,
 } from "@/lib/work-report-map-config";
 import {
+  appendGeometry,
   commitDraftGeometry,
+  geometryFeatureCount,
   geometrySummaryKey,
   isGeometryComplete,
+  popGeometry,
 } from "@/lib/work-report-map";
 
 type Props = {
@@ -96,21 +99,21 @@ export function VolunteerMapProofSection({
     (coord: [number, number]) => {
       if (disabled) return;
       if (mode === "Point") {
-        onChange({ type: "Point", coordinates: coord });
+        onChange(appendGeometry(geometry, { type: "Point", coordinates: coord }));
         setDraft([]);
         return;
       }
       setDraft((prev) => [...prev, coord]);
     },
-    [disabled, mode, onChange],
+    [disabled, geometry, mode, onChange],
   );
 
   const onFinishDraft = useCallback(() => {
     const committed = commitDraftGeometry(mode, draft);
     if (!committed) return;
-    onChange(committed);
+    onChange(appendGeometry(geometry, committed));
     setDraft([]);
-  }, [draft, mode, onChange]);
+  }, [draft, geometry, mode, onChange]);
 
   const onClear = useCallback(() => {
     setDraft([]);
@@ -118,8 +121,12 @@ export function VolunteerMapProofSection({
   }, [onChange]);
 
   const onUndo = useCallback(() => {
-    setDraft((prev) => prev.slice(0, -1));
-  }, []);
+    if (draft.length > 0) {
+      setDraft((prev) => prev.slice(0, -1));
+      return;
+    }
+    onChange(popGeometry(geometry));
+  }, [draft.length, geometry, onChange]);
 
   const onCenterMe = useCallback(async () => {
     const perm = await Location.requestForegroundPermissionsAsync();
@@ -129,10 +136,17 @@ export function VolunteerMapProofSection({
   }, []);
 
   const draftComplete = isGeometryComplete(mode, draft);
+  const featureCount = geometry ? geometryFeatureCount(geometry) : 0;
+  const canUndo = draft.length > 0 || featureCount > 0;
 
-  const summaryKey = geometry
-    ? `volunteer.proof_map_summary_${geometrySummaryKey(geometry).toLowerCase()}`
-    : null;
+  const summaryKey = geometry ? geometrySummaryKey(geometry) : null;
+  const summary =
+    geometry && summaryKey
+      ? t(`volunteer.proof_map_summary_${summaryKey.toLowerCase()}`).replace(
+          "{{count}}",
+          String(featureCount),
+        )
+      : null;
 
   if (Platform.OS === "web") {
     return (
@@ -232,7 +246,7 @@ export function VolunteerMapProofSection({
             >
               <Text style={styles.toolText}>{t("volunteer.proof_map_center_me")}</Text>
             </Pressable>
-            {mode !== "Point" && draft.length > 0 ? (
+            {canUndo ? (
               <Pressable style={styles.toolBtn} onPress={onUndo} disabled={disabled}>
                 <Text style={styles.toolText}>{t("volunteer.proof_map_undo")}</Text>
               </Pressable>
@@ -249,9 +263,7 @@ export function VolunteerMapProofSection({
             ) : null}
           </View>
 
-          {summaryKey && geometry ? (
-            <Text style={styles.summary}>{t(summaryKey)}</Text>
-          ) : null}
+          {summary ? <Text style={styles.summary}>{summary}</Text> : null}
         </View>
       ) : null}
     </View>
