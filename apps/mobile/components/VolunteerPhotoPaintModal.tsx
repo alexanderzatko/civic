@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Switch,
@@ -17,13 +16,21 @@ import { t } from "@/lib/i18n";
 import { PHOTO_PAINT_HTML } from "@/lib/photo-paint-html";
 import {
   applyPaintedVolunteerPhoto,
+  ensurePaintableVolunteerPhoto,
   type VolunteerPhotoDraft,
 } from "@/lib/pick-volunteer-photo";
+
+const PAINT_HTML_NAME = "civic-volunteer-paint.html";
 
 function paintSrcFileName(mime: string): string {
   if (mime === "image/png") return "civic-volunteer-paint-src.png";
   if (mime === "image/webp") return "civic-volunteer-paint-src.webp";
   return "civic-volunteer-paint-src.jpg";
+}
+
+/** WKWebView needs a real file:// document origin to load sibling cache files. */
+function asFileUrl(path: string): string {
+  return path.startsWith("file://") ? path : `file://${path}`;
 }
 
 const BRUSH_PRESETS = [8, 24, 48, 72] as const;
@@ -69,10 +76,16 @@ export function VolunteerPhotoPaintModal({
   const [brush, setBrush] = useState(24);
   const [straighten, setStraighten] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [htmlUri, setHtmlUri] = useState<string | null>(null);
   const brushRef = useRef(brush);
   const straightenRef = useRef(straighten);
   brushRef.current = brush;
   straightenRef.current = straighten;
+
+  const cacheDirUrl = useMemo(() => {
+    const dir = FileSystem.cacheDirectory;
+    return dir ? asFileUrl(dir) : undefined;
+  }, []);
 
   const resetUi = useCallback(() => {
     setStatus("boot");
@@ -80,31 +93,52 @@ export function VolunteerPhotoPaintModal({
     setBrush(24);
     setStraighten(false);
     setError(null);
+    setHtmlUri(null);
   }, []);
 
   useEffect(() => {
-    if (!visible) resetUi();
-  }, [visible, resetUi]);
-
-  const cacheBaseUrl = (() => {
+    if (!visible) {
+      resetUi();
+      return;
+    }
     const dir = FileSystem.cacheDirectory;
-    if (!dir) return undefined;
-    return Platform.OS === "android" && !dir.startsWith("file://")
-      ? `file://${dir}`
-      : dir;
-  })();
+    if (!dir) {
+      setError(t("volunteer.paint_load_error"));
+      setStatus("error");
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        // Load HTML from file:// so relative paint-src.* reads are same-origin
+        // on iOS WKWebView (string `html` + baseUrl cannot load local files).
+        const path = `${dir}${PAINT_HTML_NAME}`;
+        await FileSystem.writeAsStringAsync(path, PHOTO_PAINT_HTML);
+        if (!cancelled) setHtmlUri(asFileUrl(path));
+      } catch {
+        if (!cancelled) {
+          setStatus("error");
+          setError(t("volunteer.paint_load_error"));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, resetUi]);
 
   const loadImage = useCallback(async () => {
     if (!photo || !FileSystem.cacheDirectory) return;
     setStatus("loading");
     setError(null);
     try {
-      const name = paintSrcFileName(photo.mime || "image/jpeg");
+      const paintable = await ensurePaintableVolunteerPhoto(photo);
+      const name = paintSrcFileName(paintable.mime || "image/jpeg");
       const path = `${FileSystem.cacheDirectory}${name}`;
-      await FileSystem.writeAsStringAsync(path, photo.data, {
+      await FileSystem.writeAsStringAsync(path, paintable.data, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      // Relative to WebView baseUrl (cache dir) — avoids huge bridge payloads.
+      // Relative to the file:// HTML document in the same cache dir.
       postToPaint(webRef.current, { type: "load", src: name });
     } catch {
       setStatus("error");
@@ -281,14 +315,11 @@ export function VolunteerPhotoPaintModal({
         </View>
 
         <View style={styles.canvasWrap}>
-          {visible ? (
+          {visible && htmlUri ? (
             <WebView
               ref={webRef}
               originWhitelist={["*"]}
-              source={{
-                html: PHOTO_PAINT_HTML,
-                ...(cacheBaseUrl ? { baseUrl: cacheBaseUrl } : {}),
-              }}
+              source={{ uri: htmlUri }}
               onMessage={onMessage}
               style={styles.webview}
               scrollEnabled={false}
@@ -296,11 +327,12 @@ export function VolunteerPhotoPaintModal({
               setSupportMultipleWindows={false}
               javaScriptEnabled
               allowFileAccess
+              allowFileAccessFromFileURLs
               allowUniversalAccessFromFileURLs
-              allowingReadAccessToURL={cacheBaseUrl}
+              allowingReadAccessToURL={cacheDirUrl}
             />
           ) : null}
-          {busy ? (
+          {busy || (visible && !htmlUri && status !== "error") ? (
             <View style={styles.overlay} pointerEvents="none">
               <ActivityIndicator color="#fff" size="large" />
               <Text style={styles.overlayText}>

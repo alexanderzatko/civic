@@ -30,6 +30,61 @@ function isNativeModuleError(message: string): boolean {
   );
 }
 
+/** WebView canvas + Rovas uploads need JPEG/PNG/WebP — not HEIC/HEIF. */
+function needsJpegTranscode(
+  mime: string | null | undefined,
+  fileName: string | null | undefined,
+  uri: string,
+  hasBase64: boolean,
+): boolean {
+  if (!hasBase64) return true;
+  const m = (mime ?? "").toLowerCase();
+  if (
+    m === "image/jpeg" ||
+    m === "image/jpg" ||
+    m === "image/png" ||
+    m === "image/webp"
+  ) {
+    return false;
+  }
+  const name = `${fileName ?? ""} ${uri}`.toLowerCase();
+  if (
+    name.includes(".jpg") ||
+    name.includes(".jpeg") ||
+    name.includes(".png") ||
+    name.includes(".webp")
+  ) {
+    // Mime missing/odd but extension is WebView-safe — keep picker bytes.
+    if (!m.includes("heic") && !m.includes("heif")) return false;
+  }
+  // HEIC/HEIF or unknown — re-encode to JPEG for the paint WebView.
+  return true;
+}
+
+async function toJpegDraft(
+  uri: string,
+  index: number,
+  fileName?: string | null,
+): Promise<VolunteerPhotoDraft> {
+  const result = await manipulateAsync(uri, [], {
+    compress: 0.6,
+    format: SaveFormat.JPEG,
+    base64: true,
+  });
+  if (!result.base64) {
+    throw new Error("transcode_missing_base64");
+  }
+  const base =
+    (fileName ?? `photo-${index + 1}`).replace(/\.[^.]+$/, "") ||
+    `photo-${index + 1}`;
+  return {
+    filename: `${base}.jpg`,
+    mime: "image/jpeg",
+    data: result.base64,
+    uri: result.uri,
+  };
+}
+
 export async function pickVolunteerPhoto(
   index: number,
 ): Promise<PickVolunteerPhotoResult> {
@@ -61,16 +116,32 @@ export async function pickVolunteerPhoto(
     }
 
     const asset = result.assets[0];
-    const data = asset.base64;
-    if (!data || !asset.uri) {
+    if (!asset.uri) {
       return { ok: false, reason: "cancelled" };
     }
+
+    // iOS Camera Roll is often HEIC. RN <Image> can show it via the asset URI,
+    // but the paint WebView cannot — and saving HEIC bytes as .jpg fails to load.
+    if (
+      needsJpegTranscode(
+        asset.mimeType,
+        asset.fileName,
+        asset.uri,
+        Boolean(asset.base64),
+      )
+    ) {
+      return {
+        ok: true,
+        photo: await toJpegDraft(asset.uri, index, asset.fileName),
+      };
+    }
+
     return {
       ok: true,
       photo: {
         filename: asset.fileName ?? `photo-${index + 1}.jpg`,
         mime: asset.mimeType ?? "image/jpeg",
-        data,
+        data: asset.base64!,
         uri: asset.uri,
       },
     };
@@ -104,6 +175,21 @@ export async function rotateVolunteerPhoto(
     data: result.base64,
     uri: result.uri,
   };
+}
+
+/**
+ * Ensure paint WebView gets JPEG/PNG/WebP bytes (re-encode HEIC drafts already
+ * sitting in form state from before pick-time transcode).
+ */
+export async function ensurePaintableVolunteerPhoto(
+  photo: VolunteerPhotoDraft,
+): Promise<VolunteerPhotoDraft> {
+  if (
+    !needsJpegTranscode(photo.mime, photo.filename, photo.uri, Boolean(photo.data))
+  ) {
+    return photo;
+  }
+  return toJpegDraft(photo.uri, 0, photo.filename);
 }
 
 /** Persist painted JPEG bytes and return a draft ready for upload + thumbnail. */
