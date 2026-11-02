@@ -168,17 +168,17 @@ export function HomeTicker() {
   return (
     <View style={styles.stripe} accessibilityLabel={a11y}>
       <View style={styles.dayCol}>
-        {/* Rotated: large "Civic", then "today"/"dnes". */}
+        {/* Rotated: "Civic", then dominant "today"/"dnes". */}
         <View style={styles.dayLabelWrap}>
+          <Text style={styles.dayLabelCivic}>{t("home.ticker_brand")}</Text>
           <Text
-            style={styles.dayLabelCivic}
+            style={styles.dayLabelToday}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.7}
           >
-            {t("home.ticker_brand")}
+            {t("home.ticker_today")}
           </Text>
-          <Text style={styles.dayLabelToday}>{t("home.ticker_today")}</Text>
         </View>
       </View>
 
@@ -243,25 +243,25 @@ const styles = StyleSheet.create({
   dayLabelWrap: {
     transform: [{ rotate: "-90deg" }],
     alignItems: "center",
-    // Wide enough for "Civic" at dayLabelCivic fontSize; adjustsFontSizeToFit
+    // Wide enough for "today" at dayLabelToday fontSize; adjustsFontSizeToFit
     // shrinks only if a larger dynamic type setting would overflow.
     width: 56,
   },
   dayLabelCivic: {
+    fontSize: 9,
+    fontWeight: "600",
+    color: colors.muted,
+    letterSpacing: 0.2,
+    lineHeight: 11,
+    textAlign: "center",
+  },
+  dayLabelToday: {
     width: "100%",
     fontSize: 17,
     fontWeight: "800",
     color: colors.ink,
     letterSpacing: 0.05,
     lineHeight: 19,
-    textAlign: "center",
-  },
-  dayLabelToday: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: colors.muted,
-    letterSpacing: 0.2,
-    lineHeight: 11,
     textAlign: "center",
   },
   divider: {
