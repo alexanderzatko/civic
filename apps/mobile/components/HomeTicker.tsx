@@ -168,12 +168,18 @@ export function HomeTicker() {
   return (
     <View style={styles.stripe} accessibilityLabel={a11y}>
       <View style={styles.dayCol}>
-        {/* Rotated block: "In Civic" on one line; "today"/"dnes" below (bold). */}
+        {/* Rotated: "In"/"V", large "Civic", then "today"/"dnes". */}
         <View style={styles.dayLabelWrap}>
-          <Text style={styles.dayLabel}>{t("home.ticker_prefix")}</Text>
-          <Text style={[styles.dayLabel, styles.dayLabelToday]}>
-            {t("home.ticker_today")}
+          <Text style={styles.dayLabelIn}>{t("home.ticker_in")}</Text>
+          <Text
+            style={styles.dayLabelCivic}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
+            {t("home.ticker_brand")}
           </Text>
+          <Text style={styles.dayLabelToday}>{t("home.ticker_today")}</Text>
         </View>
       </View>
 
@@ -228,9 +234,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   dayCol: {
-    // Room for two rotated lines ("In Civic" / "today") without clipping.
-    width: 30,
-    height: 56,
+    // Fits three rotated lines (in / Civic / today) without clipping.
+    width: 42,
+    height: 60,
     alignItems: "center",
     justifyContent: "center",
     overflow: "visible",
@@ -238,18 +244,34 @@ const styles = StyleSheet.create({
   dayLabelWrap: {
     transform: [{ rotate: "-90deg" }],
     alignItems: "center",
-    width: 72,
+    // Wide enough for "Civic" at dayLabelCivic fontSize; adjustsFontSizeToFit
+    // shrinks only if a larger dynamic type setting would overflow.
+    width: 56,
   },
-  dayLabel: {
-    fontSize: 10,
+  dayLabelIn: {
+    fontSize: 9,
     fontWeight: "600",
     color: colors.muted,
     letterSpacing: 0.2,
-    lineHeight: 12,
+    lineHeight: 11,
+    textAlign: "center",
+  },
+  dayLabelCivic: {
+    width: "100%",
+    fontSize: 17,
+    fontWeight: "800",
+    color: colors.ink,
+    letterSpacing: 0.05,
+    lineHeight: 19,
     textAlign: "center",
   },
   dayLabelToday: {
+    fontSize: 9,
     fontWeight: "700",
+    color: colors.muted,
+    letterSpacing: 0.2,
+    lineHeight: 11,
+    textAlign: "center",
   },
   divider: {
     width: StyleSheet.hairlineWidth,
