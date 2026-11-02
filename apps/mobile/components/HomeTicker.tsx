@@ -19,6 +19,8 @@ const DEFAULT_COUNTRY = "SK";
 const REFRESH_MS = 60_000;
 const SPINNER_SIZE = 26;
 const TICK_MS = 50;
+/** Dominant “today” / “dnes” size; Civic is scaled from this by word length. */
+const TODAY_FONT_SIZE = 17;
 
 /** Quiet spinner stroke / fill — readable, not attention-seeking. */
 const SPINNER_STROKE = "#9AABA2";
@@ -165,19 +167,39 @@ export function HomeTicker() {
     .replace("{{me}}", meLabel)
     .replace("{{users}}", usersLabel);
 
+  const brandLabel = t("home.ticker_brand");
+  const todayLabel = t("home.ticker_today");
+  // Match rendered word length: scale Civic by char-count vs today/dnes.
+  const civicFontSize =
+    TODAY_FONT_SIZE *
+    (todayLabel.length / Math.max(brandLabel.length, 1));
+
   return (
     <View style={styles.stripe} accessibilityLabel={a11y}>
       <View style={styles.dayCol}>
         {/* Rotated: "Civic", then dominant "today"/"dnes". */}
         <View style={styles.dayLabelWrap}>
-          <Text style={styles.dayLabelCivic}>{t("home.ticker_brand")}</Text>
+          <Text
+            style={[
+              styles.dayLabelCivic,
+              {
+                fontSize: civicFontSize,
+                lineHeight: civicFontSize + 2,
+              },
+            ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
+            {brandLabel}
+          </Text>
           <Text
             style={styles.dayLabelToday}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.7}
           >
-            {t("home.ticker_today")}
+            {todayLabel}
           </Text>
         </View>
       </View>
@@ -234,7 +256,7 @@ const styles = StyleSheet.create({
   },
   dayCol: {
     // Fits two rotated lines (Civic / today) without clipping.
-    width: 34,
+    width: 42,
     height: 60,
     alignItems: "center",
     justifyContent: "center",
@@ -243,25 +265,24 @@ const styles = StyleSheet.create({
   dayLabelWrap: {
     transform: [{ rotate: "-90deg" }],
     alignItems: "center",
-    // Wide enough for "today" at dayLabelToday fontSize; adjustsFontSizeToFit
+    // Wide enough for "today" at TODAY_FONT_SIZE; adjustsFontSizeToFit
     // shrinks only if a larger dynamic type setting would overflow.
     width: 56,
   },
   dayLabelCivic: {
-    fontSize: 9,
+    width: "100%",
     fontWeight: "600",
     color: colors.muted,
-    letterSpacing: 0.2,
-    lineHeight: 11,
+    letterSpacing: 0.1,
     textAlign: "center",
   },
   dayLabelToday: {
     width: "100%",
-    fontSize: 17,
+    fontSize: TODAY_FONT_SIZE,
     fontWeight: "800",
     color: colors.ink,
     letterSpacing: 0.05,
-    lineHeight: 19,
+    lineHeight: TODAY_FONT_SIZE + 2,
     textAlign: "center",
   },
   divider: {
