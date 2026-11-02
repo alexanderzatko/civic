@@ -47,7 +47,11 @@ import {
 import { capture } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 import { useChronPreference } from "@/lib/chron-preference";
-import { t } from "@/lib/i18n";
+import { getLocale, t } from "@/lib/i18n";
+import {
+  getRovasApiDocsUrl,
+  getRovasConnectorsUrl,
+} from "@/lib/legal-urls";
 import { useLocale } from "@/lib/locale";
 import {
   pickVolunteerPhoto,
@@ -57,7 +61,6 @@ import {
 } from "@/lib/pick-volunteer-photo";
 import { useProjectSearch } from "@/lib/use-project-search";
 
-const ROVAS_API_DOCS = "https://neofund.sk/rovas-api";
 const FALLBACK_CIVIC_FEE_RATE = 0.03;
 const FALLBACK_ROVAS_FEE_RATE = 0.01;
 
@@ -910,7 +913,18 @@ export default function VolunteerScreen() {
           {t("volunteer.api_hint_before")}
           <Text
             style={styles.link}
-            onPress={() => void Linking.openURL(ROVAS_API_DOCS)}
+            onPress={() =>
+              void Linking.openURL(getRovasConnectorsUrl(getLocale()))
+            }
+          >
+            {t("volunteer.connectors_hint_link")}
+          </Text>
+          {t("volunteer.api_hint_mid")}
+          <Text
+            style={styles.link}
+            onPress={() =>
+              void Linking.openURL(getRovasApiDocsUrl(getLocale()))
+            }
           >
             {t("volunteer.api_hint_link")}
           </Text>

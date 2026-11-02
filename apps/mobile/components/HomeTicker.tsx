@@ -168,9 +168,8 @@ export function HomeTicker() {
   return (
     <View style={styles.stripe} accessibilityLabel={a11y}>
       <View style={styles.dayCol}>
-        {/* Rotated: "In"/"V", large "Civic", then "today"/"dnes". */}
+        {/* Rotated: large "Civic", then "today"/"dnes". */}
         <View style={styles.dayLabelWrap}>
-          <Text style={styles.dayLabelIn}>{t("home.ticker_in")}</Text>
           <Text
             style={styles.dayLabelCivic}
             numberOfLines={1}
@@ -234,8 +233,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   dayCol: {
-    // Fits three rotated lines (in / Civic / today) without clipping.
-    width: 42,
+    // Fits two rotated lines (Civic / today) without clipping.
+    width: 34,
     height: 60,
     alignItems: "center",
     justifyContent: "center",
@@ -247,14 +246,6 @@ const styles = StyleSheet.create({
     // Wide enough for "Civic" at dayLabelCivic fontSize; adjustsFontSizeToFit
     // shrinks only if a larger dynamic type setting would overflow.
     width: 56,
-  },
-  dayLabelIn: {
-    fontSize: 9,
-    fontWeight: "600",
-    color: colors.muted,
-    letterSpacing: 0.2,
-    lineHeight: 11,
-    textAlign: "center",
   },
   dayLabelCivic: {
     width: "100%",
