@@ -48,10 +48,7 @@ import { capture } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 import { useChronPreference } from "@/lib/chron-preference";
 import { getLocale, t } from "@/lib/i18n";
-import {
-  getRovasApiDocsUrl,
-  getRovasConnectorsUrl,
-} from "@/lib/legal-urls";
+import { getRovasConnectorsUrl } from "@/lib/legal-urls";
 import { useLocale } from "@/lib/locale";
 import {
   pickVolunteerPhoto,
@@ -909,27 +906,19 @@ export default function VolunteerScreen() {
             {feeNoticeCopy(civicFeePct, rovasFeePct)}
           </Text>
         ) : null}
-        <Text style={styles.footerApiHint}>
-          {t("volunteer.api_hint_before")}
+        <View style={styles.footerConnectorsHint}>
+          <Text style={styles.footerConnectorsLead}>
+            {t("volunteer.connectors_hint_lead")}
+          </Text>
           <Text
-            style={styles.link}
+            style={[styles.link, styles.footerConnectorsLink]}
             onPress={() =>
               void Linking.openURL(getRovasConnectorsUrl(getLocale()))
             }
           >
             {t("volunteer.connectors_hint_link")}
           </Text>
-          {t("volunteer.api_hint_mid")}
-          <Text
-            style={styles.link}
-            onPress={() =>
-              void Linking.openURL(getRovasApiDocsUrl(getLocale()))
-            }
-          >
-            {t("volunteer.api_hint_link")}
-          </Text>
-          {t("volunteer.api_hint_after")}
-        </Text>
+        </View>
       </ScrollView>
 
       <VolunteerPhotoPrivacyModal
@@ -1253,12 +1242,21 @@ const styles = StyleSheet.create({
   btnText: { color: "#fff", fontWeight: "700" },
   ghost: { paddingVertical: 14, paddingHorizontal: 12 },
   ghostText: { color: colors.muted, fontWeight: "700" },
-  footerApiHint: {
+  footerConnectorsHint: {
+    marginTop: 28,
+    gap: 4,
+    alignItems: "center",
+  },
+  footerConnectorsLead: {
     color: colors.muted,
     fontSize: 13,
     lineHeight: 18,
     textAlign: "center",
-    marginTop: 28,
+  },
+  footerConnectorsLink: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
   },
   footerMuted: {
     color: colors.muted,
