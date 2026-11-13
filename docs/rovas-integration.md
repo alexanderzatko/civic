@@ -189,7 +189,7 @@ fallback (`HOURLY_WAGE_EUR`, default 7.5).
 | Personal ME total | `/me/contributions/summary` → `total_me` | `GET /rovas/me` |
 | Personal username | `/me` / summary `username` | `GET /rovas/me` |
 | Community total ME | `/community/contributions/summary` | `GET /rovas/contributions/aggregate` |
-| Rank histogram | `/rank/distribution` | `GET /rovas/merit_distribution` — decade edges `0,1,10,100,…` (`bin_edges_log10` starts at `-20`); see **[merit-distribution-decade-bins](../../rovas/docs/integration/civic_tasks/active/merit-distribution-decade-bins.md)** (deploy+smoke pending on rovdev) |
+| Rank histogram | `/rank/distribution` | `GET /rovas/merit_distribution` — decade edges `0,1,10,100,…` (`bin_edges_log10` starts at `-20`); see **[merit-distribution-decade-bins](../../rovas/docs/integration/civic_tasks/done/merit-distribution-decade-bins.md)** |
 | Merit spotlight | `/rank/spotlight` | `GET /rovas/civic_merit_spotlight` — see Rovas **Next work: Merit spotlight (period leads by area)** |
 | € equivalent | `/merit-rate` → `hourly_wage_eur` | `GET /rovas/civic_national_hourly_rate` (fallback: Civic settings) |
 | Category mix | taxes from Rovas claim summary (interim 0); charity/volunteer 0 | Aggregate `by_category` still zeros on Rovas |
