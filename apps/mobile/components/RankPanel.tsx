@@ -1,17 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  PanResponder,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   bucketIndexForMe,
-  bucketIndexFromSlider,
   medianBucketIndex,
   percentileFromDistribution,
-  sliderPositionFromMe,
   spelledBucketLabel,
   type RankDistribution,
 } from "@civic/shared";
@@ -23,8 +15,6 @@ type Props = {
   distribution: RankDistribution;
   /** When set, used for percentile instead of distribution.user_merits. */
   userMe?: number;
-  /** Called while the ladder is dragged so the parent can lock scrolling. */
-  onScrollLockChange?: (locked: boolean) => void;
   /**
    * `self` (default): 2nd-person headline with community deep-links.
    * `other`: 3rd-person headline for a looked-up public profile (same bands).
@@ -136,127 +126,6 @@ function CaptionWithYouHighlight({ text }: { text: string }) {
 }
 
 const CHART_HEIGHT = 110;
-const TRACK_HEIGHT = 8;
-const MARKER = 14;
-
-function RankLadder({
-  userPercentile,
-  onDragStateChange,
-}: {
-  userPercentile: number;
-  onDragStateChange: (state: { dragging: boolean; probePct: number }) => void;
-}) {
-  const trackRef = useRef<View>(null);
-  /** Window-space geometry of the hit target (not locationX — nested markers break that). */
-  const trackGeom = useRef({ x: 0, width: 1 });
-  const onDragRef = useRef(onDragStateChange);
-  const [dragging, setDragging] = useState(false);
-  const [probePct, setProbePct] = useState(userPercentile);
-  const userPctRef = useRef(userPercentile);
-  const draggingRef = useRef(false);
-
-  useEffect(() => {
-    onDragRef.current = onDragStateChange;
-  }, [onDragStateChange]);
-
-  useEffect(() => {
-    userPctRef.current = userPercentile;
-    if (!draggingRef.current) setProbePct(userPercentile);
-  }, [userPercentile]);
-
-  const measureTrack = (cb?: () => void) => {
-    trackRef.current?.measureInWindow((x, _y, width) => {
-      if (width > 0) trackGeom.current = { x, width };
-      cb?.();
-    });
-  };
-
-  const pctFromPageX = (pageX: number) => {
-    const { x, width } = trackGeom.current;
-    const w = width > 0 ? width : 1;
-    return Math.min(100, Math.max(0, ((pageX - x) / w) * 100));
-  };
-
-  const applyProbe = (pageX: number, nextDragging: boolean) => {
-    const pct = pctFromPageX(pageX);
-    setProbePct(pct);
-    onDragRef.current({ dragging: nextDragging, probePct: pct });
-  };
-
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onStartShouldSetPanResponderCapture: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponderCapture: () => true,
-        onPanResponderTerminationRequest: () => false,
-        onPanResponderGrant: (e) => {
-          const pageX = e.nativeEvent.pageX;
-          draggingRef.current = true;
-          setDragging(true);
-          // Re-measure in case the scroll view moved since last layout.
-          measureTrack(() => applyProbe(pageX, true));
-        },
-        onPanResponderMove: (_e, gesture) => {
-          // gesture.moveX is window X and stays stable while dragging.
-          applyProbe(gesture.moveX, true);
-        },
-        onPanResponderRelease: () => {
-          draggingRef.current = false;
-          setDragging(false);
-          setProbePct(userPctRef.current);
-          onDragRef.current({
-            dragging: false,
-            probePct: userPctRef.current,
-          });
-        },
-        onPanResponderTerminate: () => {
-          draggingRef.current = false;
-          setDragging(false);
-          setProbePct(userPctRef.current);
-          onDragRef.current({
-            dragging: false,
-            probePct: userPctRef.current,
-          });
-        },
-      }),
-    [],
-  );
-
-  return (
-    <View style={styles.ladder}>
-      <View
-        ref={trackRef}
-        style={styles.trackHit}
-        onLayout={() => measureTrack()}
-        {...pan.panHandlers}
-        accessibilityRole="adjustable"
-        accessibilityLabel={t("home.rank_caption")}
-        accessibilityValue={{ min: 0, max: 100, now: Math.round(probePct) }}
-      >
-        <View style={styles.track} pointerEvents="none">
-          <View style={[styles.trackFill, { width: `${userPercentile}%` }]} />
-          <View
-            style={[styles.marker, styles.markerUser, { left: `${userPercentile}%` }]}
-          />
-          <View
-            style={[
-              styles.marker,
-              styles.markerProbe,
-              { left: `${probePct}%` },
-              dragging ? styles.markerActive : null,
-            ]}
-          />
-        </View>
-      </View>
-      <View style={styles.trackLabels}>
-        <Text style={styles.trackLabel}>0</Text>
-        <Text style={styles.trackLabel}>100 %</Text>
-      </View>
-    </View>
-  );
-}
 
 function RankDistributionDetail({
   distribution,
@@ -404,7 +273,6 @@ export function RankDistributionChart({
 export function RankPanel({
   distribution,
   userMe,
-  onScrollLockChange,
   variant = "self",
   linkCommunity = true,
 }: Props) {
@@ -415,23 +283,21 @@ export function RankPanel({
     typeof me === "number"
       ? percentileFromDistribution(distribution, me)
       : null;
-  // Equal band widths: runner lines up with histogram column boundaries.
-  const sliderPos =
-    typeof me === "number"
-      ? sliderPositionFromMe(distribution, me)
-      : null;
 
-  const [dragState, setDragState] = useState({
-    dragging: false,
-    probePct: sliderPos ?? 0,
-  });
+  const userBucketIndex =
+    typeof me === "number" ? bucketIndexForMe(distribution, me) : -1;
+
+  const [highlightIndex, setHighlightIndex] = useState(userBucketIndex);
 
   useEffect(() => {
-    onScrollLockChange?.(dragState.dragging);
-    return () => onScrollLockChange?.(false);
-  }, [dragState.dragging, onScrollLockChange]);
+    setHighlightIndex(userBucketIndex);
+  }, [userBucketIndex, distribution]);
 
-  if (percentile === null || sliderPos === null) {
+  const onBarPress = useCallback((index: number) => {
+    setHighlightIndex(index);
+  }, []);
+
+  if (percentile === null || userBucketIndex < 0) {
     return (
       <View style={styles.card}>
         <Text style={styles.headline}>
@@ -443,11 +309,6 @@ export function RankPanel({
     );
   }
 
-  // Narrowed: percentile/sliderPos are only non-null when `me` is a number.
-  const userBucketIndex = bucketIndexForMe(distribution, me as number);
-  const highlightIndex = dragState.dragging
-    ? bucketIndexFromSlider(distribution, dragState.probePct)
-    : userBucketIndex;
   const highlightCount =
     highlightIndex >= 0
       ? (distribution.buckets[highlightIndex]?.count ?? 0)
@@ -474,13 +335,10 @@ export function RankPanel({
         distribution={distribution}
         highlightIndex={highlightIndex}
         userBucketIndex={userBucketIndex}
+        onBarPress={onBarPress}
         emphasizeBucketLabel
       />
-
-      <RankLadder
-        userPercentile={sliderPos}
-        onDragStateChange={setDragState}
-      />
+      <Text style={styles.tapHint}>{t("home.rank_guest_tap_hint")}</Text>
     </View>
   );
 }
@@ -520,60 +378,6 @@ const styles = StyleSheet.create({
   youWord: {
     color: colors.you,
     fontWeight: "700",
-  },
-  ladder: {
-    gap: 4,
-    paddingTop: 4,
-  },
-  trackHit: {
-    // Extra vertical hit area around the thin track.
-    paddingVertical: 14,
-  },
-  track: {
-    height: TRACK_HEIGHT,
-    borderRadius: TRACK_HEIGHT / 2,
-    backgroundColor: colors.border,
-    position: "relative",
-    justifyContent: "center",
-  },
-  trackFill: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: TRACK_HEIGHT / 2,
-    backgroundColor: "#C5D0CA",
-  },
-  marker: {
-    position: "absolute",
-    top: "50%",
-    width: MARKER,
-    height: MARKER,
-    marginLeft: -MARKER / 2,
-    marginTop: -MARKER / 2,
-    borderRadius: MARKER / 2,
-    borderWidth: 2,
-  },
-  markerUser: {
-    backgroundColor: colors.border,
-    borderColor: colors.ink,
-    zIndex: 1,
-  },
-  markerProbe: {
-    backgroundColor: colors.you,
-    borderColor: colors.you,
-    zIndex: 2,
-  },
-  markerActive: {
-    transform: [{ scale: 1.1 }],
-  },
-  trackLabels: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  trackLabel: {
-    fontSize: 12,
-    color: colors.muted,
   },
   probeHint: {
     fontSize: 13,

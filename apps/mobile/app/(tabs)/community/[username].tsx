@@ -55,7 +55,6 @@ export default function CommunityProfileScreen() {
   const [profile, setProfile] = useState<UserLookup | null>(null);
   const [rank, setRank] = useState<RankDistribution | null>(null);
   const [meritRate, setMeritRate] = useState<MeritRate | null>(null);
-  const [scrollLocked, setScrollLocked] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -119,10 +118,7 @@ export default function CommunityProfileScreen() {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      scrollEnabled={!scrollLocked}
-    >
+    <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.hero}>
         <MeLogo size={48} />
         <Text style={styles.handle}>
@@ -144,7 +140,6 @@ export default function CommunityProfileScreen() {
           userMe={profile.total_me}
           variant="other"
           linkCommunity={false}
-          onScrollLockChange={setScrollLocked}
         />
       ) : null}
 

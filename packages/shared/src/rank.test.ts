@@ -8,6 +8,7 @@ import {
   meFromSliderPosition,
   percentileFromDistribution,
   sliderPositionFromMe,
+  spelledBucketLabel,
 } from "./rank.js";
 import type { RankDistribution } from "./types.js";
 
@@ -122,5 +123,24 @@ describe("equal-width slider mapping", () => {
     const pos = sliderPositionFromMe(dist, 50)!;
     const back = meFromSliderPosition(dist, pos)!;
     assert.ok(Math.abs(Math.log10(back) - Math.log10(50)) < 0.05);
+  });
+});
+
+describe("spelledBucketLabel", () => {
+  const decade: RankDistribution = {
+    buckets: [
+      { label: "0–1", count: 10 },
+      { label: "1–10", count: 20 },
+      { label: "10–100", count: 70 },
+    ],
+    // Sentinel for linear 0, then log10 decades.
+    bin_edges_log10: [-30, 0, 1, 2],
+    total_users: 100,
+  };
+
+  it("formats decade bands with a zero lower bound", () => {
+    assert.equal(spelledBucketLabel(decade, 0, "en-US"), "0 – 1 Merits");
+    assert.equal(spelledBucketLabel(decade, 1, "en-US"), "1 – 10 Merits");
+    assert.equal(spelledBucketLabel(decade, 2, "en-US"), "10+ Merits");
   });
 });

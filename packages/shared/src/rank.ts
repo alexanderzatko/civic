@@ -183,10 +183,9 @@ export function spelledBucketLabel(
   const isLast = index === distribution.buckets.length - 1;
   const en = locale.toLowerCase().startsWith("en");
   const unit = en ? "Merits" : "meritov";
+  // Sentinel lower edge (linear 0) from decade bins — show "0 – hi".
   if (lo < 1e-9) {
-    return en
-      ? `less than ${formatMeritBound(hi, locale)} ${unit}`
-      : `menej ako ${formatMeritBound(hi, locale)} ${unit}`;
+    return `0 – ${formatMeritBound(hi, locale)} ${unit}`;
   }
   if (isLast) return `${formatMeritBound(lo, locale)}+ ${unit}`;
   return `${formatMeritBound(lo, locale)} – ${formatMeritBound(hi, locale)} ${unit}`;

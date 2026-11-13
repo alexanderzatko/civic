@@ -63,7 +63,6 @@ export default function HomeScreen() {
   const [rank, setRank] = useState<RankDistribution | null>(null);
   const [meritRate, setMeritRate] = useState<MeritRate | null>(null);
   const [profile, setProfile] = useState<UserLookup | null>(null);
-  const [scrollLocked, setScrollLocked] = useState(false);
 
   const refresh = useCallback(async () => {
     // Avoid treating "auth still restoring" as signed-out — that race left Home
@@ -142,10 +141,7 @@ export default function HomeScreen() {
     return (
       <View style={styles.screen}>
         <HomeTicker />
-        <ScrollView
-          contentContainerStyle={styles.container}
-          scrollEnabled={!scrollLocked}
-        >
+        <ScrollView contentContainerStyle={styles.container}>
           <Text style={styles.title}>{t("home.title")}</Text>
 
           <View style={styles.personalBlock}>
@@ -174,11 +170,7 @@ export default function HomeScreen() {
           </View>
 
           {!loading && rank ? (
-            <RankPanel
-              distribution={rank}
-              userMe={personalMe}
-              onScrollLockChange={setScrollLocked}
-            />
+            <RankPanel distribution={rank} userMe={personalMe} />
           ) : null}
 
           {!loading && profile ? (
