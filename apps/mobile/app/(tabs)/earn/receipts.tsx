@@ -49,7 +49,10 @@ import {
   setAlwaysShare,
   touchRecipients,
 } from "@/lib/recipient-memory";
+import { pickReceiptQrFromGallery } from "@/lib/pick-receipt-qr";
 import {
+  anonymousRecipient,
+  scannerSharePositive,
   shareSum,
   withEqualShares,
   type SplitRecipient,
@@ -188,6 +191,7 @@ export default function ReceiptsScreen() {
         display_name: profile.display_name,
         isScanner: true,
         alwaysShare: false,
+        isAnonymous: false,
       },
       ...always.map((m) => ({
         rovas_uid: m.rovas_uid,
@@ -195,6 +199,7 @@ export default function ReceiptsScreen() {
         display_name: m.display_name,
         isScanner: false,
         alwaysShare: true,
+        isAnonymous: false,
       })),
     ];
     setRecipients(withEqualShares(base));
@@ -362,6 +367,43 @@ export default function ReceiptsScreen() {
     setScanning(true);
   }
 
+  async function startScanFromPhoto() {
+    if (busy || claiming) return;
+    setError(null);
+    setClaimResult(null);
+    setScanning(false);
+    setScanBounds(null);
+    setScannedLock(false);
+    setManualOpen(false);
+    setBusy(true);
+    try {
+      const picked = await pickReceiptQrFromGallery();
+      if (!picked.ok) {
+        if (picked.reason === "cancelled") return;
+        if (picked.reason === "denied") {
+          setError(t("receipts.error_gallery_denied"));
+          return;
+        }
+        if (picked.reason === "unavailable") {
+          setError(t("receipts.error_gallery_unavailable"));
+          return;
+        }
+        if (picked.reason === "no_qr") {
+          setError(t("receipts.error_gallery_no_qr"));
+          return;
+        }
+        setError(t("receipts.error_gallery"));
+        return;
+      }
+      // Drop pick busy so runVerify can own the verifying spinner.
+      setBusy(false);
+      await runVerify(picked.data);
+      return;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function onCameraLayout(e: LayoutChangeEvent) {
     const { width, height } = e.nativeEvent.layout;
     setCameraSize({ width, height });
@@ -380,7 +422,9 @@ export default function ReceiptsScreen() {
   );
 
   const sharesValid =
-    recipients.length > 0 && Math.abs(shareSum(recipients) - 100) < 0.01;
+    recipients.length > 0 &&
+    Math.abs(shareSum(recipients) - 100) < 0.01 &&
+    scannerSharePositive(recipients);
 
   async function executeClaim() {
     if (!preview || !sharesValid || preview.claim_allowed === false) return;
@@ -397,10 +441,12 @@ export default function ReceiptsScreen() {
       if (result.claimed) {
         capture("receipt_claimed", { success: true });
         notifyMeritsChanged();
-        const nonScanner = recipients.filter((r) => !r.isScanner);
-        if (nonScanner.length > 0) {
+        const remembered = recipients.filter(
+          (r) => !r.isScanner && !r.isAnonymous,
+        );
+        if (remembered.length > 0) {
           await touchRecipients(
-            nonScanner.map((r) => ({
+            remembered.map((r) => ({
               rovas_uid: r.rovas_uid,
               username: r.username,
               display_name: r.display_name,
@@ -493,6 +539,7 @@ export default function ReceiptsScreen() {
           display_name: user.display_name,
           isScanner: false,
           alwaysShare: user.alwaysShare,
+          isAnonymous: false,
         },
       ];
       return withEqualShares(base);
@@ -504,6 +551,17 @@ export default function ReceiptsScreen() {
       alwaysShare: user.alwaysShare,
     });
     setAddOpen(false);
+  }
+
+  function onAddAnonymous() {
+    setRecipients((prev) => {
+      if (prev.some((r) => r.isAnonymous)) return prev;
+      const base = [
+        ...prev.map(({ sharePct: _s, ...rest }) => rest),
+        anonymousRecipient(),
+      ];
+      return withEqualShares(base);
+    });
   }
 
   const showScanner = scanning && permission?.granted;
@@ -525,13 +583,30 @@ export default function ReceiptsScreen() {
     >
       <Text style={styles.intro}>{t("receipts.intro")}</Text>
 
-      <Pressable
-        style={styles.primary}
-        onPress={startScan}
-        disabled={busy || claiming}
-      >
-        <Text style={styles.primaryText}>{t("receipts.scan")}</Text>
-      </Pressable>
+      <View style={styles.scanActions}>
+        <Pressable
+          style={[
+            styles.primary,
+            styles.scanActionPrimary,
+            (busy || claiming) && styles.disabled,
+          ]}
+          onPress={startScan}
+          disabled={busy || claiming}
+        >
+          <Text style={styles.primaryText}>{t("receipts.scan")}</Text>
+        </Pressable>
+        <Pressable
+          style={[
+            styles.secondary,
+            styles.scanActionSecondary,
+            (busy || claiming) && styles.disabled,
+          ]}
+          onPress={() => void startScanFromPhoto()}
+          disabled={busy || claiming}
+        >
+          <Text style={styles.secondaryText}>{t("receipts.scan_from_photo")}</Text>
+        </Pressable>
+      </View>
 
       {showScanner ? (
         <View style={styles.cameraWrap} onLayout={onCameraLayout}>
@@ -632,6 +707,7 @@ export default function ReceiptsScreen() {
                   onToggleAlways={(uid, v) => void onToggleAlways(uid, v)}
                   onRemove={onRemove}
                   onAddPerson={() => setAddOpen(true)}
+                  onAddAnonymous={onAddAnonymous}
                 />
               ) : null}
               <Pressable
@@ -1180,6 +1256,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  scanActions: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "stretch",
+  },
+  scanActionPrimary: { flex: 1 },
+  scanActionSecondary: {
+    flex: 1,
+    justifyContent: "center",
+    paddingVertical: 14,
+  },
   disabled: { opacity: 0.6 },
   disclosure: {
     marginTop: 4,

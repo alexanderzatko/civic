@@ -6,9 +6,20 @@ export interface GeoLocation {
   accuracy_m?: number;
 }
 
+/**
+ * Claim share input. `rovas_uid` is a Rovas Drupal uid, or the reserved
+ * sentinel `"anonymous"` to burn that percentage (no Merits issued).
+ */
 export interface ClaimShareInput {
   rovas_uid: string;
   share_pct: number;
+}
+
+/** Reserved claim-share uid: burn VAT / Merit slice (not a real Rovas user). */
+export const ANONYMOUS_SHARE_UID = "anonymous" as const;
+
+export function isAnonymousShareUid(uid: string): boolean {
+  return uid === ANONYMOUS_SHARE_UID;
 }
 
 /** Public profile row from `GET /users/search` (split-claim typeahead). */

@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   computeMerits,
   parseReceiptUid,
+  isAnonymousShareUid,
   splitMerits,
   type ClaimReceiptErrorCode,
   type ClaimReceiptResponse,
@@ -586,11 +587,16 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
 
       const shareSum = sharesInput.reduce((s, r) => s + r.share_pct, 0);
       const uids = sharesInput.map((s) => s.rovas_uid);
-      const scannerIncluded = uids.includes(user.rovasUid);
+      const scannerShare = sharesInput.find((s) => s.rovas_uid === user.rovasUid);
+      const scannerIncluded = Boolean(scannerShare);
+      const scannerPositive = (scannerShare?.share_pct ?? 0) > 0;
       const distinct = new Set(uids).size === uids.length;
+      const anonymousCount = uids.filter((id) => isAnonymousShareUid(id)).length;
       if (
         !scannerIncluded ||
+        !scannerPositive ||
         !distinct ||
+        anonymousCount > 1 ||
         Math.abs(shareSum - 100) > 0.05
       ) {
         recordAttempt(ctx, {
@@ -606,7 +612,7 @@ export const receiptsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
           receipt_uid: uid,
           code: "rejected_shares",
           message:
-            "Invalid shares: scanner must be included, uids distinct, percentages sum to 100.",
+            "Invalid shares: scanner must be included with a positive share, uids distinct, at most one anonymous burn, percentages sum to 100.",
         });
       }
 

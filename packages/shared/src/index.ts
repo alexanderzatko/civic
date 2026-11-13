@@ -58,6 +58,11 @@ export {
   spelledBucketLabel,
 } from "./rank.js";
 
+export {
+  ANONYMOUS_SHARE_UID,
+  isAnonymousShareUid,
+} from "./types.js";
+
 export type {
   CharityProject,
   CharityProjectsResponse,

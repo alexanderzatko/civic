@@ -33,37 +33,51 @@ export function floor2(n: number): number {
 
 /**
  * Split total Merits across share percentages.
- * Residue from flooring is assigned to the scanner so the sum equals total.
+ * Residue from flooring is assigned to the scanner among **granted** shares
+ * so their sum equals the non-burned target. Shares with `rovasUid`
+ * `"anonymous"` are burned (0 ME) and never receive residue.
  */
 export function splitMerits(params: {
   totalMerits: number;
   shares: Array<{ rovasUid: string; sharePct: number }>;
   scannerRovasUid: string;
+  /** When true (default), treat `rovasUid === "anonymous"` as a burn (0 ME). */
+  burnAnonymous?: boolean;
 }): Array<{
   rovasUid: string;
   sharePct: number;
   meritsAwarded: number;
   roundingResidue: number;
 }> {
-  const { totalMerits, shares, scannerRovasUid } = params;
-  const rows = shares.map((s) => ({
-    rovasUid: s.rovasUid,
-    sharePct: s.sharePct,
-    meritsAwarded: floor2((totalMerits * s.sharePct) / 100),
-    roundingResidue: 0,
-  }));
+  const { totalMerits, shares, scannerRovasUid, burnAnonymous = true } = params;
+  const rows = shares.map((s) => {
+    const burn = burnAnonymous && s.rovasUid === "anonymous";
+    return {
+      rovasUid: s.rovasUid,
+      sharePct: s.sharePct,
+      meritsAwarded: burn ? 0 : floor2((totalMerits * s.sharePct) / 100),
+      roundingResidue: 0,
+      burned: burn,
+    };
+  });
 
-  const awarded = rows.reduce((sum, r) => sum + r.meritsAwarded, 0);
-  const residue = round2(totalMerits - awarded);
+  const grantablePct = rows
+    .filter((r) => !r.burned)
+    .reduce((sum, r) => sum + r.sharePct, 0);
+  const grantableTarget = round2((totalMerits * grantablePct) / 100);
+  const awarded = rows
+    .filter((r) => !r.burned)
+    .reduce((sum, r) => sum + r.meritsAwarded, 0);
+  const residue = round2(grantableTarget - awarded);
   if (residue !== 0) {
     const scanner = rows.find((r) => r.rovasUid === scannerRovasUid);
-    if (!scanner) {
+    if (!scanner || scanner.burned) {
       throw new Error("scanner must be included in shares");
     }
     scanner.meritsAwarded = round2(scanner.meritsAwarded + residue);
     scanner.roundingResidue = residue;
   }
-  return rows;
+  return rows.map(({ burned: _b, ...rest }) => rest);
 }
 
 /** UI display: whole-number Merits (and EUR equivalents). */

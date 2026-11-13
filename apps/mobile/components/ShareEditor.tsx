@@ -14,6 +14,7 @@ type Props = {
   onToggleAlways: (rovasUid: string, alwaysShare: boolean) => void;
   onRemove: (rovasUid: string) => void;
   onAddPerson: () => void;
+  onAddAnonymous: () => void;
 };
 
 export function ShareEditor({
@@ -23,17 +24,26 @@ export function ShareEditor({
   onToggleAlways,
   onRemove,
   onAddPerson,
+  onAddAnonymous,
 }: Props) {
   const sum = shareSum(recipients);
   const sumOk = Math.abs(sum - 100) < 0.01;
+  const hasAnonymous = recipients.some((r) => r.isAnonymous);
 
   return (
     <View style={styles.wrap}>
       <View style={styles.header}>
         <Text style={styles.title}>{t("receipts.split_title")}</Text>
-        <Pressable style={styles.addBtn} onPress={onAddPerson}>
-          <Text style={styles.addBtnText}>{t("receipts.split_add")}</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          {!hasAnonymous ? (
+            <Pressable style={styles.addBtn} onPress={onAddAnonymous}>
+              <Text style={styles.addBtnText}>{t("receipts.split_add_anonymous")}</Text>
+            </Pressable>
+          ) : null}
+          <Pressable style={styles.addBtn} onPress={onAddPerson}>
+            <Text style={styles.addBtnText}>{t("receipts.split_add")}</Text>
+          </Pressable>
+        </View>
       </View>
 
       {recipients.map((r) => (
@@ -43,7 +53,9 @@ export function ShareEditor({
               <Text style={styles.name}>
                 {r.isScanner
                   ? `${t("receipts.split_you")} (${r.username})`
-                  : r.username}
+                  : r.isAnonymous
+                    ? t("receipts.split_anonymous")
+                    : r.username}
               </Text>
             </View>
             <TextInput
@@ -57,19 +69,26 @@ export function ShareEditor({
             />
             <Text style={styles.pctSuffix}>%</Text>
             <Text style={styles.me}>
-              {formatShareMerits(totalMerits, r.sharePct)} {t("common.me")}
+              {formatShareMerits(totalMerits, r.sharePct, {
+                burned: Boolean(r.isAnonymous),
+              })}{" "}
+              {t("common.me")}
             </Text>
           </View>
           {!r.isScanner ? (
             <View style={styles.footer}>
-              <View style={styles.toggleRow}>
-                <Switch
-                  value={r.alwaysShare}
-                  onValueChange={(v) => onToggleAlways(r.rovas_uid, v)}
-                  trackColor={{ false: colors.border, true: colors.brandSoft }}
-                />
-                <Text style={styles.toggleLabel}>{t("receipts.split_always")}</Text>
-              </View>
+              {r.isAnonymous ? (
+                <Text style={styles.toggleLabel}>{t("receipts.split_anonymous_hint")}</Text>
+              ) : (
+                <View style={styles.toggleRow}>
+                  <Switch
+                    value={r.alwaysShare}
+                    onValueChange={(v) => onToggleAlways(r.rovas_uid, v)}
+                    trackColor={{ false: colors.border, true: colors.brandSoft }}
+                  />
+                  <Text style={styles.toggleLabel}>{t("receipts.split_always")}</Text>
+                </View>
+              )}
               <Pressable
                 onPress={() => onRemove(r.rovas_uid)}
                 hitSlop={8}
@@ -97,7 +116,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
+    flexWrap: "wrap",
   },
+  headerActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   title: { fontSize: 15, fontWeight: "700", color: colors.ink },
   addBtn: {
     borderWidth: 1,

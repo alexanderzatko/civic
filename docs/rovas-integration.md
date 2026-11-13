@@ -288,7 +288,11 @@ runs Civic fraud checks, then calls Rovas (which owns dedup + persist):
 `POST {ROVAS}/rovas/rules/rules_proxy_claim_vat_receipt`
 
 Body may include `shares: [{ rovas_uid, share_pct }]` (scanner must be
-included; percentages sum to ~100). Omitted → 100% to caller.
+included with `share_pct > 0`; percentages sum to ~100). Omitted → 100% to
+caller. Optional burn share: reserved sentinel `rovas_uid: "anonymous"` (at
+most one) — that VAT slice issues **no Merits**; Rovas persists the share at
+0 ME. Contract:
+**[claim-anonymous-burn-share](../../rovas/docs/integration/civic_tasks/active/claim-anonymous-burn-share.md)**.
 
 Split typeahead: Civic `GET /users/search?q=` → Rovas
 `GET /rovas/users_search?query=` (param renamed from `q` — Drupal path

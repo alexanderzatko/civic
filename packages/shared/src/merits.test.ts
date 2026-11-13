@@ -68,6 +68,23 @@ describe("splitMerits", () => {
     assert.equal(sum, 1.67);
     assert.ok(rows.find((r) => r.rovasUid === "scanner")!.roundingResidue >= 0);
   });
+
+  it("burns anonymous share and does not fold residue into scanner", () => {
+    const rows = splitMerits({
+      totalMerits: 10,
+      scannerRovasUid: "scanner",
+      shares: [
+        { rovasUid: "scanner", sharePct: 70 },
+        { rovasUid: "anonymous", sharePct: 30 },
+      ],
+    });
+    const anon = rows.find((r) => r.rovasUid === "anonymous")!;
+    const scanner = rows.find((r) => r.rovasUid === "scanner")!;
+    assert.equal(anon.meritsAwarded, 0);
+    assert.equal(scanner.meritsAwarded, 7);
+    const sum = rows.reduce((s, r) => s + r.meritsAwarded, 0);
+    assert.equal(sum, 7);
+  });
 });
 
 describe("displayMerits", () => {
