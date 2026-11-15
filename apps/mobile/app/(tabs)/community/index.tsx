@@ -14,13 +14,10 @@ import { Link, router, useFocusEffect } from "expo-router";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import {
   displayMerits,
-  percentileFromDistribution,
-  type RankDistribution,
   type UserSearchResult,
 } from "@civic/shared";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
-import { fetchRankDistribution } from "@/lib/api";
 import {
   loadRecentProfiles,
   type RecentProfile,
@@ -33,17 +30,6 @@ function formatMe(n: number): string {
   return displayMerits(n).toLocaleString("sk-SK");
 }
 
-function topPctLabel(
-  totalMe: number,
-  distribution: RankDistribution | null,
-): string {
-  if (!distribution) return "—";
-  const pct = percentileFromDistribution(distribution, totalMe);
-  if (pct === null) return "—";
-  const top = Math.max(1, Math.round(100 - pct));
-  return `top ${top} %`;
-}
-
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
@@ -54,9 +40,6 @@ export default function CommunityScreen() {
   const signedIn = status === "signedIn";
   const [query, setQuery] = useState("");
   const [recents, setRecents] = useState<RecentProfile[]>([]);
-  const [distribution, setDistribution] = useState<RankDistribution | null>(
-    null,
-  );
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
@@ -78,12 +61,7 @@ export default function CommunityScreen() {
       searchRef.current?.blur();
 
       void loadRecentProfiles().then(setRecents);
-      if (status === "signedIn") {
-        void fetchRankDistribution()
-          .then(setDistribution)
-          .catch(() => setDistribution(null));
-      }
-    }, [status]),
+    }, []),
   );
 
   function openProfile(user: UserSearchResult | { username: string }) {
@@ -246,9 +224,6 @@ export default function CommunityScreen() {
             <Text style={[styles.th, styles.colMe]}>
               {t("community.col_me")}
             </Text>
-            <Text style={[styles.th, styles.colRank]}>
-              {t("community.col_rank")}
-            </Text>
           </View>
           {recents.map((r) => (
             <Pressable
@@ -262,9 +237,6 @@ export default function CommunityScreen() {
               </Text>
               <Text style={[styles.td, styles.colMe]}>
                 {formatMe(r.total_me)} {t("common.me")}
-              </Text>
-              <Text style={[styles.td, styles.colRank]}>
-                {topPctLabel(r.total_me, distribution)}
               </Text>
             </Pressable>
           ))}
@@ -428,7 +400,6 @@ const styles = StyleSheet.create({
   },
   colUser: { flex: 1.2 },
   colMe: { flex: 1, textAlign: "right" },
-  colRank: { flex: 0.9, textAlign: "right" },
   callout: {
     marginTop: 8,
     fontSize: 13,

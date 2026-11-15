@@ -426,7 +426,7 @@
   "community.col_rank": "Position",
   "community.col_name": "Name",
   "community.col_month": "Month",
-  "community.callout": "Tap a username to open their public contribution profile — similar to Home, with Merits split across taxes, gifts, and volunteering.",
+  "community.callout": "Tap a username to see information about the user's Merits and their origin.",
   "community.rank_start": "Just getting started — every contribution counts.",
   "community.rank_lower_quarter": "Among the quarter of contributors with a lower contribution.",
   "community.rank_lower_half": "Building a place in the community — still in the lower half.",
