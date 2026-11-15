@@ -52,6 +52,7 @@ import {
 import { pickReceiptQrFromGallery } from "@/lib/pick-receipt-qr";
 import {
   anonymousRecipient,
+  applyManualShare,
   scannerSharePositive,
   shareSum,
   withEqualShares,
@@ -156,6 +157,12 @@ export default function ReceiptsScreen() {
   const [scanBounds, setScanBounds] = useState<ScanBounds | null>(null);
   const [me, setMe] = useState<MeProfile | null>(null);
   const [recipients, setRecipients] = useState<SplitRecipient[]>([]);
+  /** Uids whose share % the user has typed; excluded from auto-redistribution. */
+  const [adjustedShareUids, setAdjustedShareUids] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const adjustedShareUidsRef = useRef(adjustedShareUids);
+  adjustedShareUidsRef.current = adjustedShareUids;
   const [addOpen, setAddOpen] = useState(false);
   const [historyTab, setHistoryTab] =
     useState<ReceiptHistoryView>("submitted");
@@ -202,6 +209,9 @@ export default function ReceiptsScreen() {
         isAnonymous: false,
       })),
     ];
+    const cleared = new Set<string>();
+    adjustedShareUidsRef.current = cleared;
+    setAdjustedShareUids(cleared);
     setRecipients(withEqualShares(base));
   }, []);
 
@@ -298,6 +308,8 @@ export default function ReceiptsScreen() {
       setPreview(null);
       setClaimResult(null);
       setRecipients([]);
+      adjustedShareUidsRef.current = new Set();
+      setAdjustedShareUids(new Set());
       try {
         const result: VerifyReceiptResponse = await verifyReceipt(qrOrUid);
         if (result.verified) {
@@ -460,6 +472,8 @@ export default function ReceiptsScreen() {
             prev ? { ...prev, already_claimed: true, claim_allowed: false } : prev,
           );
           setRecipients([]);
+          adjustedShareUidsRef.current = new Set();
+          setAdjustedShareUids(new Set());
           setAddOpen(false);
         }
         setError(claimErrorMessage(result.code, t, result.message));
@@ -493,9 +507,26 @@ export default function ReceiptsScreen() {
   }
 
   function onChangeShare(rovasUid: string, sharePct: number) {
-    setRecipients((prev) =>
-      prev.map((r) => (r.rovas_uid === rovasUid ? { ...r, sharePct } : r)),
-    );
+    setRecipients((prev) => {
+      const next = applyManualShare(
+        prev,
+        rovasUid,
+        sharePct,
+        adjustedShareUidsRef.current,
+      );
+      adjustedShareUidsRef.current = next.manuallyAdjustedUids;
+      setAdjustedShareUids(next.manuallyAdjustedUids);
+      return next.recipients;
+    });
+  }
+
+  function resetEqualShares(
+    base: Omit<SplitRecipient, "sharePct">[],
+  ): SplitRecipient[] {
+    const cleared = new Set<string>();
+    adjustedShareUidsRef.current = cleared;
+    setAdjustedShareUids(cleared);
+    return withEqualShares(base);
   }
 
   async function onToggleAlways(rovasUid: string, alwaysShare: boolean) {
@@ -517,7 +548,7 @@ export default function ReceiptsScreen() {
   function onRemove(rovasUid: string) {
     setRecipients((prev) => {
       const next = prev.filter((r) => r.rovas_uid !== rovasUid);
-      return withEqualShares(
+      return resetEqualShares(
         next.map(({ sharePct: _s, ...rest }) => rest),
       );
     });
@@ -542,7 +573,7 @@ export default function ReceiptsScreen() {
           isAnonymous: false,
         },
       ];
-      return withEqualShares(base);
+      return resetEqualShares(base);
     });
     void rememberRecipient({
       rovas_uid: user.rovas_uid,
@@ -560,7 +591,7 @@ export default function ReceiptsScreen() {
         ...prev.map(({ sharePct: _s, ...rest }) => rest),
         anonymousRecipient(),
       ];
-      return withEqualShares(base);
+      return resetEqualShares(base);
     });
   }
 
