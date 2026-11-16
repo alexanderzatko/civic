@@ -85,7 +85,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
       </View>
 
       {mode === "login" ? (
-        <Text style={styles.subtitle}>{t("auth.login_subtitle")}</Text>
+        <Text style={styles.subtitle}>
+          {t("auth.login_subtitle_before")}
+          <Text style={styles.disclosureBold}>
+            {t("auth.login_subtitle_name")}
+          </Text>
+          {t("auth.login_subtitle_after")}
+        </Text>
       ) : (
         <View style={styles.disclosure}>
           <Text style={styles.disclosureBody}>
