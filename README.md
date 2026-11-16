@@ -10,6 +10,7 @@ Three Merit-earning paths:
 2. **Gifts** — gift to a verified public-benefit / nonprofit organisation (discovery
    + Rovas donate instructions; in-app payment deferred)
 3. **Volunteer work** — file work reports against Rovas projects (NACE, proof
+
    photos/map/URL, in-app verification)
 
 Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**).
@@ -90,8 +91,10 @@ Production-like backend for phones and remote testing. SSH host alias: `sano-vps
 What it does:
 
 1. Rsyncs `services/api`, `packages/shared`, and deploy packaging to
+
    `/opt/docker/civic-api`
 2. Seeds `/opt/docker/civic-api/.env` from `.env.example` on first run only
+
    (later deploys keep the remote `.env`)
 3. Ensures Let’s Encrypt + nginx-proxy for **civic-api.rovas.app**
 4. `docker compose build && up -d` (host port **3001**, SQLite in `./data`)
@@ -208,7 +211,7 @@ Platform-specific shortcuts that include prebuild + build:
 Expo Go cannot use native Google/Apple Sign-In (or the legacy
 `civic://oauth/callback` path). Use the **Civic** development build on the phone.
 
-**Xcode / `ios:device` only installs the native shell.** It does not start the
+**Xcode /** `ios:device` **only installs the native shell.** It does not start the
 JS bundler. After a rebuild you still need Metro every session, or the
 launcher shows “No development servers found” / “error loading app”.
 
@@ -229,7 +232,7 @@ pnpm --filter @civic/mobile ios:device:clean
 If that command builds but fails at **launch** (common after trusting the
 developer profile), finish from Xcode:
 
-1. Open **`apps/mobile/ios/Civic.xcworkspace`** (not `.xcodeproj`).
+1. Open `apps/mobile/ios/Civic.xcworkspace` (not `.xcodeproj`).
 2. **Product → Clean Build Folder**, then **Run** on your iPhone.
 3. If photos still fail, delete the app from the phone and run again.
 
@@ -271,13 +274,16 @@ every session).
 
 1. Open the **Civic** app on the phone (not Expo Go).
 2. If nothing appears under Development Servers: **Enter URL manually** → your
+
    static ngrok URL (not a gray Recently Opened `exp.direct` entry).
 3. Start Metro before ngrok (`pnpm dev:mobile:ngrok`, then `pnpm ngrok:tunnel`).
 4. If port 8081 is already in use, cancel a second `pnpm dev:mobile` / Expo
+
    start — reuse the existing Metro, or kill the old process and start one
-   Metro session. Prefer one bundler on 8081; don’t switch the phone to 8082
-   unless you mean to.
+    Metro session. Prefer one bundler on 8081; don’t switch the phone to 8082
+    unless you mean to.
 5. The API is reached over HTTPS at `EXPO_PUBLIC_API_URL`; ngrok only carries
+
    the JS bundle (Metro). Same Wi‑Fi as the Mac is not required for the VPS API.
 
 **Alternative — Expo built-in tunnel** (random `*.exp.direct` URL every session):
@@ -293,7 +299,7 @@ dot) is dead; do not reuse it.
 ### If tunnel fails (`remote gone away` / ngrok error)
 
 Expo’s built-in tunnel (`@expo/ngrok`) is flaky even when
-[ngrok status](https://status.ngrok.com/) is green. Prefer **`pnpm dev:mobile:ngrok`**
+[ngrok status](https://status.ngrok.com/) is green. Prefer `pnpm dev:mobile:ngrok`
 above; otherwise retry `pnpm dev:mobile:tunnel` once.
 
 **LAN fallback** (only if phone ↔ Mac on the same Wi‑Fi can talk — some APs
@@ -347,19 +353,24 @@ targets — use EAS for signing and upload.
 ### One-time Apple / Expo setup
 
 1. Paid [Apple Developer](https://developer.apple.com) account in Xcode
+
    (**Settings → Accounts**).
 2. [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list)
+
    → register an **App ID** with bundle id `app.civic.mobile`.
-   **Description** is only a portal label (e.g. `Civic`); leave Capabilities
-   unchecked unless you know you need one.
+    **Description** is only a portal label (e.g. `Civic`); leave Capabilities
+    unchecked unless you know you need one.
 3. [App Store Connect](https://appstoreconnect.apple.com) → **My Apps** → create
+
    an iOS app with that bundle id (EAS Submit can also create the record on
-   first upload if the name `Civic` is taken, rename later).
+    first upload if the name `Civic` is taken, rename later).
 4. From `apps/mobile`, ensure the Expo project is linked (`npx eas-cli init` if
+
    needed). First interactive iOS build creates the Apple Distribution
-   certificate + App Store provisioning profile on EAS (answer **Y** to
-   generate when prompted).
+    certificate + App Store provisioning profile on EAS (answer **Y** to
+    generate when prompted).
 5. Export compliance: Civic only uses standard HTTPS/TLS — answer **Y** when
+
    EAS asks whether the app uses only standard/exempt encryption.
 
 ### Environment (baked into the IPA)
@@ -396,12 +407,15 @@ submitter” for several minutes; **Ctrl+C** is fine — the job continues on Ex
 Then in App Store Connect:
 
 1. **My Apps → Civic → TestFlight** — wait for processing (often 5–20+ min;
+
    email when ready). App Store Connect may show a grey placeholder icon until
-   the build finishes processing.
+    the build finishes processing.
 2. Answer export compliance if prompted (exempt / standard encryption).
 3. **Internal Testing**: add App Store Connect users → they install with the
+
    **TestFlight** app.
 4. **External Testing**: create a group + invite emails; Apple’s short beta
+
    review is required once for the first external build.
 
 Confirm the installed build on **About** (header info icon → About):
@@ -426,10 +440,13 @@ for closed / mixed-device testers for now.
 1. Create a Firebase project (e.g. `civic-mobile`).
 2. Add an **Android** app with package id `app.civic.mobile`.
 3. Skip `google-services.json` for now — App Distribution upload does not need
+
    an in-app Firebase SDK.
 4. **App Distribution → Testers & groups** → create group `civic-testers` → add
+
    tester emails.
 5. In Google Cloud for that project: create a service account with role
+
    **Firebase App Distribution Admin**, download the JSON key.
 6. Copy the Android **App ID** from Project settings (`1:…:android:…`).
 
@@ -455,9 +472,11 @@ npx eas-cli build -p android --profile preview
 ### Ship a build to testers
 
 1. Actions → **Android Firebase Distribution** → **Run workflow** (optional
-   release notes), **or** push a tag `android-preview-*`.
+
+   release notes), **or** push a tag `android-preview-`*.
 2. Wait for EAS + upload (~15–40 min).
 3. Testers get an email. Prefer: open the invite in a **browser** → download APK
+
    → allow install from that source → install.
 
 **/e/OS (Murena):** do **not** rely on the Firebase App Tester app (needs Google
@@ -559,9 +578,9 @@ v1 uses **net** wage basis.
 - **Civic** — from Latin *civicus* ("of or pertaining to a citizen"); cousin of *city*, *civil*, *civilization*. See [`identity/civic-linguistics.txt`](identity/civic-linguistics.txt).
 - **ME** — the Merit unit, displayed alongside the Civic mark in product surfaces.
 - **Rovas / Rováš** — EN UI and English docs: **Rovas**. SK UI: always accented
-  **Rováš**, locative **v Rováši** (not *Na Rováši*). Wire names stay ASCII
-  (`rovas.app`, `ROVAS_*`). Policy: [`.cursor/rules/civic-terminology.mdc`](.cursor/rules/civic-terminology.mdc)
-  and [`apps/mobile/AGENTS.md`](apps/mobile/AGENTS.md).
+**Rováš**, locative **v Rováši** (not *Na Rováši*). Wire names stay ASCII
+(`rovas.app`, `ROVAS_*`). Policy: [`.cursor/rules/civic-terminology.mdc`](.cursor/rules/civic-terminology.mdc)
+and [`apps/mobile/AGENTS.md`](apps/mobile/AGENTS.md).
 
 ## License
 
