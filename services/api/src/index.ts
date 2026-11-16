@@ -13,6 +13,7 @@ import { workReportsRoutes } from "./routes/work-reports.js";
 import { verificationsRoutes } from "./routes/verifications.js";
 import { commentNoticesRoutes } from "./routes/comment-notices.js";
 import { pushTokensRoutes } from "./routes/push-tokens.js";
+import { authRoutes } from "./routes/auth.js";
 
 async function main() {
   const config = loadConfig();
@@ -32,6 +33,8 @@ async function main() {
     try: [
       "/health",
       "GET /merit-rate",
+      "POST /auth/google",
+      "POST /auth/apple",
       "GET /me",
       "POST /me/receipt-history-preference",
       "POST /me/give-chrons",
@@ -102,6 +105,7 @@ async function main() {
     return resolveMeritRate(rovas, config.settings);
   });
 
+  await app.register(authRoutes, { ctx });
   await app.register(receiptsRoutes, { ctx });
   await app.register(summaryRoutes, { ctx });
   await app.register(usersRoutes, { ctx });

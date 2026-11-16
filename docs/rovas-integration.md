@@ -31,8 +31,8 @@ is named on login and About. Chron reward choice is **opt-in** on Profile
 Receipt scanning-history retention (`keep` vs 90-day `policy`) is asked before
 the first claim (and whenever unset) and editable under Profile **Taxes
 settings**; stored on Rovas — see **[receipt-history-retention](../../rovas/docs/integration/civic_tasks/done/receipt-history-retention.md)**.
-See Rovas **Next work: Civic-branded OAuth login/register** for Civic-skinned
-HybridAuth login/register when authorizing client `civic`.
+Primary auth is native Google/Apple (see [Expo client](#expo-client-native-google--apple)
+below). Browser HybridAuth remains a legacy fallback.
 
 **Legal / glossary URLs (mobile):** `apps/mobile/lib/legal-urls.ts` defaults to
 `https://rovas.app/privacy` and `https://rovas.app/rules`. Overrides:
@@ -45,50 +45,43 @@ source.
 **Service status:** About → Status calls Civic `GET /health`, which probes Rovas
 (`civic_national_hourly_rate`) and returns `{ civic_api, rovas }` for the Status
 screen.
-## Expo client
+## Expo client (native Google + Apple)
 
-| Setting | Value |
-|---------|--------|
-| Authorize | `{ROVAS}/oauth2/authorize` |
-| Token | `{ROVAS}/oauth2/token` |
-| Revoke | `{ROVAS}/oauth2/revoke` |
-| Client ID | `civic` (public, no secret) |
-| Redirect | `civic://oauth/callback` |
+**Primary path:** native Google / Apple Sign-In in the Expo app → Civic API
+verifies the IdP token → Rovas
+[`civic-native-auth-bridge`](../../rovas/docs/integration/civic_tasks/active/civic-native-auth-bridge.md)
+(`POST /rovas/civic_auth_session`) creates/links the Drupal user and **mints**
+Civic OAuth Bearer tokens. Users do not open Rovas `/user/login` for the happy
+path.
+
+| Step | Detail |
+|------|--------|
+| Google | `@react-native-google-signin/google-signin` → `id_token` → `POST {API}/auth/google` |
+| Apple (iOS) | `expo-apple-authentication` → `identity_token` → `POST {API}/auth/apple` |
+| Refresh | `{ROVAS}/oauth2/token` (refresh_token grant) — unchanged |
+| Revoke | `{ROVAS}/oauth2/revoke` — unchanged |
 | Scope | `user_profile` |
-| PKCE | S256 (required) |
+| Client ID | `civic` (public) |
 
-Config via `EXPO_PUBLIC_ROVAS_BASE_URL` / `EXPO_PUBLIC_ROVAS_OAUTH_CLIENT_ID`
-(see `apps/mobile/.env` and root `.env.example`).
+Mobile env: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`,
+`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` (see `apps/mobile/.env.example`).
+API env: `ROVAS_API_KEY`, `ROVAS_TOKEN`, `GOOGLE_CLIENT_IDS`,
+`APPLE_CLIENT_IDS` (see root `.env.example`).
 
-Tokens live in `expo-secure-store`. `AuthProvider` runs Authorization Code +
-PKCE via `expo-auth-session`. Access tokens expire after **1 hour**; the app
-silently refreshes using the refresh token (14-day lifetime) and re-checks when
-the app returns to the foreground. Login/register screens open the same Rovas
-authorize URL with `lang` + `intent=login|register`; Google / Facebook /
-Drupal login is chosen on the Rovas HybridAuth page. Until Rovas honors
-`intent`, both land on `/user/login`.
+Tokens live in `expo-secure-store`. Access tokens expire after **1 hour**; the
+app silently refreshes using the refresh token (~14 days) and re-checks when
+the app returns to the foreground.
 
-Rovas **Next work: OAuth session persistence (refresh token rotation)** must be
-deployed on `dev.rovas.app` so refresh returns a replacement token.
+**Legacy fallback:** Authorization Code + PKCE via system browser
+(`{ROVAS}/oauth2/authorize` → `civic://oauth/callback`) remains in
+`AuthProvider.signIn` but is not the primary AuthForm UI.
 
-Rovas **Next work: Civic-branded OAuth login/register** — HybridAuth /
-`/user/register` chrome when authorizing client `civic` (reduces Rovas concept
-load for new Civic users; no PKCE contract change).
+**Phase 2 (not in this ship):** email/password on the same mint path
+(`provider=email` or sibling login/register). Facebook later: same bridge with
+`provider=facebook`.
 
-Rovas **Next work: pass Civic locale on OAuth authorize** — Expo sends
-`lang=sk|en` on `/oauth2/authorize` so anonymous login/register use the Civic
-UI locale instead of the system browser language. Rovas stashes it for the
-authorize → `/user/login` redirect and forces Drupal interface language in
-Civic authorize context only.
-
-Rovas **[oauth-authorize-intent](../../rovas/docs/integration/civic_tasks/active/oauth-authorize-intent.md)** —
-Expo sends `intent=login|register` on `/oauth2/authorize`; Rovas lands
-anonymous users on `/user/login` vs `/user/register` (session stash +
-`hook_drupal_goto_alter`, same pattern as `lang`).
-
-**Dev requirement:** custom scheme `civic://` needs a development build
-(`pnpm --filter @civic/mobile ios:device`), not Expo Go. Day-to-day
-device session steps (API + Metro tunnel) are in the root
+**Dev requirement:** native Google/Apple need a development build (not Expo
+Go). Day-to-day device session steps are in the root
 [`README.md`](../README.md) under **Physical iPhone**.
 
 ## Civic API Bearer validation

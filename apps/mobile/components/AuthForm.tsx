@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,9 +9,11 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { MeLogo } from "@/components/MeLogo";
 import { colors } from "@/constants/theme";
-import { AuthCodeExpiredError, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
+import { isAppleAuthAvailable } from "@/lib/social-auth";
 import { t } from "@/lib/i18n";
 
 type Mode = "login" | "register";
@@ -37,33 +40,42 @@ function LegalAgreeLine({ preface }: { preface: string }) {
 }
 
 export function AuthForm({ mode }: { mode: Mode }) {
-  const { signIn } = useAuth();
-  const [busy, setBusy] = useState(false);
+  const { signInWithGoogle, signInWithApple } = useAuth();
+  const [busy, setBusy] = useState<"google" | "apple" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [appleAvailable, setAppleAvailable] = useState(Platform.OS === "ios");
 
-  async function startOAuth() {
+  useEffect(() => {
+    let cancelled = false;
+    void isAppleAuthAvailable().then((ok) => {
+      if (!cancelled) setAppleAvailable(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function run(
+    provider: "google" | "apple",
+    action: () => Promise<boolean>,
+  ) {
     setError(null);
-    setBusy(true);
+    setBusy(provider);
     try {
-      const ok = await signIn(mode);
+      const ok = await action();
       if (ok) {
         router.replace("/");
       }
     } catch (e) {
-      if (e instanceof AuthCodeExpiredError) {
-        setError(t("auth.error_code_expired"));
-      } else {
-        setError(e instanceof Error ? e.message : t("auth.error_generic"));
-      }
+      setError(e instanceof Error ? e.message : t("auth.error_generic"));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
   const title =
     mode === "login" ? t("auth.login_title") : t("auth.register_title");
-  const ctaLabel =
-    mode === "login" ? t("auth.sign_in") : t("auth.create_account");
+  const busyAny = busy !== null;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -88,17 +100,38 @@ export function AuthForm({ mode }: { mode: Mode }) {
       )}
 
       <Pressable
-        style={[styles.primaryBtn, busy && styles.disabled]}
-        disabled={busy}
-        onPress={() => void startOAuth()}
+        style={[styles.googleBtn, busyAny && styles.disabled]}
+        disabled={busyAny}
+        onPress={() => void run("google", signInWithGoogle)}
       >
-        <Text style={styles.primaryBtnText}>{ctaLabel}</Text>
+        {busy === "google" ? (
+          <ActivityIndicator color={colors.ink} />
+        ) : (
+          <Text style={styles.googleBtnText}>{t("auth.continue_google")}</Text>
+        )}
       </Pressable>
 
-      {busy ? (
+      {appleAvailable ? (
+        <AppleAuthentication.AppleAuthenticationButton
+          buttonType={
+            mode === "register"
+              ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP
+              : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+          }
+          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+          cornerRadius={12}
+          style={styles.appleBtn}
+          onPress={() => {
+            if (busyAny) return;
+            void run("apple", signInWithApple);
+          }}
+        />
+      ) : null}
+
+      {busyAny ? (
         <View style={styles.busyRow}>
           <ActivityIndicator color={colors.brand} />
-          <Text style={styles.busyText}>{t("auth.opening_browser")}</Text>
+          <Text style={styles.busyText}>{t("auth.signing_in")}</Text>
         </View>
       ) : null}
 
@@ -167,18 +200,24 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   disclosureBold: { fontWeight: "700", color: colors.ink },
-  primaryBtn: {
-    backgroundColor: colors.brand,
+  googleBtn: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 12,
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-  primaryBtnText: {
-    color: "#fff",
+  googleBtnText: {
+    color: colors.ink,
     fontWeight: "700",
     fontSize: 15,
+  },
+  appleBtn: {
+    width: "100%",
+    height: 48,
   },
   disabled: { opacity: 0.55 },
   busyRow: {

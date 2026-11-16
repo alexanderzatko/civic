@@ -55,6 +55,11 @@ import {
 } from "@/lib/trusted-notify";
 import { capture, resetAnalytics } from "@/lib/analytics";
 import { resetSpotlightDismiss } from "@/lib/spotlight-dismiss";
+import {
+  SocialAuthCancelledError,
+  signInWithAppleNative,
+  signInWithGoogleNative,
+} from "@/lib/social-auth";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -66,10 +71,13 @@ export type OAuthIntent = "login" | "register";
 type AuthContextValue = {
   status: AuthStatus;
   accessToken: string | null;
+  /** Native Google Sign-In → Civic API → Rovas-minted Bearer tokens. */
+  signInWithGoogle: () => Promise<boolean>;
+  /** Native Apple Sign-In (iOS) → Civic API → Rovas-minted Bearer tokens. */
+  signInWithApple: () => Promise<boolean>;
   /**
-   * Start Rovas Authorization Code + PKCE in the system browser.
-   * `intent` is sent as `?intent=` so Rovas can open login vs register
-   * (see Rovas task oauth-authorize-intent).
+   * Legacy: Rovas Authorization Code + PKCE in the system browser.
+   * Kept as fallback; primary UI uses Google / Apple.
    */
   signIn: (intent?: OAuthIntent) => Promise<boolean>;
   signOut: () => Promise<void>;
@@ -436,6 +444,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
+  const signInWithGoogle = useCallback(async (): Promise<boolean> => {
+    try {
+      const stored = await signInWithGoogleNative();
+      await persist(stored);
+      capture("auth_signed_in", { provider: "google" });
+      return true;
+    } catch (err) {
+      if (err instanceof SocialAuthCancelledError) return false;
+      throw err;
+    }
+  }, [persist]);
+
+  const signInWithApple = useCallback(async (): Promise<boolean> => {
+    try {
+      const stored = await signInWithAppleNative();
+      await persist(stored);
+      capture("auth_signed_in", { provider: "apple" });
+      return true;
+    } catch (err) {
+      if (err instanceof SocialAuthCancelledError) return false;
+      throw err;
+    }
+  }, [persist]);
+
   const signIn = useCallback(
     async (intent: OAuthIntent = "login"): Promise<boolean> => {
       if (Platform.OS === "ios") {
@@ -450,8 +482,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         redirectUri,
         scopes: [...OAUTH_SCOPES],
         usePKCE: true,
-        // Rovas: `lang` forces anonymous UI locale; `intent` chooses
-        // login vs register landing (oauth-authorize-intent).
+        // Legacy browser path: `lang` + `intent` for Rovas HybridAuth.
         extraParams: { lang: getLocale(), intent },
       });
       await request.getAuthRequestConfigAsync();
@@ -510,11 +541,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       status,
       accessToken: tokens?.accessToken ?? null,
+      signInWithGoogle,
+      signInWithApple,
       signIn,
       signOut,
       getAccessToken,
     }),
-    [getAccessToken, signIn, signOut, status, tokens?.accessToken],
+    [
+      getAccessToken,
+      signIn,
+      signInWithApple,
+      signInWithGoogle,
+      signOut,
+      status,
+      tokens?.accessToken,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

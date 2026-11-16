@@ -13,8 +13,9 @@ Three Merit-earning paths:
    photos/map/URL, in-app verification)
 
 Merits represent labor-hour equivalents (Rovas convention: **10 ME = 1 hour**).
-Identity is **Rovas OAuth** (Google, Facebook, or Rovas account) — no separate
-Civic account.
+Identity is stored on **Rovas**; Civic signs in with native **Google** /
+**Apple** (Civic API verifies IdP tokens and Rovas mints OAuth Bearers) — no
+separate Civic password store.
 
 > **NeoFund docs:** When writing product copy or defining Merits, Chrons, funds,
 > or volunteer flows, consult the **NeoFund f.o.** project documentation at
@@ -40,7 +41,7 @@ Civic account.
 | Invest | Stub list → opens Rovas project pages |
 | Home / Community / Profile | Contribution dashboard, user lookup, Merit ledger |
 | Prínos (ME•ter) | Merit Index leaderboard + filters |
-| Auth | Rovas OAuth (Authorization Code + PKCE) |
+| Auth | Native Google + Apple → Civic API → Rovas-minted OAuth Bearers |
 | API deploy | `https://civic-api.rovas.app` |
 | Mobile builds | Dev client (iOS) + TestFlight; release APK (Android); EAS + Firebase App Distribution |
 
@@ -49,8 +50,8 @@ Merits / ÚPVS, Trusted User via Slovak eID (Rovas-side design:
 [`../rovas/docs/trusted-user-eid.md`](../rovas/docs/trusted-user-eid.md)), App Store /
 Play **public** production release, Postgres.
 
-UI browsing can use Expo Go; **camera + OAuth** need a development build (Expo Go
-cannot claim `civic://`).
+UI browsing can use Expo Go; **camera + native Google/Apple sign-in** need a
+development build.
 
 ## Repository layout
 
@@ -204,8 +205,8 @@ Platform-specific shortcuts that include prebuild + build:
 
 ## Physical iPhone (camera + login)
 
-Expo Go cannot handle the `civic://oauth/callback` redirect. Use the **Civic**
-development build on the phone.
+Expo Go cannot use native Google/Apple Sign-In (or the legacy
+`civic://oauth/callback` path). Use the **Civic** development build on the phone.
 
 **Xcode / `ios:device` only installs the native shell.** It does not start the
 JS bundler. After a rebuild you still need Metro every session, or the
