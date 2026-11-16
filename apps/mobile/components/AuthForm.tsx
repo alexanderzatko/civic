@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-import * as AppleAuthentication from "expo-apple-authentication";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { MeLogo } from "@/components/MeLogo";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
@@ -112,20 +112,22 @@ export function AuthForm({ mode }: { mode: Mode }) {
       </Pressable>
 
       {appleAvailable ? (
-        <AppleAuthentication.AppleAuthenticationButton
-          buttonType={
-            mode === "register"
-              ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP
-              : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
-          }
-          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-          cornerRadius={12}
-          style={styles.appleBtn}
-          onPress={() => {
-            if (busyAny) return;
-            void run("apple", signInWithApple);
-          }}
-        />
+        <Pressable
+          style={[styles.appleBtn, busyAny && styles.disabled]}
+          disabled={busyAny}
+          onPress={() => void run("apple", signInWithApple)}
+          accessibilityRole="button"
+          accessibilityLabel={t("auth.continue_apple")}
+        >
+          {busy === "apple" ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <View style={styles.appleBtnInner}>
+              <MaterialCommunityIcons name="apple" size={22} color="#fff" />
+              <Text style={styles.appleBtnText}>{t("auth.continue_apple")}</Text>
+            </View>
+          )}
+        </Pressable>
       ) : null}
 
       {busyAny ? (
@@ -216,8 +218,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   appleBtn: {
-    width: "100%",
-    height: 48,
+    backgroundColor: "#000",
+    borderRadius: 12,
+    minHeight: 48,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  appleBtnInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  appleBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
   },
   disabled: { opacity: 0.55 },
   busyRow: {
