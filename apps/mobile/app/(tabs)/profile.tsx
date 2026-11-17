@@ -170,6 +170,8 @@ export default function ProfileScreen() {
     const seeded = takeProfileIdentitySeed();
     if (seeded && !profileDirtyRef.current) {
       applyMeIdentity(seeded.username, null);
+      // Password signup chose the username — never show the social tip.
+      setShowUsernameAutoHint(false);
     }
 
     const pending = await hasUsernameHintPending();
@@ -187,12 +189,14 @@ export default function ProfileScreen() {
       setRovasUid(uid);
       setTotalChr(typeof me.total_chr === "number" ? me.total_chr : null);
       const dismissed = await isUsernameHintDismissed(uid);
-      // Tip only after social (Google/Apple) register — password signup
-      // chooses a username and never sets the pending flag.
-      setShowUsernameAutoHint(Boolean(pending && !dismissed));
+      // Tip only after social (Google/Apple) register in this app session.
+      // Password signup seeds above and keeps the tip off.
+      setShowUsernameAutoHint(
+        Boolean(!seeded && pending && !dismissed),
+      );
     } catch {
       // Keep seed / existing fields; do not wipe on a transient /me failure.
-      if (!profileDirtyRef.current) {
+      if (!seeded && !profileDirtyRef.current) {
         setShowUsernameAutoHint(pending);
       }
     }

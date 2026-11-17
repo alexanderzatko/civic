@@ -21,7 +21,10 @@ import { getRovasPasswordResetUrl } from "@/lib/legal-urls";
 import { PasswordAuthError } from "@/lib/password-auth";
 import { seedProfileIdentity } from "@/lib/profile-identity-seed";
 import { isAppleAuthAvailable } from "@/lib/social-auth";
-import { markUsernameHintPending } from "@/lib/username-hint";
+import {
+  clearUsernameHintPending,
+  markUsernameHintPending,
+} from "@/lib/username-hint";
 
 type Mode = "login" | "register";
 
@@ -183,6 +186,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
         if (ok) {
           // Seed Profile so the username field is filled before GET /me returns.
           seedProfileIdentity(chosenUsername);
+          // Drop any stale social-register tip flag from an earlier Apple/Google
+          // signup on this device (SecureStore used to keep it forever).
+          await clearUsernameHintPending();
           // Password register: Home, no auto-username tip.
           // Social register still goes to Profile with the tip (runSocial).
           await afterSuccess(false);
@@ -190,6 +196,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       } else {
         const ok = await signInWithPassword(login.trim(), password);
         if (ok) {
+          await clearUsernameHintPending();
           await afterSuccess(false);
         }
       }
@@ -356,8 +363,17 @@ export function AuthForm({ mode }: { mode: Mode }) {
           secureTextEntry
           autoCapitalize="none"
           autoCorrect={false}
+          spellCheck={false}
           autoComplete={mode === "register" ? "new-password" : "password"}
           textContentType={mode === "register" ? "newPassword" : "password"}
+          // Helps iOS Password AutoFill / “Suggest Strong Password” recognize
+          // a signup field. Full Save-Password still needs Associated Domains.
+          {...(mode === "register" && Platform.OS === "ios"
+            ? {
+                passwordRules:
+                  "minlength: 8; required: lower; required: upper; required: digit;",
+              }
+            : {})}
           style={styles.input}
           editable={!busyAny}
           accessibilityLabel={t("auth.password_placeholder")}
@@ -374,8 +390,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
             secureTextEntry
             autoCapitalize="none"
             autoCorrect={false}
+            spellCheck={false}
             autoComplete="new-password"
             textContentType="newPassword"
+            {...(Platform.OS === "ios"
+              ? {
+                  passwordRules:
+                    "minlength: 8; required: lower; required: upper; required: digit;",
+                }
+              : {})}
             style={styles.input}
             editable={!busyAny}
             accessibilityLabel={t("auth.password_confirm_placeholder")}
