@@ -38,6 +38,11 @@ export function getRovasSiteUrl(): string {
   return trimUrl(process.env.EXPO_PUBLIC_ROVAS_SITE_URL, DEFAULT_ROVAS_SITE);
 }
 
+/** Drupal password-reset form on the public Rovas site (not OAuth / API base). */
+export function getRovasPasswordResetUrl(): string {
+  return `${getRovasSiteUrl().replace(/\/$/, "")}/user/password`;
+}
+
 export function getNeofundSiteUrl(): string {
   return trimUrl(process.env.EXPO_PUBLIC_NEOFUND_SITE_URL, DEFAULT_NEOFUND_SITE);
 }

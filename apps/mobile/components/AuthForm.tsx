@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { router } from "expo-router";
@@ -14,10 +16,16 @@ import { MeLogo } from "@/components/MeLogo";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
+import { getRovasPasswordResetUrl } from "@/lib/legal-urls";
+import { PasswordAuthError } from "@/lib/password-auth";
 import { isAppleAuthAvailable } from "@/lib/social-auth";
 import { markUsernameHintPending } from "@/lib/username-hint";
 
 type Mode = "login" | "register";
+
+const USERNAME_RE = /^[A-Za-z0-9_.-]+$/;
+const USERNAME_MAX = 50;
+const PASSWORD_MIN = 8;
 
 function LegalAgreeLine({ preface }: { preface: string }) {
   return (
@@ -41,10 +49,23 @@ function LegalAgreeLine({ preface }: { preface: string }) {
 }
 
 export function AuthForm({ mode }: { mode: Mode }) {
-  const { signInWithGoogle, signInWithApple } = useAuth();
-  const [busy, setBusy] = useState<"google" | "apple" | null>(null);
+  const {
+    signInWithGoogle,
+    signInWithApple,
+    signInWithPassword,
+    registerWithPassword,
+  } = useAuth();
+  const [busy, setBusy] = useState<"google" | "apple" | "password" | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [appleAvailable, setAppleAvailable] = useState(Platform.OS === "ios");
+
+  const [login, setLogin] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +77,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
     };
   }, []);
 
-  async function run(
+  async function afterSuccess(isRegister: boolean) {
+    if (isRegister) {
+      router.replace("/(tabs)/profile");
+    } else {
+      router.replace("/");
+    }
+  }
+
+  async function runSocial(
     provider: "google" | "apple",
     action: () => Promise<boolean>,
   ) {
@@ -67,10 +96,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
       if (ok) {
         if (mode === "register") {
           await markUsernameHintPending();
-          router.replace("/(tabs)/profile");
-        } else {
-          router.replace("/");
         }
+        await afterSuccess(mode === "register");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : t("auth.error_generic"));
@@ -79,12 +106,71 @@ export function AuthForm({ mode }: { mode: Mode }) {
     }
   }
 
+  function validatePasswordForm(): string | null {
+    if (mode === "login") {
+      if (!login.trim() || !password) {
+        return t("auth.error_missing_fields");
+      }
+      return null;
+    }
+    const u = username.trim();
+    if (!u || !email.trim() || !password) {
+      return t("auth.error_missing_fields");
+    }
+    if (u.length > USERNAME_MAX || !USERNAME_RE.test(u)) {
+      return t("auth.error_username_invalid");
+    }
+    if (!email.includes("@")) {
+      return t("auth.error_email_invalid");
+    }
+    if (password.length < PASSWORD_MIN) {
+      return t("auth.error_password_short");
+    }
+    if (password !== passwordConfirm) {
+      return t("auth.error_password_mismatch");
+    }
+    return null;
+  }
+
+  async function runPassword() {
+    const validationError = validatePasswordForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setError(null);
+    setBusy("password");
+    try {
+      const ok =
+        mode === "register"
+          ? await registerWithPassword(username.trim(), email.trim(), password)
+          : await signInWithPassword(login.trim(), password);
+      if (ok) {
+        // Password register already chose a username — no auto-hint tip.
+        await afterSuccess(mode === "register");
+      }
+    } catch (e) {
+      if (e instanceof PasswordAuthError) {
+        setError(e.message);
+      } else {
+        setError(e instanceof Error ? e.message : t("auth.error_generic"));
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const title =
     mode === "login" ? t("auth.login_title") : t("auth.register_title");
   const busyAny = busy !== null;
+  const submitLabel =
+    mode === "login" ? t("auth.sign_in") : t("auth.create_account");
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.hero}>
         <MeLogo size={48} />
         <Text style={styles.title}>{title}</Text>
@@ -114,7 +200,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <Pressable
         style={[styles.googleBtn, busyAny && styles.disabled]}
         disabled={busyAny}
-        onPress={() => void run("google", signInWithGoogle)}
+        onPress={() => void runSocial("google", signInWithGoogle)}
       >
         {busy === "google" ? (
           <ActivityIndicator color={colors.ink} />
@@ -127,7 +213,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <Pressable
           style={[styles.appleBtn, busyAny && styles.disabled]}
           disabled={busyAny}
-          onPress={() => void run("apple", signInWithApple)}
+          onPress={() => void runSocial("apple", signInWithApple)}
           accessibilityRole="button"
           accessibilityLabel={t("auth.continue_apple")}
         >
@@ -142,6 +228,124 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </Pressable>
       ) : null}
 
+      <View style={styles.dividerRow}>
+        <View style={styles.divider} />
+        <Text style={styles.or}>{t("auth.or")}</Text>
+        <View style={styles.divider} />
+      </View>
+
+      <View style={styles.fields}>
+        {mode === "login" ? (
+          <TextInput
+            value={login}
+            onChangeText={setLogin}
+            placeholder={t("auth.login_placeholder")}
+            placeholderTextColor={colors.muted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="username"
+            textContentType="username"
+            keyboardType="email-address"
+            style={styles.input}
+            editable={!busyAny}
+            accessibilityLabel={t("auth.login_placeholder")}
+          />
+        ) : (
+          <>
+            <TextInput
+              value={username}
+              onChangeText={(text) =>
+                setUsername(text.replace(/\s+/g, "").slice(0, USERNAME_MAX))
+              }
+              placeholder={t("auth.username_placeholder")}
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="username"
+              textContentType="username"
+              style={styles.input}
+              maxLength={USERNAME_MAX}
+              editable={!busyAny}
+              accessibilityLabel={t("auth.username_placeholder")}
+            />
+            <Text style={styles.fieldHint}>{t("profile.username_hint")}</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder={t("auth.email_placeholder")}
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              keyboardType="email-address"
+              style={styles.input}
+              editable={!busyAny}
+              accessibilityLabel={t("auth.email_placeholder")}
+            />
+          </>
+        )}
+
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          placeholder={t("auth.password_placeholder")}
+          placeholderTextColor={colors.muted}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete={mode === "register" ? "new-password" : "password"}
+          textContentType={mode === "register" ? "newPassword" : "password"}
+          style={styles.input}
+          editable={!busyAny}
+          accessibilityLabel={t("auth.password_placeholder")}
+        />
+
+        {mode === "register" ? (
+          <TextInput
+            value={passwordConfirm}
+            onChangeText={setPasswordConfirm}
+            placeholder={t("auth.password_confirm_placeholder")}
+            placeholderTextColor={colors.muted}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="new-password"
+            textContentType="newPassword"
+            style={styles.input}
+            editable={!busyAny}
+            accessibilityLabel={t("auth.password_confirm_placeholder")}
+          />
+        ) : null}
+
+        <Pressable
+          style={[styles.submitBtn, busyAny && styles.disabled]}
+          disabled={busyAny}
+          onPress={() => void runPassword()}
+          accessibilityRole="button"
+          accessibilityLabel={submitLabel}
+        >
+          {busy === "password" ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.submitBtnText}>{submitLabel}</Text>
+          )}
+        </Pressable>
+
+        {mode === "login" ? (
+          <Text style={styles.forgotLine}>
+            <Text
+              style={styles.forgotLink}
+              onPress={() => {
+                void Linking.openURL(getRovasPasswordResetUrl());
+              }}
+            >
+              {t("auth.forgot_password")}
+            </Text>
+          </Text>
+        ) : null}
+      </View>
+
       {busyAny ? (
         <View style={styles.busyRow}>
           <ActivityIndicator color={colors.brand} />
@@ -150,12 +354,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
       ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <View style={styles.dividerRow}>
-        <View style={styles.divider} />
-        <Text style={styles.or}>{t("auth.or")}</Text>
-        <View style={styles.divider} />
-      </View>
 
       {mode === "login" ? (
         <Text style={styles.switchLine}>
@@ -248,6 +446,40 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 15,
   },
+  fields: { gap: 10 },
+  input: {
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.ink,
+    minHeight: 48,
+  },
+  fieldHint: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: -4,
+  },
+  submitBtn: {
+    backgroundColor: colors.brand,
+    borderRadius: 12,
+    minHeight: 48,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  submitBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  forgotLine: { textAlign: "center", marginTop: 2 },
+  forgotLink: { color: colors.brandSoft, fontWeight: "600", fontSize: 13 },
   disabled: { opacity: 0.55 },
   busyRow: {
     flexDirection: "row",

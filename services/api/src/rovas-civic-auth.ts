@@ -12,6 +12,19 @@ export type CivicAuthSessionRequest = {
   user_country: string;
 };
 
+export type CivicAuthRegisterRequest = {
+  username: string;
+  email: string;
+  password: string;
+  user_language: string;
+  user_country: string;
+};
+
+export type CivicAuthLoginRequest = {
+  login: string;
+  password: string;
+};
+
 export type CivicAuthSessionResponse = {
   rovas_uid: number;
   access_token: string;
@@ -25,19 +38,28 @@ export class RovasCivicAuthError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code?: string,
   ) {
     super(message);
     this.name = "RovasCivicAuthError";
   }
 }
 
-/**
- * Trusted create/link + OAuth mint via Rovas
- * `POST /rovas/civic_auth_session` (see civic-native-auth-bridge task).
- */
-export async function createCivicAuthSession(
+function mapRovasHttpStatus(status: number): number {
+  return status === 401 ||
+    status === 403 ||
+    status === 409 ||
+    status === 400
+    ? status
+    : status >= 500
+      ? 503
+      : 502;
+}
+
+async function postCivicAuthMint(
   config: ApiConfig,
-  body: CivicAuthSessionRequest,
+  path: string,
+  body: Record<string, unknown>,
 ): Promise<CivicAuthSessionResponse> {
   const apiKey = config.rovasApiKey;
   const token = config.rovasApiToken;
@@ -49,7 +71,7 @@ export async function createCivicAuthSession(
   }
 
   const base = config.rovasBaseUrl.replace(/\/$/, "");
-  const url = `${base}/rovas/civic_auth_session`;
+  const url = `${base}${path}`;
 
   let res: Response;
   try {
@@ -64,26 +86,47 @@ export async function createCivicAuthSession(
       body: JSON.stringify(body),
     });
   } catch {
-    throw new RovasCivicAuthError("Rovas civic_auth_session unreachable", 503);
+    throw new RovasCivicAuthError(`${path} unreachable`, 503);
   }
 
   if (!res.ok) {
     let detail = "";
+    let code: string | undefined;
     try {
-      detail = (await res.text()).slice(0, 240);
+      const text = (await res.text()).slice(0, 480);
+      detail = text;
+      try {
+        const parsed = JSON.parse(text) as {
+          error?: unknown;
+          code?: unknown;
+          message?: unknown;
+        };
+        if (typeof parsed.code === "string" && parsed.code.trim()) {
+          code = parsed.code.trim();
+        }
+        if (typeof parsed.error === "string" && parsed.error.trim()) {
+          detail = parsed.error.trim();
+        } else if (
+          typeof parsed.message === "string" &&
+          parsed.message.trim()
+        ) {
+          detail = parsed.message.trim();
+        }
+      } catch {
+        // keep raw text
+      }
     } catch {
       // ignore
     }
-    const status = res.status >= 400 && res.status < 600 ? res.status : 502;
+    const status = mapRovasHttpStatus(
+      res.status >= 400 && res.status < 600 ? res.status : 502,
+    );
     throw new RovasCivicAuthError(
       detail
-        ? `Rovas civic_auth_session failed (${res.status}): ${detail}`
-        : `Rovas civic_auth_session failed (${res.status})`,
-      status === 401 || status === 403 || status === 409 || status === 400
-        ? status
-        : status >= 500
-          ? 503
-          : 502,
+        ? `Rovas ${path} failed (${res.status}): ${detail}`
+        : `Rovas ${path} failed (${res.status})`,
+      status,
+      code,
     );
   }
 
@@ -96,7 +139,7 @@ export async function createCivicAuthSession(
     typeof json.rovas_uid !== "number"
   ) {
     throw new RovasCivicAuthError(
-      "Rovas civic_auth_session response missing tokens",
+      `Rovas ${path} response missing tokens`,
       502,
     );
   }
@@ -113,6 +156,39 @@ export async function createCivicAuthSession(
       typeof json.token_type === "string" ? json.token_type : "bearer",
     scope: typeof json.scope === "string" ? json.scope : "user_profile",
   };
+}
+
+/**
+ * Trusted create/link + OAuth mint via Rovas
+ * `POST /rovas/civic_auth_session` (see civic-native-auth-bridge task).
+ */
+export async function createCivicAuthSession(
+  config: ApiConfig,
+  body: CivicAuthSessionRequest,
+): Promise<CivicAuthSessionResponse> {
+  return postCivicAuthMint(config, "/rovas/civic_auth_session", body);
+}
+
+/**
+ * Password register + mint via Rovas
+ * `POST /rovas/civic_auth_register` (see civic-email-password-auth task).
+ */
+export async function registerCivicAuth(
+  config: ApiConfig,
+  body: CivicAuthRegisterRequest,
+): Promise<CivicAuthSessionResponse> {
+  return postCivicAuthMint(config, "/rovas/civic_auth_register", body);
+}
+
+/**
+ * Password login + mint via Rovas
+ * `POST /rovas/civic_auth_login` (see civic-email-password-auth task).
+ */
+export async function loginCivicAuth(
+  config: ApiConfig,
+  body: CivicAuthLoginRequest,
+): Promise<CivicAuthSessionResponse> {
+  return postCivicAuthMint(config, "/rovas/civic_auth_login", body);
 }
 
 /** Map Rovas mint JSON → Expo TokenResponseConfig field names. */

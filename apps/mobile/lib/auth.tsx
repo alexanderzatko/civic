@@ -60,6 +60,10 @@ import {
   signInWithAppleNative,
   signInWithGoogleNative,
 } from "@/lib/social-auth";
+import {
+  registerWithPasswordNative,
+  signInWithPasswordNative,
+} from "@/lib/password-auth";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -75,9 +79,17 @@ type AuthContextValue = {
   signInWithGoogle: () => Promise<boolean>;
   /** Native Apple Sign-In (iOS) → Civic API → Rovas-minted Bearer tokens. */
   signInWithApple: () => Promise<boolean>;
+  /** Username/email + password → Civic API → Rovas-minted Bearer tokens. */
+  signInWithPassword: (login: string, password: string) => Promise<boolean>;
+  /** Register with username + email + password → mint. */
+  registerWithPassword: (
+    username: string,
+    email: string,
+    password: string,
+  ) => Promise<boolean>;
   /**
    * Legacy: Rovas Authorization Code + PKCE in the system browser.
-   * Kept as fallback; primary UI uses Google / Apple.
+   * Kept as fallback; primary UI uses Google / Apple / password.
    */
   signIn: (intent?: OAuthIntent) => Promise<boolean>;
   signOut: () => Promise<void>;
@@ -468,6 +480,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [persist]);
 
+  const signInWithPassword = useCallback(
+    async (login: string, password: string): Promise<boolean> => {
+      const stored = await signInWithPasswordNative({ login, password });
+      await persist(stored);
+      capture("auth_signed_in", { provider: "password" });
+      return true;
+    },
+    [persist],
+  );
+
+  const registerWithPassword = useCallback(
+    async (
+      username: string,
+      email: string,
+      password: string,
+    ): Promise<boolean> => {
+      const stored = await registerWithPasswordNative({
+        username,
+        email,
+        password,
+      });
+      await persist(stored);
+      capture("auth_signed_in", { provider: "password", intent: "register" });
+      return true;
+    },
+    [persist],
+  );
+
   const signIn = useCallback(
     async (intent: OAuthIntent = "login"): Promise<boolean> => {
       if (Platform.OS === "ios") {
@@ -543,15 +583,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accessToken: tokens?.accessToken ?? null,
       signInWithGoogle,
       signInWithApple,
+      signInWithPassword,
+      registerWithPassword,
       signIn,
       signOut,
       getAccessToken,
     }),
     [
       getAccessToken,
+      registerWithPassword,
       signIn,
       signInWithApple,
       signInWithGoogle,
+      signInWithPassword,
       signOut,
       status,
       tokens?.accessToken,

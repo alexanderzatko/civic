@@ -31,8 +31,9 @@ is named on login and About. Chron reward choice is **opt-in** on Profile
 Receipt scanning-history retention (`keep` vs 90-day `policy`) is asked before
 the first claim (and whenever unset) and editable under Profile **Taxes
 settings**; stored on Rovas — see **[receipt-history-retention](../../rovas/docs/integration/civic_tasks/done/receipt-history-retention.md)**.
-Primary auth is native Google/Apple (see [Expo client](#expo-client-native-google--apple)
-below). Browser HybridAuth remains a legacy fallback.
+Primary auth is native Google/Apple plus username/email + password (see
+[Expo client](#expo-client-native-google--apple) below). Browser HybridAuth
+remains a legacy fallback.
 
 **Legal / glossary URLs (mobile):** `apps/mobile/lib/legal-urls.ts` defaults to
 `https://rovas.app/privacy` and `https://rovas.app/rules`. Overrides:
@@ -60,6 +61,9 @@ Rovas must not invent one from the email local-part — see
 |------|--------|
 | Google | `@react-native-google-signin/google-signin` → `id_token` → `POST {API}/auth/google` |
 | Apple (iOS) | `expo-apple-authentication` → `identity_token` → `POST {API}/auth/apple` |
+| Register (password) | username + email + password → `POST {API}/auth/register` → Rovas `civic_auth_register` |
+| Login (password) | username or email + password → `POST {API}/auth/login` → Rovas `civic_auth_login` |
+| Password reset | Rovas web `/user/password` (`getRovasPasswordResetUrl()`); not in-app |
 | Refresh | `{ROVAS}/oauth2/token` (refresh_token grant) — unchanged |
 | Revoke | `{ROVAS}/oauth2/revoke` — unchanged |
 | Scope | `user_profile` |
@@ -78,9 +82,14 @@ the app returns to the foreground.
 (`{ROVAS}/oauth2/authorize` → `civic://oauth/callback`) remains in
 `AuthProvider.signIn` but is not the primary AuthForm UI.
 
-**Phase 2 (not in this ship):** email/password on the same mint path
-(`provider=email` or sibling login/register). Facebook later: same bridge with
-`provider=facebook`.
+**Password auth (Phase 2):** username + email + password register and
+username-or-email login via Civic `POST /auth/register` + `POST /auth/login` →
+Rovas
+[`civic-email-password-auth`](../../rovas/docs/integration/civic_tasks/active/civic-email-password-auth.md)
+(`POST /rovas/civic_auth_register`, `POST /rovas/civic_auth_login`) on the same
+mint path. Password reset is **Rovas web only** for now
+(`https://rovas.app/user/password`, via `getRovasPasswordResetUrl()`). Facebook
+later: same bridge with `provider=facebook`.
 
 **Dev requirement:** native Google/Apple need a development build (not Expo
 Go). Day-to-day device session steps are in the root

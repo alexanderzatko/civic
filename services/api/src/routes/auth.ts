@@ -8,6 +8,8 @@ import {
 } from "../idp-verify.js";
 import {
   createCivicAuthSession,
+  loginCivicAuth,
+  registerCivicAuth,
   RovasCivicAuthError,
   toExpoTokenPayload,
 } from "../rovas-civic-auth.js";
@@ -47,7 +49,32 @@ const appleBodySchema = z.object({
   country: countrySchema,
 });
 
-function mapAuthError(err: unknown): { status: number; error: string } {
+/** Align with Civic profile username rules. */
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(50)
+  .regex(/^[A-Za-z0-9_.-]+$/);
+
+const registerBodySchema = z.object({
+  username: usernameSchema,
+  email: z.string().trim().email().max(254),
+  password: z.string().min(8).max(128),
+  language: languageSchema,
+  country: countrySchema,
+});
+
+const loginBodySchema = z.object({
+  login: z.string().trim().min(1).max(254),
+  password: z.string().min(1).max(128),
+});
+
+function mapAuthError(err: unknown): {
+  status: number;
+  error: string;
+  code?: string;
+} {
   if (err instanceof IdTokenVerifyError) {
     return { status: err.status, error: err.message };
   }
@@ -55,6 +82,7 @@ function mapAuthError(err: unknown): { status: number; error: string } {
     return {
       status: err.status >= 400 && err.status < 600 ? err.status : 502,
       error: err.message,
+      ...(err.code ? { code: err.code } : {}),
     };
   }
   return { status: 500, error: "Authentication failed" };
@@ -90,7 +118,9 @@ export const authRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
     } catch (err) {
       const mapped = mapAuthError(err);
       req.log.warn({ err }, "Google auth failed");
-      return reply.code(mapped.status).send({ error: mapped.error });
+      return reply
+        .code(mapped.status)
+        .send({ error: mapped.error, ...(mapped.code ? { code: mapped.code } : {}) });
     }
   });
 
@@ -138,7 +168,54 @@ export const authRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
     } catch (err) {
       const mapped = mapAuthError(err);
       req.log.warn({ err }, "Apple auth failed");
-      return reply.code(mapped.status).send({ error: mapped.error });
+      return reply
+        .code(mapped.status)
+        .send({ error: mapped.error, ...(mapped.code ? { code: mapped.code } : {}) });
+    }
+  });
+
+  app.post("/auth/register", async (req, reply) => {
+    const parsed = registerBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid request body" });
+    }
+
+    try {
+      const session = await registerCivicAuth(ctx.config, {
+        username: parsed.data.username,
+        email: parsed.data.email,
+        password: parsed.data.password,
+        user_language: parsed.data.language,
+        user_country: parsed.data.country,
+      });
+      return toExpoTokenPayload(session);
+    } catch (err) {
+      const mapped = mapAuthError(err);
+      req.log.warn({ err }, "Password register failed");
+      return reply
+        .code(mapped.status)
+        .send({ error: mapped.error, ...(mapped.code ? { code: mapped.code } : {}) });
+    }
+  });
+
+  app.post("/auth/login", async (req, reply) => {
+    const parsed = loginBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid request body" });
+    }
+
+    try {
+      const session = await loginCivicAuth(ctx.config, {
+        login: parsed.data.login,
+        password: parsed.data.password,
+      });
+      return toExpoTokenPayload(session);
+    } catch (err) {
+      const mapped = mapAuthError(err);
+      req.log.warn({ err }, "Password login failed");
+      return reply
+        .code(mapped.status)
+        .send({ error: mapped.error, ...(mapped.code ? { code: mapped.code } : {}) });
     }
   });
 };
