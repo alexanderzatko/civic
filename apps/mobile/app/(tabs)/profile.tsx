@@ -30,6 +30,12 @@ import { useLocale } from "@/lib/locale";
 import { useMeSourcesPreference } from "@/lib/me-sources-preference";
 import { useReceiptHistoryPreference } from "@/lib/receipt-history-preference";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
+import {
+  dismissUsernameHint,
+  hasUsernameHintPending,
+  isFreshAccount,
+  isUsernameHintDismissed,
+} from "@/lib/username-hint";
 
 const ME_SOURCES_OPTIONS: MeSourcesShare[] = [
   "everyone",
@@ -91,6 +97,8 @@ export default function ProfileScreen() {
   const [editUsername, setEditUsername] = useState("");
   const [editRealName, setEditRealName] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
+  const [showUsernameAutoHint, setShowUsernameAutoHint] = useState(false);
+  const [rovasUid, setRovasUid] = useState<string | null>(null);
   const [totalChr, setTotalChr] = useState<number | null>(null);
   const [items, setItems] = useState<MeritHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -138,6 +146,8 @@ export default function ProfileScreen() {
       setEditUsername("");
       setEditRealName("");
       setTotalChr(null);
+      setRovasUid(null);
+      setShowUsernameAutoHint(false);
       setItems([]);
       setTotal(0);
       setHistoryError(false);
@@ -145,22 +155,31 @@ export default function ProfileScreen() {
       return;
     }
     let cancelled = false;
-    fetchMe()
-      .then((me) => {
+    void (async () => {
+      const pending = await hasUsernameHintPending();
+      try {
+        const me = await fetchMe();
         if (cancelled) return;
         const name = me.username ?? me.rovas_uid;
+        const uid = me.rovas_uid;
         applyMeIdentity(name, me.display_name ?? null);
+        setRovasUid(uid);
         setTotalChr(typeof me.total_chr === "number" ? me.total_chr : null);
-      })
-      .catch(() => {
+        const dismissed = await isUsernameHintDismissed(uid);
+        const fresh = isFreshAccount(me.created);
+        setShowUsernameAutoHint(!dismissed && (pending || fresh));
+      } catch {
         if (!cancelled) {
           setUsername(null);
           setDisplayName(null);
           setEditUsername("");
           setEditRealName("");
           setTotalChr(null);
+          setRovasUid(null);
+          setShowUsernameAutoHint(pending);
         }
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -303,6 +322,10 @@ export default function ProfileScreen() {
     })
       .then((result) => {
         applyMeIdentity(result.username, result.display_name);
+        setShowUsernameAutoHint(false);
+        if (rovasUid) {
+          void dismissUsernameHint(rovasUid);
+        }
         Alert.alert(
           t("profile.save_success_title"),
           t("profile.save_success_body"),
@@ -327,6 +350,7 @@ export default function ProfileScreen() {
     editRealName,
     editUsername,
     profileSaving,
+    rovasUid,
     username,
   ]);
 
@@ -386,6 +410,12 @@ export default function ProfileScreen() {
                 {t("profile.signed_in")}
                 {username ? ` · @${username}` : ""}
               </Text>
+
+              {showUsernameAutoHint ? (
+                <Text style={styles.autoUsernameHint}>
+                  {t("profile.username_auto_hint")}
+                </Text>
+              ) : null}
 
               <Text style={styles.fieldLabel}>{t("profile.username")}</Text>
               <TextInput
@@ -593,6 +623,17 @@ const styles = StyleSheet.create({
   container: { padding: 24, gap: 16, paddingBottom: 48 },
   panel: { gap: 12 },
   userLine: { color: colors.ink, fontWeight: "600", fontSize: 16, lineHeight: 22 },
+  autoUsernameHint: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 20,
+    backgroundColor: colors.bg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   body: { color: colors.muted, lineHeight: 22 },
   balanceChr: { fontSize: 15, fontWeight: "400", color: colors.ink, lineHeight: 22 },
   fieldLabel: { color: colors.ink, fontWeight: "600", fontSize: 14 },

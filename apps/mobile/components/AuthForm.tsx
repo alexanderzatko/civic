@@ -13,8 +13,9 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { MeLogo } from "@/components/MeLogo";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
-import { isAppleAuthAvailable } from "@/lib/social-auth";
 import { t } from "@/lib/i18n";
+import { isAppleAuthAvailable } from "@/lib/social-auth";
+import { markUsernameHintPending } from "@/lib/username-hint";
 
 type Mode = "login" | "register";
 
@@ -64,7 +65,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
     try {
       const ok = await action();
       if (ok) {
-        router.replace("/");
+        if (mode === "register") {
+          await markUsernameHintPending();
+          router.replace("/(tabs)/profile");
+        } else {
+          router.replace("/");
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : t("auth.error_generic"));

@@ -102,6 +102,7 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         display_name: profile.display_name,
         total_me: profile.total_me,
         total_chr: profile.total_chr,
+        created: profile.created,
         language: profile.language,
         receipt_history_retention: profile.receipt_history_retention,
         me_sources_share: profile.me_sources_share,

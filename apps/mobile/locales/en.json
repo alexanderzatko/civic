@@ -519,6 +519,7 @@
   "profile.real_name": "Real name",
   "profile.real_name_hint": "Optional. Shown next to your username where Civic displays your name.",
   "profile.username_hint": "Letters, numbers, and . _ - only (max 50).",
+  "profile.username_auto_hint": "We created your username from your email address. You can choose a different one on this screen.",
   "profile.save": "Save",
   "profile.save_success_title": "Profile updated",
   "profile.save_success_body": "Your username and name were saved.",

@@ -128,6 +128,8 @@ export type MeIdentity = {
   total_me?: number;
   /** Chron wallet when Rovas exposes `total_chr` on `/rovas/me`. */
   total_chr?: number;
+  /** ISO-8601 account registration time when Rovas exposes `created`. */
+  created?: string | null;
   /** Rovas preferred language when exposed on `/rovas/me` (e.g. `sk`, `en`). */
   language?: string | null;
   /** Keep vs 90-day policy; `null` until answered (Rovas-backed). */
