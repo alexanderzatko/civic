@@ -461,21 +461,21 @@ export default function ProfileScreen() {
                   <Text style={styles.btnText}>{t("profile.save")}</Text>
                 )}
               </Pressable>
+
+              <Pressable
+                style={styles.signOutBtn}
+                onPress={() => {
+                  void signOut();
+                }}
+              >
+                <Text style={styles.signOutBtnText}>{t("profile.sign_out")}</Text>
+              </Pressable>
             </View>
           ) : null}
 
           {profileTab === "settings" ? (
             <View style={styles.panel}>
               {languageSwitcher}
-
-              <Pressable
-                style={styles.btn}
-                onPress={() => {
-                  void signOut();
-                }}
-              >
-                <Text style={styles.btnText}>{t("profile.sign_out")}</Text>
-              </Pressable>
 
               <View style={styles.pillbox}>
                 <Text style={styles.pillLabel}>
@@ -720,4 +720,13 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.7 },
   btnText: { color: "#fff", fontWeight: "700" },
+  signOutBtn: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: colors.bg,
+  },
+  signOutBtnText: { color: colors.ink, fontWeight: "700" },
 });

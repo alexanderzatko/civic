@@ -52,7 +52,9 @@ verifies the IdP token → Rovas
 [`civic-native-auth-bridge`](../../rovas/docs/integration/civic_tasks/done/civic-native-auth-bridge.md)
 (`POST /rovas/civic_auth_session`) creates/links the Drupal user and **mints**
 Civic OAuth Bearer tokens. Users do not open Rovas `/user/login` for the happy
-path.
+path. Civic only forwards `display_name` when the IdP provided a human name;
+Rovas must not invent one from the email local-part — see
+**[civic-auth-display-name-idp-only](../../rovas/docs/integration/civic_tasks/active/civic-auth-display-name-idp-only.md)**.
 
 | Step | Detail |
 |------|--------|
@@ -105,7 +107,7 @@ Protected routes (send `Authorization: Bearer <access_token>`):
 | `POST /me/receipt-history-preference` | Body `{ retention: "keep" \| "policy" }` → Rovas `POST /rovas/civic_receipt_history_preference`. Returns `{ receipt_history_retention, scrubbed_claims }`. Keep→policy may scrub aged merchant/purchase detail (irreversible). Survives app reinstall. See Rovas **receipt-history-retention**. |
 | `POST /me/me-sources-preference` | Body `{ share: "everyone" \| "reciprocal" \| "aggregate" }` → Rovas `POST /rovas/civic_me_sources_preference`. Returns `{ me_sources_share }`. Controls whether other users see detailed ME sources or Taxes+Gifts aggregate. See Rovas **[me-sources-privacy](../../rovas/docs/integration/civic_tasks/active/me-sources-privacy.md)**. |
 | `POST /me/give-chrons` | Body `{ amount }` (positive Chrons) → Rovas `POST /rovas/civic_give_chrons`. Returns `{ chrons_given, merits_gained, total_chr, total_me }` (1:1 CHR→ME). Get Merits → Volunteering “Give Chrons” when `total_chr > 0`. See Rovas **[give-chrons-to-merits](../../rovas/docs/integration/civic_tasks/done/give-chrons-to-merits.md)**. |
-| `POST /me/profile` | Body `{ username?, display_name? }` (at least one) → Rovas `POST /rovas/civic_update_profile`. Returns `{ username, display_name }`. Profile **User profile** tab (change auto-generated username / optional real name). See Rovas **[update-profile](../../rovas/docs/integration/civic_tasks/active/update-profile.md)**. |
+| `POST /me/profile` | Body `{ username?, display_name? }` (at least one) → Rovas `POST /rovas/civic_update_profile`. Returns `{ username, display_name }`. Profile **User** tab (change auto-generated username / optional real name). See Rovas **[update-profile](../../rovas/docs/integration/civic_tasks/done/update-profile.md)**. |
 | `GET /me/contributions/summary` | `total_me` from Rovas wallet; `by_category.taxes` + receipt stats from Rovas claim summary once live (interim: zeros — see Rovas task **Civic claim reads + SoT**) |
 | `POST /receipts/claim` | Re-verify FS + Civic fraud checks (strikes, window, registration, same-store, min VAT, rate limits); UID dedup + Merits via Rovas `rules_proxy_claim_vat_receipt` (optional `shares[]`; optional `location`). Rovas `{civic_claims}` is sole claim registry |
 | `GET /receipts` | Claim history — proxies Rovas `GET /rovas/civic_claims?view=submitted\|received&limit=&offset=` (+ optional `merchant`, `date_from`, `date_to`, `min_vat_eur`, `max_vat_eur`). Filters before pagination; `total` is filtered count. VAT bounds apply to `submitted` only. See Rovas **[civic-claims-filters](../../rovas/docs/integration/civic_tasks/active/civic-claims-filters.md)**. |
