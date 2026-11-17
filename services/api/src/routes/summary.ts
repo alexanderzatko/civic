@@ -48,6 +48,33 @@ const createCharityOrgBodySchema = z.object({
     ),
 });
 
+/** Align with Rovas civic_auth username sanitizer + update-profile task. */
+const USERNAME_RE = /^[A-Za-z0-9_.-]+$/;
+
+const updateProfileBodySchema = z
+  .object({
+    username: z
+      .string()
+      .trim()
+      .min(1)
+      .max(50)
+      .regex(USERNAME_RE, "username charset invalid")
+      .optional(),
+    display_name: z
+      .union([z.string().max(200), z.null()])
+      .optional()
+      .transform((v) => {
+        if (v === undefined) return undefined;
+        if (v === null) return null;
+        const trimmed = v.trim();
+        return trimmed.length === 0 ? null : trimmed;
+      }),
+  })
+  .refine(
+    (body) => body.username !== undefined || body.display_name !== undefined,
+    { message: "Body must include username and/or display_name" },
+  );
+
 function sendRovasError(reply: FastifyReply, err: unknown) {
   if (err instanceof RovasClientError) {
     return reply.code(err.status).send({
@@ -162,6 +189,30 @@ export const summaryRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
       }
       try {
         return await ctx.rovas.setMeSourcesPreference(user.accessToken, share);
+      } catch (err) {
+        return sendRovasError(reply, err);
+      }
+    },
+  );
+
+  /**
+   * Update username and/or real name (display_name / field_full_name).
+   * Proxies Rovas `POST /rovas/civic_update_profile`.
+   */
+  app.post(
+    "/me/profile",
+    { preHandler: [requireAuth(ctx)] },
+    async (req, reply) => {
+      const user = req.authUser!;
+      const parsed = updateProfileBodySchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return reply.code(422).send({
+          error: "invalid_input",
+          message: parsed.error.issues[0]?.message ?? "Invalid profile body.",
+        });
+      }
+      try {
+        return await ctx.rovas.updateProfile(user.accessToken, parsed.data);
       } catch (err) {
         return sendRovasError(reply, err);
       }

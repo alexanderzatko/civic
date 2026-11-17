@@ -468,6 +468,27 @@ export function setMeSourcesPreference(
   });
 }
 
+export type UpdateMeProfileInput = {
+  username?: string;
+  display_name?: string | null;
+};
+
+export type UpdateMeProfileResult = {
+  username: string;
+  display_name: string;
+};
+
+/** Update username and/or real name. Proxies Rovas `POST /rovas/civic_update_profile`. */
+export function updateMeProfile(
+  input: UpdateMeProfileInput,
+): Promise<UpdateMeProfileResult> {
+  return apiFetch<UpdateMeProfileResult>("/me/profile", {
+    method: "POST",
+    auth: "required",
+    body: JSON.stringify(input),
+  });
+}
+
 /** Convert Chrons → Merits (1:1). Proxies Rovas `POST /rovas/civic_give_chrons`. */
 export function giveChrons(amount: number): Promise<GiveChronsResult> {
   return apiFetch<GiveChronsResult>("/me/give-chrons", {

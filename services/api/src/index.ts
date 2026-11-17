@@ -36,6 +36,7 @@ async function main() {
       "POST /auth/google",
       "POST /auth/apple",
       "GET /me",
+      "POST /me/profile",
       "POST /me/receipt-history-preference",
       "POST /me/give-chrons",
       "POST /receipts/verify",

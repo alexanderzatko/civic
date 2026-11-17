@@ -113,6 +113,17 @@ export type RovasMeSourcesPreferenceResult = {
   me_sources_share: MeSourcesShare;
 };
 
+/** Response from Rovas `POST /rovas/civic_update_profile`. */
+export type RovasUpdateProfileResult = {
+  username: string;
+  display_name: string;
+};
+
+export type RovasUpdateProfileInput = {
+  username?: string;
+  display_name?: string | null;
+};
+
 /** Response from Rovas `POST /rovas/civic_give_chrons` (1 CHR = 1 ME). */
 export type RovasGiveChronsResult = {
   chrons_given: number;
@@ -1256,6 +1267,41 @@ export class RovasClient {
   }
 
   /**
+   * Update username and/or real name (`field_full_name`).
+   * `POST /rovas/civic_update_profile`
+   */
+  async updateProfile(
+    accessToken: string,
+    input: RovasUpdateProfileInput,
+  ): Promise<RovasUpdateProfileResult> {
+    const payload: Record<string, unknown> = {};
+    if (input.username !== undefined) {
+      payload.username = input.username;
+    }
+    if (input.display_name !== undefined) {
+      payload.display_name = input.display_name;
+    }
+    const body = await this.postJson<Partial<RovasUpdateProfileResult>>(
+      "/rovas/civic_update_profile",
+      accessToken,
+      payload,
+    );
+    if (typeof body.username !== "string" || !body.username) {
+      throw new RovasClientError(
+        "Rovas update profile response missing username",
+        502,
+      );
+    }
+    return {
+      username: body.username,
+      display_name:
+        typeof body.display_name === "string" && body.display_name
+          ? body.display_name
+          : body.username,
+    };
+  }
+
+  /**
    * Permanently dismiss Trusted congratulations banner.
    * `POST /rovas/civic_dismiss_trusted_notify`
    */
@@ -1418,6 +1464,13 @@ export class RovasClient {
     }
     if (res.status === 409) {
       throw new RovasClientError(`Rovas conflict (${path})`, 409, parsed);
+    }
+    if (res.status === 422) {
+      throw new RovasClientError(
+        volunteerErrorMessage(parsed, `Rovas unprocessable (${path})`),
+        422,
+        parsed,
+      );
     }
     if (!res.ok) {
       throw new RovasClientError(

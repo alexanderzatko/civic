@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import {
@@ -17,9 +18,10 @@ import {
   type ReceiptHistoryRetention,
 } from "@civic/shared";
 import { MeritHistoryList } from "@/components/MeritHistoryList";
+import { SectionTabs } from "@/components/SectionTabs";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
-import { fetchMe, fetchMeritHistory } from "@/lib/api";
+import { fetchMe, fetchMeritHistory, updateMeProfile } from "@/lib/api";
 import { useChronPreference } from "@/lib/chron-preference";
 import { visibleDisplayName } from "@/lib/format-member-handle";
 import { CIVIC_LOCALES, type Locale, t } from "@/lib/i18n";
@@ -36,6 +38,11 @@ const ME_SOURCES_OPTIONS: MeSourcesShare[] = [
 ];
 
 const PAGE_SIZE = 20;
+const USERNAME_RE = /^[A-Za-z0-9_.-]+$/;
+const USERNAME_MAX = 50;
+const DISPLAY_NAME_MAX = 200;
+
+type ProfileTab = "user" | "settings" | "history";
 
 const LOCALE_LABELS: Record<Locale, string> = {
   sk: "Slovenčina",
@@ -54,6 +61,14 @@ function retentionStatusLabel(
   return t("profile.taxes_status_unset");
 }
 
+function editableRealName(
+  username: string | null,
+  displayName: string | null,
+): string {
+  if (!username) return "";
+  return visibleDisplayName({ username, displayName }) ?? "";
+}
+
 export default function ProfileScreen() {
   const { status, signOut } = useAuth();
   const { locale, setAppLocale } = useLocale();
@@ -70,14 +85,34 @@ export default function ProfileScreen() {
   } = useMeSourcesPreference();
   const [retentionSaving, setRetentionSaving] = useState(false);
   const [meSourcesSaving, setMeSourcesSaving] = useState(false);
+  const [profileTab, setProfileTab] = useState<ProfileTab>("user");
   const [username, setUsername] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [editUsername, setEditUsername] = useState("");
+  const [editRealName, setEditRealName] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
   const [totalChr, setTotalChr] = useState<number | null>(null);
   const [items, setItems] = useState<MeritHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [historyError, setHistoryError] = useState(false);
+
+  const profileTabs = [
+    { id: "user" as const, label: t("profile.tab_user") },
+    { id: "settings" as const, label: t("profile.tab_settings") },
+    { id: "history" as const, label: t("profile.tab_history") },
+  ];
+
+  const applyMeIdentity = useCallback(
+    (name: string, nextDisplay: string | null) => {
+      setUsername(name);
+      setDisplayName(nextDisplay);
+      setEditUsername(name);
+      setEditRealName(editableRealName(name, nextDisplay));
+    },
+    [],
+  );
 
   const loadFirstPage = useCallback(async () => {
     if (status !== "signedIn") return;
@@ -100,10 +135,13 @@ export default function ProfileScreen() {
     if (status !== "signedIn") {
       setUsername(null);
       setDisplayName(null);
+      setEditUsername("");
+      setEditRealName("");
       setTotalChr(null);
       setItems([]);
       setTotal(0);
       setHistoryError(false);
+      setProfileTab("user");
       return;
     }
     let cancelled = false;
@@ -111,21 +149,22 @@ export default function ProfileScreen() {
       .then((me) => {
         if (cancelled) return;
         const name = me.username ?? me.rovas_uid;
-        setUsername(name);
-        setDisplayName(me.display_name ?? null);
+        applyMeIdentity(name, me.display_name ?? null);
         setTotalChr(typeof me.total_chr === "number" ? me.total_chr : null);
       })
       .catch(() => {
         if (!cancelled) {
           setUsername(null);
           setDisplayName(null);
+          setEditUsername("");
+          setEditRealName("");
           setTotalChr(null);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [applyMeIdentity, status]);
 
   useMeritsAutoRefresh(loadFirstPage);
 
@@ -235,6 +274,62 @@ export default function ProfileScreen() {
     [applyRetention, retention, retentionReady, retentionSaving],
   );
 
+  const onSaveProfile = useCallback(() => {
+    if (profileSaving || !username) return;
+    const nextUsername = editUsername.trim();
+    if (
+      !nextUsername ||
+      nextUsername.length > USERNAME_MAX ||
+      !USERNAME_RE.test(nextUsername)
+    ) {
+      Alert.alert(
+        t("profile.save_error_title"),
+        t("profile.save_error_invalid"),
+      );
+      return;
+    }
+    const nextReal = editRealName.trim().slice(0, DISPLAY_NAME_MAX);
+    const currentReal = editableRealName(username, displayName);
+    const usernameChanged = nextUsername !== username;
+    const realChanged = nextReal !== currentReal;
+    if (!usernameChanged && !realChanged) {
+      return;
+    }
+
+    setProfileSaving(true);
+    void updateMeProfile({
+      ...(usernameChanged ? { username: nextUsername } : {}),
+      ...(realChanged ? { display_name: nextReal.length ? nextReal : null } : {}),
+    })
+      .then((result) => {
+        applyMeIdentity(result.username, result.display_name);
+        Alert.alert(
+          t("profile.save_success_title"),
+          t("profile.save_success_body"),
+        );
+      })
+      .catch((err: Error & { status?: number }) => {
+        const statusCode = err.status;
+        const body =
+          statusCode === 409
+            ? t("profile.save_error_taken")
+            : statusCode === 422
+              ? t("profile.save_error_invalid")
+              : t("profile.save_error_body");
+        Alert.alert(t("profile.save_error_title"), body);
+      })
+      .finally(() => {
+        setProfileSaving(false);
+      });
+  }, [
+    applyMeIdentity,
+    displayName,
+    editRealName,
+    editUsername,
+    profileSaving,
+    username,
+  ]);
+
   const languageSwitcher = (
     <View style={styles.langBlock}>
       <Text style={styles.langLabel}>{t("profile.language")}</Text>
@@ -275,132 +370,192 @@ export default function ProfileScreen() {
   }
 
   if (status === "signedIn") {
-    const shownName =
-      username != null
-        ? visibleDisplayName({ username, displayName })
-        : null;
-
     return (
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.userLine}>
-          {t("profile.username")}
-          {username ? `: @${username}` : ""} ({t("profile.signed_in")})
-        </Text>
-        {shownName ? <Text style={styles.displayName}>{shownName}</Text> : null}
-
-        {languageSwitcher}
-
-        <Pressable
-          style={styles.btn}
-          onPress={() => {
-            void signOut();
-          }}
-        >
-          <Text style={styles.btnText}>{t("profile.sign_out")}</Text>
-        </Pressable>
-
-        <View style={styles.pillbox}>
-          <Text style={styles.pillLabel}>{t("profile.chrons_section")}</Text>
-          {totalChr != null ? (
-            <Text style={styles.balanceChr}>
-              {t("profile.chrons_balance")}: {formatChr(totalChr)} CHR
-            </Text>
-          ) : null}
-          <View style={styles.prefRow}>
-            <Text style={styles.prefLabel}>{t("profile.allow_chrons")}</Text>
-            <Switch
-              value={allowChrons}
-              onValueChange={(checked) => {
-                void setAllowChrons(checked);
-              }}
-              trackColor={{ false: colors.border, true: colors.brandSoft }}
-              accessibilityRole="switch"
-              accessibilityLabel={t("profile.allow_chrons")}
-            />
-          </View>
-          <Text style={styles.prefHint}>{t("profile.allow_chrons_hint")}</Text>
-        </View>
-
-        <View style={styles.pillbox}>
-          <Text style={styles.pillLabel}>{t("profile.me_sources_section")}</Text>
-          <Text style={styles.prefHint}>{t("profile.me_sources_hint")}</Text>
-          {!meSourcesReady || meSourcesSaving ? (
-            <ActivityIndicator color={colors.brand} />
-          ) : (
-            <View style={styles.meSourcesOptions}>
-              {ME_SOURCES_OPTIONS.map((option) => {
-                const selected = meSourcesShare === option;
-                return (
-                  <Pressable
-                    key={option}
-                    style={[
-                      styles.meSourcesOption,
-                      selected && styles.meSourcesOptionSelected,
-                    ]}
-                    onPress={() => onSelectMeSourcesShare(option)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                  >
-                    <Text
-                      style={[
-                        styles.meSourcesOptionTitle,
-                        selected && styles.meSourcesOptionTitleSelected,
-                      ]}
-                    >
-                      {t(`profile.me_sources_${option}_title`)}
-                    </Text>
-                    <Text style={styles.meSourcesOptionBody}>
-                      {t(`profile.me_sources_${option}_body`)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-        </View>
-
-        <View style={styles.pillbox}>
-          <Text style={styles.pillLabel}>{t("profile.taxes_section")}</Text>
-          <Text style={styles.prefHint}>{t("profile.taxes_hint")}</Text>
-          <View style={styles.prefRow}>
-            <Text style={styles.prefLabel}>{t("profile.taxes_keep_switch")}</Text>
-            {!retentionReady || retentionSaving ? (
-              <ActivityIndicator color={colors.brand} />
-            ) : (
-              <Switch
-                value={retention === "keep"}
-                onValueChange={onToggleKeepReceipts}
-                trackColor={{ false: colors.border, true: colors.brandSoft }}
-                accessibilityRole="switch"
-                accessibilityLabel={t("profile.taxes_keep_switch")}
-              />
-            )}
-          </View>
-          <Text style={styles.prefHint}>
-            {t("profile.taxes_status").replace(
-              "{{status}}",
-              retentionStatusLabel(retention),
-            )}
-          </Text>
-          <Pressable
-            onPress={() => void Linking.openURL(getPrivacyUrl())}
-            accessibilityRole="link"
-            hitSlop={6}
-          >
-            <Text style={styles.privacyLink}>
-              {t("profile.taxes_privacy_link")}
-            </Text>
-          </Pressable>
-        </View>
-
-        <MeritHistoryList
-          items={items}
-          total={total}
-          loading={historyLoading}
-          loadingMore={loadingMore}
-          error={historyError}
-          onLoadMore={onLoadMore}
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <SectionTabs
+          tabs={profileTabs}
+          value={profileTab}
+          onChange={setProfileTab}
         />
+
+        {profileTab === "user" ? (
+          <View style={styles.pillbox}>
+            <Text style={styles.userLine}>
+              {t("profile.signed_in")}
+              {username ? ` · @${username}` : ""}
+            </Text>
+
+            <Text style={styles.fieldLabel}>{t("profile.username")}</Text>
+            <TextInput
+              value={editUsername}
+              onChangeText={(text) =>
+                setEditUsername(text.replace(/\s+/g, "").slice(0, USERNAME_MAX))
+              }
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="username"
+              style={styles.input}
+              maxLength={USERNAME_MAX}
+              editable={!profileSaving}
+              accessibilityLabel={t("profile.username")}
+            />
+            <Text style={styles.prefHint}>{t("profile.username_hint")}</Text>
+
+            <Text style={styles.fieldLabel}>{t("profile.real_name")}</Text>
+            <TextInput
+              value={editRealName}
+              onChangeText={(text) =>
+                setEditRealName(text.slice(0, DISPLAY_NAME_MAX))
+              }
+              autoCapitalize="words"
+              style={styles.input}
+              maxLength={DISPLAY_NAME_MAX}
+              editable={!profileSaving}
+              accessibilityLabel={t("profile.real_name")}
+            />
+            <Text style={styles.prefHint}>{t("profile.real_name_hint")}</Text>
+
+            <Pressable
+              style={[styles.btn, profileSaving && styles.btnDisabled]}
+              onPress={onSaveProfile}
+              disabled={profileSaving}
+              accessibilityRole="button"
+            >
+              {profileSaving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.btnText}>{t("profile.save")}</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
+
+        {profileTab === "settings" ? (
+          <>
+            {languageSwitcher}
+
+            <Pressable
+              style={styles.btn}
+              onPress={() => {
+                void signOut();
+              }}
+            >
+              <Text style={styles.btnText}>{t("profile.sign_out")}</Text>
+            </Pressable>
+
+            <View style={styles.pillbox}>
+              <Text style={styles.pillLabel}>{t("profile.chrons_section")}</Text>
+              {totalChr != null ? (
+                <Text style={styles.balanceChr}>
+                  {t("profile.chrons_balance")}: {formatChr(totalChr)} CHR
+                </Text>
+              ) : null}
+              <View style={styles.prefRow}>
+                <Text style={styles.prefLabel}>{t("profile.allow_chrons")}</Text>
+                <Switch
+                  value={allowChrons}
+                  onValueChange={(checked) => {
+                    void setAllowChrons(checked);
+                  }}
+                  trackColor={{ false: colors.border, true: colors.brandSoft }}
+                  accessibilityRole="switch"
+                  accessibilityLabel={t("profile.allow_chrons")}
+                />
+              </View>
+              <Text style={styles.prefHint}>{t("profile.allow_chrons_hint")}</Text>
+            </View>
+
+            <View style={styles.pillbox}>
+              <Text style={styles.pillLabel}>
+                {t("profile.me_sources_section")}
+              </Text>
+              <Text style={styles.prefHint}>{t("profile.me_sources_hint")}</Text>
+              {!meSourcesReady || meSourcesSaving ? (
+                <ActivityIndicator color={colors.brand} />
+              ) : (
+                <View style={styles.meSourcesOptions}>
+                  {ME_SOURCES_OPTIONS.map((option) => {
+                    const selected = meSourcesShare === option;
+                    return (
+                      <Pressable
+                        key={option}
+                        style={[
+                          styles.meSourcesOption,
+                          selected && styles.meSourcesOptionSelected,
+                        ]}
+                        onPress={() => onSelectMeSourcesShare(option)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                      >
+                        <Text
+                          style={[
+                            styles.meSourcesOptionTitle,
+                            selected && styles.meSourcesOptionTitleSelected,
+                          ]}
+                        >
+                          {t(`profile.me_sources_${option}_title`)}
+                        </Text>
+                        <Text style={styles.meSourcesOptionBody}>
+                          {t(`profile.me_sources_${option}_body`)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.pillbox}>
+              <Text style={styles.pillLabel}>{t("profile.taxes_section")}</Text>
+              <Text style={styles.prefHint}>{t("profile.taxes_hint")}</Text>
+              <View style={styles.prefRow}>
+                <Text style={styles.prefLabel}>
+                  {t("profile.taxes_keep_switch")}
+                </Text>
+                {!retentionReady || retentionSaving ? (
+                  <ActivityIndicator color={colors.brand} />
+                ) : (
+                  <Switch
+                    value={retention === "keep"}
+                    onValueChange={onToggleKeepReceipts}
+                    trackColor={{ false: colors.border, true: colors.brandSoft }}
+                    accessibilityRole="switch"
+                    accessibilityLabel={t("profile.taxes_keep_switch")}
+                  />
+                )}
+              </View>
+              <Text style={styles.prefHint}>
+                {t("profile.taxes_status").replace(
+                  "{{status}}",
+                  retentionStatusLabel(retention),
+                )}
+              </Text>
+              <Pressable
+                onPress={() => void Linking.openURL(getPrivacyUrl())}
+                accessibilityRole="link"
+                hitSlop={6}
+              >
+                <Text style={styles.privacyLink}>
+                  {t("profile.taxes_privacy_link")}
+                </Text>
+              </Pressable>
+            </View>
+          </>
+        ) : null}
+
+        {profileTab === "history" ? (
+          <MeritHistoryList
+            items={items}
+            total={total}
+            loading={historyLoading}
+            loadingMore={loadingMore}
+            error={historyError}
+            onLoadMore={onLoadMore}
+          />
+        ) : null}
       </ScrollView>
     );
   }
@@ -422,9 +577,19 @@ const styles = StyleSheet.create({
   centered: { flex: 1, padding: 24, justifyContent: "center" },
   container: { padding: 24, gap: 16, paddingBottom: 48 },
   userLine: { color: colors.ink, fontWeight: "600", fontSize: 16, lineHeight: 22 },
-  displayName: { color: colors.ink, fontSize: 18, fontWeight: "700", marginTop: -4 },
   body: { color: colors.muted, lineHeight: 22 },
   balanceChr: { fontSize: 15, fontWeight: "400", color: colors.ink, lineHeight: 22 },
+  fieldLabel: { color: colors.ink, fontWeight: "600", fontSize: 14 },
+  input: {
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    color: colors.ink,
+    fontSize: 16,
+  },
   pillbox: {
     backgroundColor: colors.surface,
     borderRadius: 14,
@@ -496,5 +661,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
   },
+  btnDisabled: { opacity: 0.7 },
   btnText: { color: "#fff", fontWeight: "700" },
 });
