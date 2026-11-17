@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "expo-router";
+import { Link, useFocusEffect } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,7 @@ import { CIVIC_LOCALES, type Locale, t } from "@/lib/i18n";
 import { getPrivacyUrl } from "@/lib/legal-urls";
 import { useLocale } from "@/lib/locale";
 import { useMeSourcesPreference } from "@/lib/me-sources-preference";
+import { takeProfileIdentitySeed } from "@/lib/profile-identity-seed";
 import { useReceiptHistoryPreference } from "@/lib/receipt-history-preference";
 import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
 import {
@@ -138,52 +139,70 @@ export default function ProfileScreen() {
     }
   }, [status]);
 
+  const currentRealName = editableRealName(username, displayName);
+  const profileDirty =
+    Boolean(username) &&
+    (editUsername.trim() !== username ||
+      editRealName.trim() !== currentRealName);
+  const profileDirtyRef = useRef(profileDirty);
+  profileDirtyRef.current = profileDirty;
+
   useEffect(() => {
-    if (status !== "signedIn") {
-      setUsername(null);
-      setDisplayName(null);
-      setEditUsername("");
-      setEditRealName("");
-      setTotalChr(null);
-      setRovasUid(null);
-      setShowUsernameAutoHint(false);
-      setItems([]);
-      setTotal(0);
-      setHistoryError(false);
-      setProfileTab("user");
-      return;
+    if (status === "signedIn") return;
+    setUsername(null);
+    setDisplayName(null);
+    setEditUsername("");
+    setEditRealName("");
+    setTotalChr(null);
+    setRovasUid(null);
+    setShowUsernameAutoHint(false);
+    setItems([]);
+    setTotal(0);
+    setHistoryError(false);
+    setProfileTab("user");
+  }, [status]);
+
+  const loadIdentity = useCallback(async () => {
+    if (status !== "signedIn") return;
+
+    // Password register seeds the username the user just typed so the field
+    // is not empty while GET /me is in flight (or if an earlier fetch failed).
+    const seeded = takeProfileIdentitySeed();
+    if (seeded && !profileDirtyRef.current) {
+      applyMeIdentity(seeded.username, null);
     }
-    let cancelled = false;
-    void (async () => {
-      const pending = await hasUsernameHintPending();
-      try {
-        const me = await fetchMe();
-        if (cancelled) return;
-        const name = me.username ?? me.rovas_uid;
-        const uid = me.rovas_uid;
+
+    const pending = await hasUsernameHintPending();
+    try {
+      const me = await fetchMe();
+      const name = me.username ?? me.rovas_uid;
+      const uid = me.rovas_uid;
+      // Do not clobber in-progress edits if the user already changed fields.
+      if (!profileDirtyRef.current) {
         applyMeIdentity(name, me.display_name ?? null);
-        setRovasUid(uid);
-        setTotalChr(typeof me.total_chr === "number" ? me.total_chr : null);
-        const dismissed = await isUsernameHintDismissed(uid);
-        // Tip only after social (Google/Apple) register — password signup
-        // chooses a username and never sets the pending flag.
-        setShowUsernameAutoHint(Boolean(pending && !dismissed));
-      } catch {
-        if (!cancelled) {
-          setUsername(null);
-          setDisplayName(null);
-          setEditUsername("");
-          setEditRealName("");
-          setTotalChr(null);
-          setRovasUid(null);
-          setShowUsernameAutoHint(pending);
-        }
+      } else {
+        setUsername(name);
+        setDisplayName(me.display_name ?? null);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+      setRovasUid(uid);
+      setTotalChr(typeof me.total_chr === "number" ? me.total_chr : null);
+      const dismissed = await isUsernameHintDismissed(uid);
+      // Tip only after social (Google/Apple) register — password signup
+      // chooses a username and never sets the pending flag.
+      setShowUsernameAutoHint(Boolean(pending && !dismissed));
+    } catch {
+      // Keep seed / existing fields; do not wipe on a transient /me failure.
+      if (!profileDirtyRef.current) {
+        setShowUsernameAutoHint(pending);
+      }
+    }
   }, [applyMeIdentity, status]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadIdentity();
+    }, [loadIdentity]),
+  );
 
   useMeritsAutoRefresh(loadFirstPage);
 
@@ -292,12 +311,6 @@ export default function ProfileScreen() {
     },
     [applyRetention, retention, retentionReady, retentionSaving],
   );
-
-  const currentRealName = editableRealName(username, displayName);
-  const profileDirty =
-    Boolean(username) &&
-    (editUsername.trim() !== username ||
-      editRealName.trim() !== currentRealName);
 
   const onSaveProfile = useCallback(() => {
     if (profileSaving || !username || !profileDirty) return;

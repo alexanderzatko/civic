@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
 import { getRovasPasswordResetUrl } from "@/lib/legal-urls";
 import { PasswordAuthError } from "@/lib/password-auth";
+import { seedProfileIdentity } from "@/lib/profile-identity-seed";
 import { isAppleAuthAvailable } from "@/lib/social-auth";
 import { markUsernameHintPending } from "@/lib/username-hint";
 
@@ -172,14 +173,25 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setError(null);
     setBusy("password");
     try {
-      const ok =
-        mode === "register"
-          ? await registerWithPassword(username.trim(), email.trim(), password)
-          : await signInWithPassword(login.trim(), password);
-      if (ok) {
-        // Password register: user chose username — Home, no auto-username tip.
-        // Social register still goes to Profile with the tip (runSocial).
-        await afterSuccess(false);
+      if (mode === "register") {
+        const chosenUsername = username.trim();
+        const ok = await registerWithPassword(
+          chosenUsername,
+          email.trim(),
+          password,
+        );
+        if (ok) {
+          // Seed Profile so the username field is filled before GET /me returns.
+          seedProfileIdentity(chosenUsername);
+          // Password register: Home, no auto-username tip.
+          // Social register still goes to Profile with the tip (runSocial).
+          await afterSuccess(false);
+        }
+      } else {
+        const ok = await signInWithPassword(login.trim(), password);
+        if (ok) {
+          await afterSuccess(false);
+        }
       }
     } catch (e) {
       if (e instanceof PasswordAuthError) {
