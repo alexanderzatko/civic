@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Linking,
   Platform,
   Pressable,
@@ -26,6 +27,8 @@ type Mode = "login" | "register";
 const USERNAME_RE = /^[A-Za-z0-9_.-]+$/;
 const USERNAME_MAX = 50;
 const PASSWORD_MIN = 8;
+/** Keep a little air under the focused field when scrolling above the keyboard. */
+const FOCUS_SCROLL_PAD = 16;
 
 function LegalAgreeLine({ preface }: { preface: string }) {
   return (
@@ -67,6 +70,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
 
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollHostRef = useRef<View>(null);
+  const scrollYRef = useRef(0);
+  const loginRef = useRef<TextInput>(null);
+  const usernameRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const passwordConfirmRef = useRef<TextInput>(null);
+
   useEffect(() => {
     let cancelled = false;
     void isAppleAuthAvailable().then((ok) => {
@@ -76,6 +88,25 @@ export function AuthForm({ mode }: { mode: Mode }) {
       cancelled = true;
     };
   }, []);
+
+  function scrollFieldIntoView(field: TextInput | null) {
+    // Wait for KeyboardAvoidingView padding, then nudge only as far as needed.
+    setTimeout(() => {
+      if (!field || !scrollRef.current || !scrollHostRef.current) return;
+      field.measureInWindow((_x, y, _w, h) => {
+        scrollHostRef.current?.measureInWindow((_sx, sy, _sw, sh) => {
+          const fieldBottom = y + h + FOCUS_SCROLL_PAD;
+          const visibleBottom = sy + sh;
+          const overlap = fieldBottom - visibleBottom;
+          if (overlap <= 0) return;
+          scrollRef.current?.scrollTo({
+            y: Math.max(0, scrollYRef.current + overlap),
+            animated: true,
+          });
+        });
+      });
+    }, 280);
+  }
 
   async function afterSuccess(isRegister: boolean) {
     if (isRegister) {
@@ -167,10 +198,21 @@ export function AuthForm({ mode }: { mode: Mode }) {
     mode === "login" ? t("auth.sign_in") : t("auth.create_account");
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <View ref={scrollHostRef} style={styles.flex}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          onScroll={(e) => {
+            scrollYRef.current = e.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
+        >
       <View style={styles.hero}>
         <MeLogo size={48} />
         <Text style={styles.title}>{title}</Text>
@@ -237,6 +279,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <View style={styles.fields}>
         {mode === "login" ? (
           <TextInput
+            ref={loginRef}
             value={login}
             onChangeText={setLogin}
             placeholder={t("auth.login_placeholder")}
@@ -249,10 +292,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
             style={styles.input}
             editable={!busyAny}
             accessibilityLabel={t("auth.login_placeholder")}
+            onFocus={() => scrollFieldIntoView(loginRef.current)}
           />
         ) : (
           <>
             <TextInput
+              ref={usernameRef}
               value={username}
               onChangeText={(text) =>
                 setUsername(text.replace(/\s+/g, "").slice(0, USERNAME_MAX))
@@ -267,9 +312,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
               maxLength={USERNAME_MAX}
               editable={!busyAny}
               accessibilityLabel={t("auth.username_placeholder")}
+              onFocus={() => scrollFieldIntoView(usernameRef.current)}
             />
             <Text style={styles.fieldHint}>{t("profile.username_hint")}</Text>
             <TextInput
+              ref={emailRef}
               value={email}
               onChangeText={setEmail}
               placeholder={t("auth.email_placeholder")}
@@ -282,11 +329,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
               style={styles.input}
               editable={!busyAny}
               accessibilityLabel={t("auth.email_placeholder")}
+              onFocus={() => scrollFieldIntoView(emailRef.current)}
             />
           </>
         )}
 
         <TextInput
+          ref={passwordRef}
           value={password}
           onChangeText={setPassword}
           placeholder={t("auth.password_placeholder")}
@@ -299,10 +348,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
           style={styles.input}
           editable={!busyAny}
           accessibilityLabel={t("auth.password_placeholder")}
+          onFocus={() => scrollFieldIntoView(passwordRef.current)}
         />
 
         {mode === "register" ? (
           <TextInput
+            ref={passwordConfirmRef}
             value={passwordConfirm}
             onChangeText={setPasswordConfirm}
             placeholder={t("auth.password_confirm_placeholder")}
@@ -315,6 +366,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             style={styles.input}
             editable={!busyAny}
             accessibilityLabel={t("auth.password_confirm_placeholder")}
+            onFocus={() => scrollFieldIntoView(passwordConfirmRef.current)}
           />
         ) : null}
 
@@ -380,11 +432,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
       {mode === "login" ? (
         <LegalAgreeLine preface={t("auth.legal_login")} />
       ) : null}
-    </ScrollView>
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   container: {
     padding: 24,
     gap: 16,

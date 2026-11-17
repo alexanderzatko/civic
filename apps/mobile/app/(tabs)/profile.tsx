@@ -293,8 +293,14 @@ export default function ProfileScreen() {
     [applyRetention, retention, retentionReady, retentionSaving],
   );
 
+  const currentRealName = editableRealName(username, displayName);
+  const profileDirty =
+    Boolean(username) &&
+    (editUsername.trim() !== username ||
+      editRealName.trim() !== currentRealName);
+
   const onSaveProfile = useCallback(() => {
-    if (profileSaving || !username) return;
+    if (profileSaving || !username || !profileDirty) return;
     const nextUsername = editUsername.trim();
     if (
       !nextUsername ||
@@ -308,12 +314,8 @@ export default function ProfileScreen() {
       return;
     }
     const nextReal = editRealName.trim().slice(0, DISPLAY_NAME_MAX);
-    const currentReal = editableRealName(username, displayName);
     const usernameChanged = nextUsername !== username;
-    const realChanged = nextReal !== currentReal;
-    if (!usernameChanged && !realChanged) {
-      return;
-    }
+    const realChanged = nextReal !== currentRealName;
 
     setProfileSaving(true);
     void updateMeProfile({
@@ -346,9 +348,10 @@ export default function ProfileScreen() {
       });
   }, [
     applyMeIdentity,
-    displayName,
+    currentRealName,
     editRealName,
     editUsername,
+    profileDirty,
     profileSaving,
     rovasUid,
     username,
@@ -450,10 +453,16 @@ export default function ProfileScreen() {
               <Text style={styles.prefHint}>{t("profile.real_name_hint")}</Text>
 
               <Pressable
-                style={[styles.btn, profileSaving && styles.btnDisabled]}
+                style={[
+                  styles.btn,
+                  (!profileDirty || profileSaving) && styles.btnDisabled,
+                ]}
                 onPress={onSaveProfile}
-                disabled={profileSaving}
+                disabled={!profileDirty || profileSaving}
                 accessibilityRole="button"
+                accessibilityState={{
+                  disabled: !profileDirty || profileSaving,
+                }}
               >
                 {profileSaving ? (
                   <ActivityIndicator color="#fff" />
