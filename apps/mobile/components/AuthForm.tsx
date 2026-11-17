@@ -177,8 +177,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
           ? await registerWithPassword(username.trim(), email.trim(), password)
           : await signInWithPassword(login.trim(), password);
       if (ok) {
-        // Password register already chose a username — no auto-hint tip.
-        await afterSuccess(mode === "register");
+        // Password register: user chose username — Home, no auto-username tip.
+        // Social register still goes to Profile with the tip (runSocial).
+        await afterSuccess(false);
       }
     } catch (e) {
       if (e instanceof PasswordAuthError) {

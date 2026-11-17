@@ -33,7 +33,6 @@ import { useMeritsAutoRefresh } from "@/lib/useMeritsAutoRefresh";
 import {
   dismissUsernameHint,
   hasUsernameHintPending,
-  isFreshAccount,
   isUsernameHintDismissed,
 } from "@/lib/username-hint";
 
@@ -166,8 +165,9 @@ export default function ProfileScreen() {
         setRovasUid(uid);
         setTotalChr(typeof me.total_chr === "number" ? me.total_chr : null);
         const dismissed = await isUsernameHintDismissed(uid);
-        const fresh = isFreshAccount(me.created);
-        setShowUsernameAutoHint(!dismissed && (pending || fresh));
+        // Tip only after social (Google/Apple) register — password signup
+        // chooses a username and never sets the pending flag.
+        setShowUsernameAutoHint(Boolean(pending && !dismissed));
       } catch {
         if (!cancelled) {
           setUsername(null);

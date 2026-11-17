@@ -19,17 +19,6 @@ export async function hasUsernameHintPending(): Promise<boolean> {
   }
 }
 
-const FRESH_ACCOUNT_MS = 24 * 60 * 60 * 1000;
-
-/** True when Rovas `created` is within the last 24 hours. */
-export function isFreshAccount(created: string | null | undefined): boolean {
-  if (!created) return false;
-  const ms = Date.parse(created);
-  if (!Number.isFinite(ms)) return false;
-  const age = Date.now() - ms;
-  return age >= 0 && age < FRESH_ACCOUNT_MS;
-}
-
 function dismissedKey(rovasUid: string): string {
   return `civic.profile.username_hint_dismissed.${rovasUid}`;
 }
