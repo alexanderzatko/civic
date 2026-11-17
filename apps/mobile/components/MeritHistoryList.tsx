@@ -64,7 +64,6 @@ export function MeritHistoryList({
 
   return (
     <View style={styles.section}>
-      <Text style={styles.heading}>{t("profile.history_title")}</Text>
       {loading && items.length === 0 ? (
         <ActivityIndicator color={colors.brand} />
       ) : error && items.length === 0 ? (
@@ -160,7 +159,6 @@ export function MeritHistoryList({
 
 const styles = StyleSheet.create({
   section: { gap: 10 },
-  heading: { fontSize: 16, fontWeight: "700", color: colors.ink },
   empty: { fontSize: 13, color: colors.muted, lineHeight: 20 },
   table: {
     borderWidth: 1,

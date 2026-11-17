@@ -379,183 +379,198 @@ export default function ProfileScreen() {
           tabs={profileTabs}
           value={profileTab}
           onChange={setProfileTab}
-        />
-
-        {profileTab === "user" ? (
-          <View style={styles.pillbox}>
-            <Text style={styles.userLine}>
-              {t("profile.signed_in")}
-              {username ? ` · @${username}` : ""}
-            </Text>
-
-            <Text style={styles.fieldLabel}>{t("profile.username")}</Text>
-            <TextInput
-              value={editUsername}
-              onChangeText={(text) =>
-                setEditUsername(text.replace(/\s+/g, "").slice(0, USERNAME_MAX))
-              }
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="username"
-              style={styles.input}
-              maxLength={USERNAME_MAX}
-              editable={!profileSaving}
-              accessibilityLabel={t("profile.username")}
-            />
-            <Text style={styles.prefHint}>{t("profile.username_hint")}</Text>
-
-            <Text style={styles.fieldLabel}>{t("profile.real_name")}</Text>
-            <TextInput
-              value={editRealName}
-              onChangeText={(text) =>
-                setEditRealName(text.slice(0, DISPLAY_NAME_MAX))
-              }
-              autoCapitalize="words"
-              style={styles.input}
-              maxLength={DISPLAY_NAME_MAX}
-              editable={!profileSaving}
-              accessibilityLabel={t("profile.real_name")}
-            />
-            <Text style={styles.prefHint}>{t("profile.real_name_hint")}</Text>
-
-            <Pressable
-              style={[styles.btn, profileSaving && styles.btnDisabled]}
-              onPress={onSaveProfile}
-              disabled={profileSaving}
-              accessibilityRole="button"
-            >
-              {profileSaving ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.btnText}>{t("profile.save")}</Text>
-              )}
-            </Pressable>
-          </View>
-        ) : null}
-
-        {profileTab === "settings" ? (
-          <>
-            {languageSwitcher}
-
-            <Pressable
-              style={styles.btn}
-              onPress={() => {
-                void signOut();
-              }}
-            >
-              <Text style={styles.btnText}>{t("profile.sign_out")}</Text>
-            </Pressable>
-
-            <View style={styles.pillbox}>
-              <Text style={styles.pillLabel}>{t("profile.chrons_section")}</Text>
-              {totalChr != null ? (
-                <Text style={styles.balanceChr}>
-                  {t("profile.chrons_balance")}: {formatChr(totalChr)} CHR
-                </Text>
-              ) : null}
-              <View style={styles.prefRow}>
-                <Text style={styles.prefLabel}>{t("profile.allow_chrons")}</Text>
-                <Switch
-                  value={allowChrons}
-                  onValueChange={(checked) => {
-                    void setAllowChrons(checked);
-                  }}
-                  trackColor={{ false: colors.border, true: colors.brandSoft }}
-                  accessibilityRole="switch"
-                  accessibilityLabel={t("profile.allow_chrons")}
-                />
-              </View>
-              <Text style={styles.prefHint}>{t("profile.allow_chrons_hint")}</Text>
-            </View>
-
-            <View style={styles.pillbox}>
-              <Text style={styles.pillLabel}>
-                {t("profile.me_sources_section")}
+        >
+          {profileTab === "user" ? (
+            <View style={styles.panel}>
+              <Text style={styles.userLine}>
+                {t("profile.signed_in")}
+                {username ? ` · @${username}` : ""}
               </Text>
-              <Text style={styles.prefHint}>{t("profile.me_sources_hint")}</Text>
-              {!meSourcesReady || meSourcesSaving ? (
-                <ActivityIndicator color={colors.brand} />
-              ) : (
-                <View style={styles.meSourcesOptions}>
-                  {ME_SOURCES_OPTIONS.map((option) => {
-                    const selected = meSourcesShare === option;
-                    return (
-                      <Pressable
-                        key={option}
-                        style={[
-                          styles.meSourcesOption,
-                          selected && styles.meSourcesOptionSelected,
-                        ]}
-                        onPress={() => onSelectMeSourcesShare(option)}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected }}
-                      >
-                        <Text
-                          style={[
-                            styles.meSourcesOptionTitle,
-                            selected && styles.meSourcesOptionTitleSelected,
-                          ]}
-                        >
-                          {t(`profile.me_sources_${option}_title`)}
-                        </Text>
-                        <Text style={styles.meSourcesOptionBody}>
-                          {t(`profile.me_sources_${option}_body`)}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
 
-            <View style={styles.pillbox}>
-              <Text style={styles.pillLabel}>{t("profile.taxes_section")}</Text>
-              <Text style={styles.prefHint}>{t("profile.taxes_hint")}</Text>
-              <View style={styles.prefRow}>
-                <Text style={styles.prefLabel}>
-                  {t("profile.taxes_keep_switch")}
-                </Text>
-                {!retentionReady || retentionSaving ? (
-                  <ActivityIndicator color={colors.brand} />
-                ) : (
-                  <Switch
-                    value={retention === "keep"}
-                    onValueChange={onToggleKeepReceipts}
-                    trackColor={{ false: colors.border, true: colors.brandSoft }}
-                    accessibilityRole="switch"
-                    accessibilityLabel={t("profile.taxes_keep_switch")}
-                  />
-                )}
-              </View>
-              <Text style={styles.prefHint}>
-                {t("profile.taxes_status").replace(
-                  "{{status}}",
-                  retentionStatusLabel(retention),
-                )}
-              </Text>
+              <Text style={styles.fieldLabel}>{t("profile.username")}</Text>
+              <TextInput
+                value={editUsername}
+                onChangeText={(text) =>
+                  setEditUsername(
+                    text.replace(/\s+/g, "").slice(0, USERNAME_MAX),
+                  )
+                }
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="username"
+                style={styles.input}
+                maxLength={USERNAME_MAX}
+                editable={!profileSaving}
+                accessibilityLabel={t("profile.username")}
+              />
+              <Text style={styles.prefHint}>{t("profile.username_hint")}</Text>
+
+              <Text style={styles.fieldLabel}>{t("profile.real_name")}</Text>
+              <TextInput
+                value={editRealName}
+                onChangeText={(text) =>
+                  setEditRealName(text.slice(0, DISPLAY_NAME_MAX))
+                }
+                autoCapitalize="words"
+                style={styles.input}
+                maxLength={DISPLAY_NAME_MAX}
+                editable={!profileSaving}
+                accessibilityLabel={t("profile.real_name")}
+              />
+              <Text style={styles.prefHint}>{t("profile.real_name_hint")}</Text>
+
               <Pressable
-                onPress={() => void Linking.openURL(getPrivacyUrl())}
-                accessibilityRole="link"
-                hitSlop={6}
+                style={[styles.btn, profileSaving && styles.btnDisabled]}
+                onPress={onSaveProfile}
+                disabled={profileSaving}
+                accessibilityRole="button"
               >
-                <Text style={styles.privacyLink}>
-                  {t("profile.taxes_privacy_link")}
-                </Text>
+                {profileSaving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.btnText}>{t("profile.save")}</Text>
+                )}
               </Pressable>
             </View>
-          </>
-        ) : null}
+          ) : null}
 
-        {profileTab === "history" ? (
-          <MeritHistoryList
-            items={items}
-            total={total}
-            loading={historyLoading}
-            loadingMore={loadingMore}
-            error={historyError}
-            onLoadMore={onLoadMore}
-          />
-        ) : null}
+          {profileTab === "settings" ? (
+            <View style={styles.panel}>
+              {languageSwitcher}
+
+              <Pressable
+                style={styles.btn}
+                onPress={() => {
+                  void signOut();
+                }}
+              >
+                <Text style={styles.btnText}>{t("profile.sign_out")}</Text>
+              </Pressable>
+
+              <View style={styles.pillbox}>
+                <Text style={styles.pillLabel}>
+                  {t("profile.chrons_section")}
+                </Text>
+                {totalChr != null ? (
+                  <Text style={styles.balanceChr}>
+                    {t("profile.chrons_balance")}: {formatChr(totalChr)} CHR
+                  </Text>
+                ) : null}
+                <View style={styles.prefRow}>
+                  <Text style={styles.prefLabel}>
+                    {t("profile.allow_chrons")}
+                  </Text>
+                  <Switch
+                    value={allowChrons}
+                    onValueChange={(checked) => {
+                      void setAllowChrons(checked);
+                    }}
+                    trackColor={{ false: colors.border, true: colors.brandSoft }}
+                    accessibilityRole="switch"
+                    accessibilityLabel={t("profile.allow_chrons")}
+                  />
+                </View>
+                <Text style={styles.prefHint}>
+                  {t("profile.allow_chrons_hint")}
+                </Text>
+              </View>
+
+              <View style={styles.pillbox}>
+                <Text style={styles.pillLabel}>
+                  {t("profile.me_sources_section")}
+                </Text>
+                <Text style={styles.prefHint}>
+                  {t("profile.me_sources_hint")}
+                </Text>
+                {!meSourcesReady || meSourcesSaving ? (
+                  <ActivityIndicator color={colors.brand} />
+                ) : (
+                  <View style={styles.meSourcesOptions}>
+                    {ME_SOURCES_OPTIONS.map((option) => {
+                      const selected = meSourcesShare === option;
+                      return (
+                        <Pressable
+                          key={option}
+                          style={[
+                            styles.meSourcesOption,
+                            selected && styles.meSourcesOptionSelected,
+                          ]}
+                          onPress={() => onSelectMeSourcesShare(option)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected }}
+                        >
+                          <Text
+                            style={[
+                              styles.meSourcesOptionTitle,
+                              selected && styles.meSourcesOptionTitleSelected,
+                            ]}
+                          >
+                            {t(`profile.me_sources_${option}_title`)}
+                          </Text>
+                          <Text style={styles.meSourcesOptionBody}>
+                            {t(`profile.me_sources_${option}_body`)}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.pillbox}>
+                <Text style={styles.pillLabel}>
+                  {t("profile.taxes_section")}
+                </Text>
+                <Text style={styles.prefHint}>{t("profile.taxes_hint")}</Text>
+                <View style={styles.prefRow}>
+                  <Text style={styles.prefLabel}>
+                    {t("profile.taxes_keep_switch")}
+                  </Text>
+                  {!retentionReady || retentionSaving ? (
+                    <ActivityIndicator color={colors.brand} />
+                  ) : (
+                    <Switch
+                      value={retention === "keep"}
+                      onValueChange={onToggleKeepReceipts}
+                      trackColor={{
+                        false: colors.border,
+                        true: colors.brandSoft,
+                      }}
+                      accessibilityRole="switch"
+                      accessibilityLabel={t("profile.taxes_keep_switch")}
+                    />
+                  )}
+                </View>
+                <Text style={styles.prefHint}>
+                  {t("profile.taxes_status").replace(
+                    "{{status}}",
+                    retentionStatusLabel(retention),
+                  )}
+                </Text>
+                <Pressable
+                  onPress={() => void Linking.openURL(getPrivacyUrl())}
+                  accessibilityRole="link"
+                  hitSlop={6}
+                >
+                  <Text style={styles.privacyLink}>
+                    {t("profile.taxes_privacy_link")}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
+          {profileTab === "history" ? (
+            <MeritHistoryList
+              items={items}
+              total={total}
+              loading={historyLoading}
+              loadingMore={loadingMore}
+              error={historyError}
+              onLoadMore={onLoadMore}
+            />
+          ) : null}
+        </SectionTabs>
       </ScrollView>
     );
   }
@@ -576,6 +591,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   centered: { flex: 1, padding: 24, justifyContent: "center" },
   container: { padding: 24, gap: 16, paddingBottom: 48 },
+  panel: { gap: 12 },
   userLine: { color: colors.ink, fontWeight: "600", fontSize: 16, lineHeight: 22 },
   body: { color: colors.muted, lineHeight: 22 },
   balanceChr: { fontSize: 15, fontWeight: "400", color: colors.ink, lineHeight: 22 },
@@ -591,7 +607,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   pillbox: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bg,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
