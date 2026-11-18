@@ -91,16 +91,21 @@ Production-like backend for phones and remote testing. SSH host alias: `sano-vps
 What it does:
 
 1. Stops sibling Docker stacks on the VPS (`lepidoptera`, `zajezka`,
+
    `copyfast-print`) to free RAM for the build
 2. Waits until ≥ ~1GB is available (retries; aborts if still short — e.g. a
+
    heavy image job elsewhere)
 3. Rsyncs `services/api`, `packages/shared`, and deploy packaging to
+
    `/opt/docker/civic-api`
 4. Seeds `/opt/docker/civic-api/.env` from `.env.example` on first run only
+
    (later deploys keep the remote `.env`)
 5. `docker compose build && up -d` (host port **3001**, SQLite in `./data`)
 6. Restarts the sibling stacks (also on failure via EXIT trap)
 7. Reloads nginx-proxy for **civic-api.rovas.app** only after siblings are up
+
    (nginx `-t` loads all `conf.d` hosts, including `zajezka-web`)
 
 Smoke-check:
@@ -238,7 +243,8 @@ developer profile), finish from Xcode:
 
 1. Open `apps/mobile/ios/Civic.xcworkspace` (not `.xcodeproj`).
 2. **Product → Clean Build Folder**, then **Run** on your iPhone.
-3. If photos still fail, delete the app from the phone and run again.
+3. If photos still fail, delete th
+4. e app from the phone and run again.
 
 Open the **Civic** app on the phone (not Expo Go). `ios:device` alone reuses
 stale native projects and modules like photo picking will still fail.
@@ -284,8 +290,8 @@ every session).
 4. If port 8081 is already in use, cancel a second `pnpm dev:mobile` / Expo
 
    start — reuse the existing Metro, or kill the old process and start one
-    Metro session. Prefer one bundler on 8081; don’t switch the phone to 8082
-    unless you mean to.
+     Metro session. Prefer one bundler on 8081; don’t switch the phone to 8082
+     unless you mean to.
 5. The API is reached over HTTPS at `EXPO_PUBLIC_API_URL`; ngrok only carries
 
    the JS bundle (Metro). Same Wi‑Fi as the Mac is not required for the VPS API.
@@ -362,17 +368,17 @@ targets — use EAS for signing and upload.
 2. [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list)
 
    → register an **App ID** with bundle id `app.civic.mobile`.
-    **Description** is only a portal label (e.g. `Civic`); leave Capabilities
-    unchecked unless you know you need one.
+     **Description** is only a portal label (e.g. `Civic`); leave Capabilities
+     unchecked unless you know you need one.
 3. [App Store Connect](https://appstoreconnect.apple.com) → **My Apps** → create
 
    an iOS app with that bundle id (EAS Submit can also create the record on
-    first upload if the name `Civic` is taken, rename later).
+     first upload if the name `Civic` is taken, rename later).
 4. From `apps/mobile`, ensure the Expo project is linked (`npx eas-cli init` if
 
    needed). First interactive iOS build creates the Apple Distribution
-    certificate + App Store provisioning profile on EAS (answer **Y** to
-    generate when prompted).
+     certificate + App Store provisioning profile on EAS (answer **Y** to
+     generate when prompted).
 5. Export compliance: Civic only uses standard HTTPS/TLS — answer **Y** when
 
    EAS asks whether the app uses only standard/exempt encryption.
@@ -413,7 +419,7 @@ Then in App Store Connect:
 1. **My Apps → Civic → TestFlight** — wait for processing (often 5–20+ min;
 
    email when ready). App Store Connect may show a grey placeholder icon until
-    the build finishes processing.
+     the build finishes processing.
 2. Answer export compliance if prompted (exempt / standard encryption).
 3. **Internal Testing**: add App Store Connect users → they install with the
 

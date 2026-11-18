@@ -6,10 +6,9 @@
  * values as Metro (Expo does this for `expo start`, but not always for every
  * config evaluation path).
  *
- * Facebook uses Meta’s `fb{APP_ID}://authorize` redirect. That scheme is
- * registered only via iOS CFBundleURLTypes + Android intentFilters — not in
- * `expo.scheme` — so expo-linking keeps a single preferred scheme (`civic`)
- * and does not warn about multiple URI schemes.
+ * Facebook redirect is Meta’s `fb{APP_ID}://authorize`. Keep `expo.scheme` as
+ * `civic` only (avoids expo-linking multi-scheme warnings). Register `fb…` at
+ * the end of the plugins list so it survives Expo’s own URL-type generation.
  */
 const fs = require("fs");
 const path = require("path");
@@ -59,26 +58,29 @@ function facebookUrlScheme() {
   return appId ? `fb${appId}` : null;
 }
 
-function withFacebookIosUrlScheme(config, scheme) {
-  if (!scheme) return config;
-  return withInfoPlist(config, (cfg) => {
-    const existing = cfg.modResults.CFBundleURLTypes ?? [];
-    const already = existing.some(
-      (entry) =>
-        Array.isArray(entry.CFBundleURLSchemes) &&
-        entry.CFBundleURLSchemes.includes(scheme),
-    );
-    if (!already) {
-      cfg.modResults.CFBundleURLTypes = [
-        ...existing,
-        {
-          CFBundleURLName: "facebook-login",
-          CFBundleURLSchemes: [scheme],
-        },
-      ];
-    }
-    return cfg;
-  });
+/** Append Facebook URL scheme after Expo / Google have written CFBundleURLTypes. */
+function withFacebookIosUrlScheme(scheme) {
+  return (config) => {
+    if (!scheme) return config;
+    return withInfoPlist(config, (cfg) => {
+      const existing = cfg.modResults.CFBundleURLTypes ?? [];
+      const already = existing.some(
+        (entry) =>
+          Array.isArray(entry.CFBundleURLSchemes) &&
+          entry.CFBundleURLSchemes.includes(scheme),
+      );
+      if (!already) {
+        cfg.modResults.CFBundleURLTypes = [
+          ...existing,
+          {
+            CFBundleURLName: "facebook-login",
+            CFBundleURLSchemes: [scheme],
+          },
+        ];
+      }
+      return cfg;
+    });
+  };
 }
 
 const expo = appJson.expo;
@@ -100,10 +102,9 @@ if (fbScheme) {
   });
 }
 
-const config = {
+module.exports = {
   expo: {
     ...expo,
-    // Single preferred scheme for expo-linking (Rovas / Nabezky / OSM).
     scheme: "civic",
     ios: {
       ...expo.ios,
@@ -122,8 +123,8 @@ const config = {
           iosUrlScheme,
         },
       ],
+      // Last: must run after Google / scheme plugins rewrite URL types.
+      withFacebookIosUrlScheme(fbScheme),
     ],
   },
 };
-
-module.exports = withFacebookIosUrlScheme(config, fbScheme);
