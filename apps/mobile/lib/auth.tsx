@@ -57,10 +57,12 @@ import {
 import { capture, resetAnalytics } from "@/lib/analytics";
 import { resetSpotlightDismiss } from "@/lib/spotlight-dismiss";
 import {
+  beginFacebookBrowser,
   beginOpenStreetMapBrowser,
+  completeFacebookEmail,
   completeOpenStreetMapEmail,
-  signInWithFacebookBrowser,
   signInWithNabezkyBrowser,
+  type FacebookPendingAuth,
   type OsmPendingAuth,
 } from "@/lib/idp-oauth";
 import {
@@ -87,8 +89,18 @@ type AuthContextValue = {
   signInWithGoogle: () => Promise<boolean>;
   /** Native Apple Sign-In (iOS) → Civic API → Rovas-minted Bearer tokens. */
   signInWithApple: () => Promise<boolean>;
-  /** Facebook Login (browser) → Civic API → Rovas-minted Bearer tokens. */
-  signInWithFacebook: () => Promise<boolean>;
+  /**
+   * Facebook Login → signed in or pending email (Meta often omits email).
+   * Returns null when cancelled.
+   */
+  beginFacebookSignIn: () => Promise<"signed_in" | FacebookPendingAuth | null>;
+  /** In-progress Facebook email step. */
+  facebookPending: FacebookPendingAuth | null;
+  clearFacebookPending: () => void;
+  completeFacebookSignIn: (
+    pendingToken: string,
+    email: string,
+  ) => Promise<boolean>;
   /** Nabezky OIDC PKCE → Civic API → Rovas-minted Bearer tokens. */
   signInWithNabezky: () => Promise<boolean>;
   /**
@@ -214,6 +226,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [tokens, setTokens] = useState<StoredTokens | null>(null);
   const [osmPending, setOsmPending] = useState<OsmPendingAuth | null>(null);
+  const [facebookPending, setFacebookPending] =
+    useState<FacebookPendingAuth | null>(null);
   const tokensRef = useRef<StoredTokens | null>(null);
   tokensRef.current = tokens;
   const refreshInFlightRef = useRef<Promise<string | null> | null>(null);
@@ -473,17 +487,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [persist]);
 
-  const signInWithFacebook = useCallback(async (): Promise<boolean> => {
+  const beginFacebookSignIn = useCallback(async () => {
     try {
-      const stored = await signInWithFacebookBrowser();
-      await persist(stored);
-      capture("auth_signed_in", { provider: "facebook" });
-      return true;
+      const result = await beginFacebookBrowser();
+      if (result.kind === "signed_in") {
+        setFacebookPending(null);
+        await persist(result.tokens);
+        capture("auth_signed_in", { provider: "facebook" });
+        return "signed_in";
+      }
+      setOsmPending(null);
+      setFacebookPending(result.pending);
+      return result.pending;
     } catch (err) {
-      if (err instanceof SocialAuthCancelledError) return false;
+      if (err instanceof SocialAuthCancelledError) return null;
       throw err;
     }
   }, [persist]);
+
+  const clearFacebookPending = useCallback(() => {
+    setFacebookPending(null);
+  }, []);
+
+  const completeFacebookSignIn = useCallback(
+    async (pendingToken: string, email: string): Promise<boolean> => {
+      const stored = await completeFacebookEmail(pendingToken, email);
+      await persist(stored);
+      setFacebookPending(null);
+      capture("auth_signed_in", { provider: "facebook" });
+      return true;
+    },
+    [persist],
+  );
 
   const signInWithNabezky = useCallback(async (): Promise<boolean> => {
     try {
@@ -506,6 +541,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         capture("auth_signed_in", { provider: "openstreetmap" });
         return "signed_in";
       }
+      setFacebookPending(null);
       setOsmPending(result.pending);
       return result.pending;
     } catch (err) {
@@ -632,7 +668,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accessToken: tokens?.accessToken ?? null,
       signInWithGoogle,
       signInWithApple,
-      signInWithFacebook,
+      beginFacebookSignIn,
+      facebookPending,
+      clearFacebookPending,
+      completeFacebookSignIn,
       signInWithNabezky,
       beginOpenStreetMapSignIn,
       osmPending,
@@ -645,15 +684,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       getAccessToken,
     }),
     [
+      beginFacebookSignIn,
       beginOpenStreetMapSignIn,
+      clearFacebookPending,
       clearOsmPending,
+      completeFacebookSignIn,
       completeOpenStreetMapSignIn,
+      facebookPending,
       getAccessToken,
       osmPending,
       registerWithPassword,
       signIn,
       signInWithApple,
-      signInWithFacebook,
       signInWithGoogle,
       signInWithNabezky,
       signInWithPassword,

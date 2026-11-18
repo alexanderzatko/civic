@@ -2,8 +2,10 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import type { AppContext } from "../context.js";
 import {
+  beginFacebookAuthorization,
   verifyFacebookAccessToken,
   verifyFacebookAuthenticationToken,
+  verifyFacebookPendingToken,
 } from "../idp-facebook.js";
 import { verifyNabezkyAuthorizationCode } from "../idp-nabezky.js";
 import {
@@ -122,6 +124,8 @@ const osmCompleteBodySchema = z.object({
   language: languageSchema,
   country: countrySchema,
 });
+
+const facebookCompleteBodySchema = osmCompleteBodySchema;
 
 function mapAuthError(err: unknown): {
   status: number;
@@ -245,19 +249,45 @@ export const authRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
             ctx.config.facebookAppSecret,
           );
 
+      return await beginFacebookAuthorization(ctx.config, verified, {
+        language: parsed.data.language,
+        country: parsed.data.country,
+      });
+    } catch (err) {
+      const mapped = mapAuthError(err);
+      req.log.warn({ err }, "Facebook auth failed");
+      return reply
+        .code(mapped.status)
+        .send({ error: mapped.error, ...(mapped.code ? { code: mapped.code } : {}) });
+    }
+  });
+
+  app.post("/auth/facebook/complete", async (req, reply) => {
+    const parsed = facebookCompleteBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid request body" });
+    }
+
+    try {
+      const identity = await verifyFacebookPendingToken(
+        ctx.config,
+        parsed.data.pending_token,
+      );
       const session = await createCivicAuthSession(ctx.config, {
         provider: "facebook",
-        provider_subject: verified.subject,
-        email: verified.email,
-        email_verified: verified.emailVerified,
-        display_name: verified.displayName,
+        provider_subject: identity.subject,
+        email: parsed.data.email,
+        // Collected in-app when Meta omits email — needs Rovas
+        // civic-auth-facebook-unverified-email (like OSM).
+        email_verified: false,
+        display_name: identity.displayName,
         user_language: parsed.data.language,
         user_country: parsed.data.country,
       });
       return toExpoTokenPayload(session);
     } catch (err) {
       const mapped = mapAuthError(err);
-      req.log.warn({ err }, "Facebook auth failed");
+      req.log.warn({ err }, "Facebook auth complete failed");
       return reply
         .code(mapped.status)
         .send({ error: mapped.error, ...(mapped.code ? { code: mapped.code } : {}) });

@@ -126,24 +126,75 @@ export function getFacebookRedirectUri(): string {
   });
 }
 
+export type FacebookPendingAuth = {
+  pendingToken: string;
+  displayName: string | null;
+};
+
+/** Returning Facebook user (HybridAuth hit) or email collection when Meta omits it. */
+export type FacebookBeginAuthResult =
+  | { kind: "signed_in"; tokens: StoredTokens }
+  | { kind: "needs_email"; pending: FacebookPendingAuth };
+
+type FacebookBeginResponse = AuthApiTokenResponse & {
+  needs_email?: boolean;
+  pending_token?: string;
+  display_name?: string | null;
+};
+
 /**
  * Facebook Login via system browser (access token) → Civic API.
+ * Meta often omits email even with permission — then collect email in-app.
  */
-export async function signInWithFacebookBrowser(): Promise<StoredTokens> {
+export async function beginFacebookBrowser(): Promise<FacebookBeginAuthResult> {
   const accessToken = await authorizeWithBrowserToken({
     clientId: getFacebookAppId(),
     redirectUri: getFacebookRedirectUri(),
     scopes: ["public_profile", "email"],
     authorizationEndpoint: "https://www.facebook.com/v21.0/dialog/oauth",
-    extraParams: { display: "popup" },
+    extraParams: { display: "popup", auth_type: "rerequest" },
   });
 
-  const { ok, json } = await postJson<AuthApiTokenResponse>("/auth/facebook", {
+  const { ok, json } = await postJson<FacebookBeginResponse>("/auth/facebook", {
     access_token: accessToken,
   });
   if (!ok) {
     throw new SocialAuthError(
       typeof json.error === "string" ? json.error : "Facebook auth failed",
+    );
+  }
+  if (json.accessToken) {
+    return { kind: "signed_in", tokens: toStoredTokens(json) };
+  }
+  if (json.needs_email && json.pending_token) {
+    return {
+      kind: "needs_email",
+      pending: {
+        pendingToken: json.pending_token,
+        displayName:
+          typeof json.display_name === "string" ? json.display_name : null,
+      },
+    };
+  }
+  throw new SocialAuthError("Facebook auth failed");
+}
+
+export async function completeFacebookEmail(
+  pendingToken: string,
+  email: string,
+): Promise<StoredTokens> {
+  const { ok, json } = await postJson<AuthApiTokenResponse>(
+    "/auth/facebook/complete",
+    {
+      pending_token: pendingToken,
+      email,
+    },
+  );
+  if (!ok) {
+    throw new SocialAuthError(
+      typeof json.error === "string"
+        ? json.error
+        : "Facebook email step failed",
     );
   }
   return toStoredTokens(json);

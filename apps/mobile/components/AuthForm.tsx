@@ -69,7 +69,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const {
     signInWithGoogle,
     signInWithApple,
-    signInWithFacebook,
+    beginFacebookSignIn,
+    facebookPending,
+    clearFacebookPending,
+    completeFacebookSignIn,
     signInWithNabezky,
     beginOpenStreetMapSignIn,
     osmPending,
@@ -88,8 +91,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
 
-  /** After OSM OAuth — collect email before minting. */
-  const [osmEmail, setOsmEmail] = useState("");
+  /** After OSM / Facebook OAuth when the IdP omits email. */
+  const [idpEmail, setIdpEmail] = useState("");
+  const emailPending = facebookPending ?? osmPending;
+  const emailPendingKind: "facebook" | "openstreetmap" | null = facebookPending
+    ? "facebook"
+    : osmPending
+      ? "openstreetmap"
+      : null;
 
   const scrollRef = useRef<ScrollView>(null);
   const scrollHostRef = useRef<View>(null);
@@ -161,6 +170,31 @@ export function AuthForm({ mode }: { mode: Mode }) {
     }
   }
 
+  async function runFacebook() {
+    setError(null);
+    setBusy("facebook");
+    setIdpAuthReturnPath(
+      mode === "register" ? "/(auth)/register" : "/(auth)/login",
+    );
+    try {
+      const result = await beginFacebookSignIn();
+      if (result === "signed_in") {
+        if (mode === "register") {
+          await markUsernameHintPending();
+        }
+        await afterSuccess(mode === "register");
+        return;
+      }
+      if (result) {
+        setIdpEmail("");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("auth.error_generic"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function runOpenStreetMap() {
     setError(null);
     setBusy("openstreetmap");
@@ -177,7 +211,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         return;
       }
       if (result) {
-        setOsmEmail("");
+        setIdpEmail("");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : t("auth.error_generic"));
@@ -186,20 +220,23 @@ export function AuthForm({ mode }: { mode: Mode }) {
     }
   }
 
-  async function runOpenStreetMapComplete() {
-    if (!osmPending) return;
-    const trimmed = osmEmail.trim();
+  async function runIdpEmailComplete() {
+    if (!emailPending || !emailPendingKind) return;
+    const trimmed = idpEmail.trim();
     if (!trimmed.includes("@")) {
       setError(t("auth.error_email_invalid"));
       return;
     }
     setError(null);
-    setBusy("openstreetmap");
+    setBusy(emailPendingKind);
     try {
-      const ok = await completeOpenStreetMapSignIn(
-        osmPending.pendingToken,
-        trimmed,
-      );
+      const ok =
+        emailPendingKind === "facebook"
+          ? await completeFacebookSignIn(emailPending.pendingToken, trimmed)
+          : await completeOpenStreetMapSignIn(
+              emailPending.pendingToken,
+              trimmed,
+            );
       if (ok) {
         if (mode === "register") {
           await markUsernameHintPending();
@@ -331,21 +368,32 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </View>
       )}
 
-      {osmPending ? (
+      {emailPending && emailPendingKind ? (
         <View style={styles.osmEmailBox}>
-          <Text style={styles.osmEmailTitle}>{t("auth.osm_email_title")}</Text>
+          <Text style={styles.osmEmailTitle}>
+            {t(
+              emailPendingKind === "facebook"
+                ? "auth.facebook_email_title"
+                : "auth.osm_email_title",
+            )}
+          </Text>
           <Text style={styles.osmEmailBody}>
-            {osmPending.displayName
-              ? t("auth.osm_email_body_named").replace(
-                  "{name}",
-                  osmPending.displayName,
-                )
-              : t("auth.osm_email_body")}
+            {emailPending.displayName
+              ? t(
+                  emailPendingKind === "facebook"
+                    ? "auth.facebook_email_body_named"
+                    : "auth.osm_email_body_named",
+                ).replace("{name}", emailPending.displayName)
+              : t(
+                  emailPendingKind === "facebook"
+                    ? "auth.facebook_email_body"
+                    : "auth.osm_email_body",
+                )}
           </Text>
           <TextInput
             style={styles.input}
-            value={osmEmail}
-            onChangeText={setOsmEmail}
+            value={idpEmail}
+            onChangeText={setIdpEmail}
             placeholder={t("auth.email_placeholder")}
             placeholderTextColor={colors.muted}
             autoCapitalize="none"
@@ -357,19 +405,26 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <Pressable
             style={[styles.submitBtn, busyAny && styles.disabled]}
             disabled={busyAny}
-            onPress={() => void runOpenStreetMapComplete()}
+            onPress={() => void runIdpEmailComplete()}
           >
-            {busy === "openstreetmap" ? (
+            {busy === emailPendingKind ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitBtnText}>{t("auth.osm_email_continue")}</Text>
+              <Text style={styles.submitBtnText}>
+                {t(
+                  emailPendingKind === "facebook"
+                    ? "auth.facebook_email_continue"
+                    : "auth.osm_email_continue",
+                )}
+              </Text>
             )}
           </Pressable>
           <Pressable
             disabled={busyAny}
             onPress={() => {
+              clearFacebookPending();
               clearOsmPending();
-              setOsmEmail("");
+              setIdpEmail("");
               setError(null);
             }}
           >
@@ -412,7 +467,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <Pressable
         style={[styles.socialBtn, busyAny && styles.disabled]}
         disabled={busyAny}
-        onPress={() => void runSocial("facebook", signInWithFacebook)}
+        onPress={() => void runFacebook()}
         accessibilityRole="button"
         accessibilityLabel={t("auth.continue_facebook")}
       >

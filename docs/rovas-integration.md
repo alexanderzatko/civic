@@ -63,7 +63,7 @@ from the email local-part — see
 |------|--------|
 | Google | `@react-native-google-signin/google-signin` → `id_token` → `POST {API}/auth/google` |
 | Apple (iOS) | `expo-apple-authentication` → `identity_token` → `POST {API}/auth/apple` |
-| Facebook | AuthSession / Limited Login → JWT or access token → `POST {API}/auth/facebook` |
+| Facebook | AuthSession → `POST {API}/auth/facebook` → mint if Meta email or HybridAuth hit; else **email only** → `POST {API}/auth/facebook/complete`. Needs Rovas [`civic-auth-facebook-unverified-email`](../../rovas/docs/integration/civic_tasks/active/civic-auth-facebook-unverified-email.md) for `email_verified: false` |
 | Nabezky | `expo-auth-session` PKCE → `POST {API}/auth/nabezky` (code exchange + OIDC/UserInfo) |
 | OpenStreetMap | PKCE → `POST {API}/auth/openstreetmap` → mint if HybridAuth OSM identity exists; else **email only** (not password) → `POST {API}/auth/openstreetmap/complete`. New OSM accounts: OSM `display_name` → Drupal **username**, real name empty — Rovas [`civic-auth-osm-username-from-display-name`](../../rovas/docs/integration/civic_tasks/active/civic-auth-osm-username-from-display-name.md) |
 | Register (password) | username + email + password → `POST {API}/auth/register` → Rovas `civic_auth_register` |
@@ -111,7 +111,7 @@ only (`FACEBOOK_APP_SECRET`, `NABEZKY_CLIENT_SECRET`, `OSM_CLIENT_SECRET`).
 
 | IdP | Where | Redirect / package notes |
 |-----|-------|--------------------------|
-| **Facebook** | [Meta developers](https://developers.facebook.com/) — Facebook Login | Valid OAuth Redirect URI **`fb{APP_ID}://authorize`** (Meta rejects custom schemes like `civic://…`); iOS bundle `app.civic.mobile`; Android package `app.civic.mobile`, class `app.civic.mobile.MainActivity`, debug + release **key hashes**; enable **email** + **public_profile**; App ID → `EXPO_PUBLIC_FACEBOOK_APP_ID` + `FACEBOOK_APP_ID`; App Secret → `FACEBOOK_APP_SECRET`. After setting the App ID, rebuild the native app so `app.config.js` registers scheme `fb{APP_ID}` |
+| **Facebook** | [Meta developers](https://developers.facebook.com/) — Facebook Login | Valid OAuth Redirect URI **`fb{APP_ID}://authorize`**; iOS bundle `app.civic.mobile`; Android package `app.civic.mobile`, class `app.civic.mobile.MainActivity`, debug + release **key hashes**; enable **email** + **public_profile**; App ID → `EXPO_PUBLIC_FACEBOOK_APP_ID` + `FACEBOOK_APP_ID`; App Secret → `FACEBOOK_APP_SECRET`; pending email JWTs use `OSM_PENDING_JWT_SECRET`. Rebuild after setting App ID so `app.config.js` registers `fb{APP_ID}`. Rovas: [`civic-auth-facebook-unverified-email`](../../rovas/docs/integration/civic_tasks/active/civic-auth-facebook-unverified-email.md) |
 | **Nabezky** | Nabezky admin → OAuth2 Server clients (`https://nabezky.sk` / `https://devsuhel.nabezky.sk`) | Server already has **Use OpenID Connect** + **Authorization code** + refresh rotation. Add client with redirect `civic://oauth/nabezky`; scopes `openid email profile`; Client ID → `EXPO_PUBLIC_NABEZKY_CLIENT_ID` + `NABEZKY_CLIENT_ID`; secret → `NABEZKY_CLIENT_SECRET`; base → `NABEZKY_BASE_URL` / `EXPO_PUBLIC_NABEZKY_BASE_URL` |
 | **OpenStreetMap** | [OSM OAuth2 apps](https://www.openstreetmap.org/oauth2/applications) | Redirect URI `civic://oauth/openstreetmap`; scopes `openid read_prefs`; Client ID → `EXPO_PUBLIC_OSM_CLIENT_ID` + `OSM_CLIENT_ID`; secret → `OSM_CLIENT_SECRET`. Set a strong random `OSM_PENDING_JWT_SECRET` on Civic API for the email-complete step |
 
