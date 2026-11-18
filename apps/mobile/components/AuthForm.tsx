@@ -331,6 +331,53 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </View>
       )}
 
+      {osmPending ? (
+        <View style={styles.osmEmailBox}>
+          <Text style={styles.osmEmailTitle}>{t("auth.osm_email_title")}</Text>
+          <Text style={styles.osmEmailBody}>
+            {osmPending.displayName
+              ? t("auth.osm_email_body_named").replace(
+                  "{name}",
+                  osmPending.displayName,
+                )
+              : t("auth.osm_email_body")}
+          </Text>
+          <TextInput
+            style={styles.input}
+            value={osmEmail}
+            onChangeText={setOsmEmail}
+            placeholder={t("auth.email_placeholder")}
+            placeholderTextColor={colors.muted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            editable={!busyAny}
+          />
+          <Pressable
+            style={[styles.submitBtn, busyAny && styles.disabled]}
+            disabled={busyAny}
+            onPress={() => void runOpenStreetMapComplete()}
+          >
+            {busy === "openstreetmap" ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitBtnText}>{t("auth.osm_email_continue")}</Text>
+            )}
+          </Pressable>
+          <Pressable
+            disabled={busyAny}
+            onPress={() => {
+              clearOsmPending();
+              setOsmEmail("");
+              setError(null);
+            }}
+          >
+            <Text style={styles.forgotLink}>{t("common.close")}</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <>
       <Pressable
         style={[styles.googleBtn, busyAny && styles.disabled]}
         disabled={busyAny}
@@ -400,7 +447,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         accessibilityRole="button"
         accessibilityLabel={t("auth.continue_openstreetmap")}
       >
-        {busy === "openstreetmap" && !osmPending ? (
+        {busy === "openstreetmap" ? (
           <ActivityIndicator color={colors.ink} />
         ) : (
           <View style={styles.socialBtnInner}>
@@ -411,53 +458,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
           </View>
         )}
       </Pressable>
-
-      {osmPending ? (
-        <View style={styles.osmEmailBox}>
-          <Text style={styles.osmEmailTitle}>{t("auth.osm_email_title")}</Text>
-          <Text style={styles.osmEmailBody}>
-            {osmPending.displayName
-              ? t("auth.osm_email_body_named").replace(
-                  "{name}",
-                  osmPending.displayName,
-                )
-              : t("auth.osm_email_body")}
-          </Text>
-          <TextInput
-            style={styles.input}
-            value={osmEmail}
-            onChangeText={setOsmEmail}
-            placeholder={t("auth.email_placeholder")}
-            placeholderTextColor={colors.muted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            editable={!busyAny}
-          />
-          <Pressable
-            style={[styles.submitBtn, busyAny && styles.disabled]}
-            disabled={busyAny}
-            onPress={() => void runOpenStreetMapComplete()}
-          >
-            {busy === "openstreetmap" ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitBtnText}>{t("auth.osm_email_continue")}</Text>
-            )}
-          </Pressable>
-          <Pressable
-            disabled={busyAny}
-            onPress={() => {
-              clearOsmPending();
-              setOsmEmail("");
-              setError(null);
-            }}
-          >
-            <Text style={styles.forgotLink}>{t("common.close")}</Text>
-          </Pressable>
-        </View>
-      ) : null}
 
       <View style={styles.dividerRow}>
         <View style={styles.divider} />
@@ -602,6 +602,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
           </Text>
         ) : null}
       </View>
+        </>
+      )}
 
       {busyAny ? (
         <View style={styles.busyRow}>

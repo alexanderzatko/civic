@@ -65,7 +65,7 @@ from the email local-part — see
 | Apple (iOS) | `expo-apple-authentication` → `identity_token` → `POST {API}/auth/apple` |
 | Facebook | AuthSession / Limited Login → JWT or access token → `POST {API}/auth/facebook` |
 | Nabezky | `expo-auth-session` PKCE → `POST {API}/auth/nabezky` (code exchange + OIDC/UserInfo) |
-| OpenStreetMap | PKCE → `POST {API}/auth/openstreetmap` → mint if HybridAuth OSM identity exists; else in-app email → `POST {API}/auth/openstreetmap/complete` |
+| OpenStreetMap | PKCE → `POST {API}/auth/openstreetmap` → mint if HybridAuth OSM identity exists; else **email only** (not password) → `POST {API}/auth/openstreetmap/complete`. Rovas prod bug swallowing 409 as 500: [`civic-auth-services-error-swallow`](../../rovas/docs/integration/civic_tasks/active/civic-auth-services-error-swallow.md) |
 | Register (password) | username + email + password → `POST {API}/auth/register` → Rovas `civic_auth_register` |
 | Login (password) | username or email + password → `POST {API}/auth/login` → Rovas `civic_auth_login` |
 | Password reset | Rovas web `/user/password` (`getRovasPasswordResetUrl()`); not in-app |

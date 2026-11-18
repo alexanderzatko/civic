@@ -191,6 +191,21 @@ export async function verifyOsmPendingToken(
 }
 
 /**
+ * Rovas should return 409 when OSM identity is unknown and email is missing.
+ * Prod currently swallows that `services_error` as HTTP 500 (see Rovas task
+ * civic-auth-services-error-swallow); treat both shapes as needs_email.
+ */
+function isOsmEmailRequiredError(err: unknown): boolean {
+  if (!(err instanceof RovasCivicAuthError)) return false;
+  if (err.status === 409) return true;
+  const msg = err.message.toLowerCase();
+  return (
+    msg.includes("verified email is required") ||
+    msg.includes("email is required to create or link")
+  );
+}
+
+/**
  * Exchange OSM authorization code, then:
  * - mint immediately when Rovas already has this OpenStreetMap HybridAuth
  *   identity (returning login → Home signed in, no email step);
@@ -227,7 +242,7 @@ export async function beginOsmAuthorization(
     });
     return toExpoTokenPayload(session);
   } catch (err) {
-    if (!(err instanceof RovasCivicAuthError) || err.status !== 409) {
+    if (!isOsmEmailRequiredError(err)) {
       throw err;
     }
   }
