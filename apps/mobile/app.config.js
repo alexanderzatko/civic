@@ -1,13 +1,19 @@
 /**
  * Dynamic Expo config so Google Sign-In `iosUrlScheme` and Facebook Login
- * `fb{APP_ID}` scheme come from env at prebuild time.
+ * `fb{APP_ID}` native URL handling come from env at prebuild time.
  *
  * Loads `apps/mobile/.env` explicitly so prebuild/Xcode runs see the same
  * values as Metro (Expo does this for `expo start`, but not always for every
  * config evaluation path).
+ *
+ * Facebook uses Meta’s `fb{APP_ID}://authorize` redirect. That scheme is
+ * registered only via iOS CFBundleURLTypes + Android intentFilters — not in
+ * `expo.scheme` — so expo-linking keeps a single preferred scheme (`civic`)
+ * and does not warn about multiple URI schemes.
  */
 const fs = require("fs");
 const path = require("path");
+const { withInfoPlist } = require("@expo/config-plugins");
 
 const appJson = require("./app.json");
 
@@ -53,11 +59,31 @@ function facebookUrlScheme() {
   return appId ? `fb${appId}` : null;
 }
 
+function withFacebookIosUrlScheme(config, scheme) {
+  if (!scheme) return config;
+  return withInfoPlist(config, (cfg) => {
+    const existing = cfg.modResults.CFBundleURLTypes ?? [];
+    const already = existing.some(
+      (entry) =>
+        Array.isArray(entry.CFBundleURLSchemes) &&
+        entry.CFBundleURLSchemes.includes(scheme),
+    );
+    if (!already) {
+      cfg.modResults.CFBundleURLTypes = [
+        ...existing,
+        {
+          CFBundleURLName: "facebook-login",
+          CFBundleURLSchemes: [scheme],
+        },
+      ];
+    }
+    return cfg;
+  });
+}
+
 const expo = appJson.expo;
 const iosUrlScheme = googleIosUrlScheme();
 const fbScheme = facebookUrlScheme();
-
-const schemes = fbScheme ? ["civic", fbScheme] : ["civic"];
 
 const androidIntentFilters = [...(expo.android?.intentFilters ?? [])];
 if (fbScheme) {
@@ -74,10 +100,11 @@ if (fbScheme) {
   });
 }
 
-module.exports = {
+const config = {
   expo: {
     ...expo,
-    scheme: schemes,
+    // Single preferred scheme for expo-linking (Rovas / Nabezky / OSM).
+    scheme: "civic",
     ios: {
       ...expo.ios,
       usesAppleSignIn: true,
@@ -98,3 +125,5 @@ module.exports = {
     ],
   },
 };
+
+module.exports = withFacebookIosUrlScheme(config, fbScheme);
