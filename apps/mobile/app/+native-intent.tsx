@@ -5,10 +5,11 @@
  * extractor keeps the query string (`oauth/callback?code=…`), which fails to
  * match `app/oauth/callback.tsx` and briefly lands on +not-found.
  *
- * IdP redirects (`oauth/openstreetmap`, `nabezky`, `facebook`) must NOT go
- * through the Rovas callback screen — that screen bounces signed-out users to
- * Home and drops the in-progress AuthForm (OSM email step). They land on a
- * short splash that restores the auth screen while Linking completes OAuth.
+ * IdP redirects (`oauth/openstreetmap`, `nabezky`, `fb{APP_ID}://authorize`)
+ * must NOT go through the Rovas callback screen — that screen bounces
+ * signed-out users to Home and drops the in-progress AuthForm (OSM email
+ * step). They land on a short splash that restores the auth screen while
+ * Linking completes OAuth.
  *
  * Rewrite to the clean splash route. AuthProvider / IdP helpers still receive
  * the original URL via `Linking` and complete the token exchange.
@@ -38,7 +39,8 @@ function isIdpOAuthReturnPath(path: string): boolean {
   return (
     normalized.includes("oauth/nabezky") ||
     normalized.includes("oauth/openstreetmap") ||
-    normalized.includes("oauth/facebook")
+    // Meta Facebook Login: fb{APP_ID}://authorize
+    /\bfb\d+:\/\/authorize\b/.test(normalized)
   );
 }
 

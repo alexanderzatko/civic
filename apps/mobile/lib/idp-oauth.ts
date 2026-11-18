@@ -113,11 +113,16 @@ export function getOsmRedirectUri(): string {
   });
 }
 
+/**
+ * Meta only accepts `fb{APP_ID}://authorize` (not arbitrary custom schemes)
+ * in Valid OAuth Redirect URIs. Must match app.config.js scheme registration.
+ */
 export function getFacebookRedirectUri(): string {
+  const appId = getFacebookAppId();
   return makeRedirectUri({
-    scheme: "civic",
-    path: "oauth/facebook",
-    native: "civic://oauth/facebook",
+    scheme: `fb${appId}`,
+    path: "authorize",
+    native: `fb${appId}://authorize`,
   });
 }
 

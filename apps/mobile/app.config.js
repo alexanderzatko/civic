@@ -1,6 +1,6 @@
 /**
- * Dynamic Expo config so Google Sign-In `iosUrlScheme` comes from
- * `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` at prebuild time.
+ * Dynamic Expo config so Google Sign-In `iosUrlScheme` and Facebook Login
+ * `fb{APP_ID}` scheme come from env at prebuild time.
  *
  * Loads `apps/mobile/.env` explicitly so prebuild/Xcode runs see the same
  * values as Metro (Expo does this for `expo start`, but not always for every
@@ -47,15 +47,44 @@ function googleIosUrlScheme() {
   return "com.googleusercontent.apps.CONFIGURE_GOOGLE_IOS_CLIENT";
 }
 
+/** Meta Valid OAuth Redirect URI is `fb{APP_ID}://authorize`. */
+function facebookUrlScheme() {
+  const appId = process.env.EXPO_PUBLIC_FACEBOOK_APP_ID?.trim() ?? "";
+  return appId ? `fb${appId}` : null;
+}
+
 const expo = appJson.expo;
 const iosUrlScheme = googleIosUrlScheme();
+const fbScheme = facebookUrlScheme();
+
+const schemes = fbScheme ? ["civic", fbScheme] : ["civic"];
+
+const androidIntentFilters = [...(expo.android?.intentFilters ?? [])];
+if (fbScheme) {
+  androidIntentFilters.push({
+    action: "VIEW",
+    autoVerify: false,
+    data: [
+      {
+        scheme: fbScheme,
+        host: "authorize",
+      },
+    ],
+    category: ["BROWSABLE", "DEFAULT"],
+  });
+}
 
 module.exports = {
   expo: {
     ...expo,
+    scheme: schemes,
     ios: {
       ...expo.ios,
       usesAppleSignIn: true,
+    },
+    android: {
+      ...expo.android,
+      intentFilters: androidIntentFilters,
     },
     plugins: [
       ...(expo.plugins ?? []),

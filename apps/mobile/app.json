@@ -47,11 +47,6 @@
               "scheme": "civic",
               "host": "oauth",
               "pathPrefix": "/nabezky"
-            },
-            {
-              "scheme": "civic",
-              "host": "oauth",
-              "pathPrefix": "/facebook"
             }
           ],
           "category": [
