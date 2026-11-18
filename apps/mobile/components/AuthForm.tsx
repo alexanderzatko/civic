@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -13,7 +14,10 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { GoogleIcon } from "@/components/GoogleIcon";
 import { MeLogo } from "@/components/MeLogo";
+import { OsmLogo } from "@/components/OsmLogo";
+import { RovasLogo } from "@/components/RovasLogo";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
@@ -350,6 +354,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       {mode === "login" ? (
         <Text style={styles.subtitle}>
           {t("auth.login_subtitle_before")}
+          <RovasLogo size={14} style={styles.inlineRovasLogo} />
           <Text style={styles.disclosureBold}>
             {t("auth.login_subtitle_name")}
           </Text>
@@ -437,11 +442,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
         style={[styles.googleBtn, busyAny && styles.disabled]}
         disabled={busyAny}
         onPress={() => void runSocial("google", signInWithGoogle)}
+        accessibilityRole="button"
+        accessibilityLabel={t("auth.continue_google")}
       >
         {busy === "google" ? (
           <ActivityIndicator color={colors.ink} />
         ) : (
-          <Text style={styles.googleBtnText}>{t("auth.continue_google")}</Text>
+          <View style={styles.socialBtnInner}>
+            <GoogleIcon size={22} />
+            <Text style={styles.googleBtnText}>{t("auth.continue_google")}</Text>
+          </View>
         )}
       </Pressable>
 
@@ -481,38 +491,38 @@ export function AuthForm({ mode }: { mode: Mode }) {
         )}
       </Pressable>
 
-      <Pressable
-        style={[styles.socialBtn, busyAny && styles.disabled]}
-        disabled={busyAny}
-        onPress={() => void runSocial("nabezky", signInWithNabezky)}
-        accessibilityRole="button"
-        accessibilityLabel={t("auth.continue_nabezky")}
-      >
-        {busy === "nabezky" ? (
-          <ActivityIndicator color={colors.ink} />
-        ) : (
-          <Text style={styles.socialBtnText}>{t("auth.continue_nabezky")}</Text>
-        )}
-      </Pressable>
-
-      <Pressable
-        style={[styles.socialBtn, busyAny && styles.disabled]}
-        disabled={busyAny}
-        onPress={() => void runOpenStreetMap()}
-        accessibilityRole="button"
-        accessibilityLabel={t("auth.continue_openstreetmap")}
-      >
-        {busy === "openstreetmap" ? (
-          <ActivityIndicator color={colors.ink} />
-        ) : (
-          <View style={styles.socialBtnInner}>
-            <MaterialCommunityIcons name="map" size={22} color={colors.ink} />
-            <Text style={styles.socialBtnText}>
-              {t("auth.continue_openstreetmap")}
-            </Text>
-          </View>
-        )}
-      </Pressable>
+      <View style={styles.idpIconRow}>
+        <Pressable
+          style={[styles.idpIconBtn, busyAny && styles.disabled]}
+          disabled={busyAny}
+          onPress={() => void runSocial("nabezky", signInWithNabezky)}
+          accessibilityRole="button"
+          accessibilityLabel={t("auth.continue_nabezky")}
+        >
+          {busy === "nabezky" ? (
+            <ActivityIndicator color={colors.ink} />
+          ) : (
+            <Image
+              source={require("../assets/images/nabezky.png")}
+              style={styles.idpIcon}
+              resizeMode="contain"
+            />
+          )}
+        </Pressable>
+        <Pressable
+          style={[styles.idpIconBtn, busyAny && styles.disabled]}
+          disabled={busyAny}
+          onPress={() => void runOpenStreetMap()}
+          accessibilityRole="button"
+          accessibilityLabel={t("auth.continue_openstreetmap")}
+        >
+          {busy === "openstreetmap" ? (
+            <ActivityIndicator color={colors.ink} />
+          ) : (
+            <OsmLogo size={32} />
+          )}
+        </Pressable>
+      </View>
 
       <View style={styles.dividerRow}>
         <View style={styles.divider} />
@@ -721,6 +731,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: "center",
   },
+  inlineRovasLogo: {
+    width: 14,
+    height: 14,
+    marginHorizontal: 3,
+    transform: [{ translateY: 2 }],
+  },
   disclosure: { gap: 16 },
   disclosureBody: {
     color: colors.muted,
@@ -783,6 +799,29 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: "700",
     fontSize: 15,
+  },
+  /** Icon-only IdPs (Nabezky + OSM), matching Rovas HybridAuth row. */
+  idpIconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    minHeight: 48,
+  },
+  idpIconBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  idpIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 3,
   },
   osmEmailBox: {
     gap: 10,
