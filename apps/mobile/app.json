@@ -37,6 +37,21 @@
               "scheme": "civic",
               "host": "oauth",
               "pathPrefix": "/callback"
+            },
+            {
+              "scheme": "civic",
+              "host": "oauth",
+              "pathPrefix": "/openstreetmap"
+            },
+            {
+              "scheme": "civic",
+              "host": "oauth",
+              "pathPrefix": "/nabezky"
+            },
+            {
+              "scheme": "civic",
+              "host": "oauth",
+              "pathPrefix": "/facebook"
             }
           ],
           "category": [

@@ -112,6 +112,8 @@ const osmBeginBodySchema = z.object({
   code: z.string().min(1),
   code_verifier: z.string().min(1),
   redirect_uri: redirectUriSchema,
+  language: languageSchema,
+  country: countrySchema,
 });
 
 const osmCompleteBodySchema = z.object({
@@ -304,6 +306,8 @@ export const authRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
         code: parsed.data.code,
         codeVerifier: parsed.data.code_verifier,
         redirectUri: parsed.data.redirect_uri,
+        language: parsed.data.language,
+        country: parsed.data.country,
       });
     } catch (err) {
       const mapped = mapAuthError(err);

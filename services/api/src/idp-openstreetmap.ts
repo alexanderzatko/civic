@@ -1,6 +1,11 @@
 import * as jose from "jose";
 import type { ApiConfig } from "./config.js";
 import { IdTokenVerifyError } from "./idp-verify.js";
+import {
+  createCivicAuthSession,
+  RovasCivicAuthError,
+  toExpoTokenPayload,
+} from "./rovas-civic-auth.js";
 
 const OSM_TOKEN = "https://www.openstreetmap.org/oauth2/token";
 const OSM_USER_DETAILS =
@@ -19,6 +24,11 @@ export type OsmPendingPayload = {
   pending_token: string;
   display_name: string | null;
 };
+
+/** Either mint tokens (existing HybridAuth OSM link) or ask for email. */
+export type OsmBeginResult =
+  | ReturnType<typeof toExpoTokenPayload>
+  | OsmPendingPayload;
 
 type TokenResponse = {
   access_token?: string;
@@ -181,12 +191,21 @@ export async function verifyOsmPendingToken(
 }
 
 /**
- * Exchange OSM authorization code and return a pending email-complete payload.
+ * Exchange OSM authorization code, then:
+ * - mint immediately when Rovas already has this OpenStreetMap HybridAuth
+ *   identity (returning login → Home signed in, no email step);
+ * - otherwise return a pending token so Civic can collect email and complete.
  */
 export async function beginOsmAuthorization(
   config: ApiConfig,
-  params: { code: string; codeVerifier: string; redirectUri: string },
-): Promise<OsmPendingPayload> {
+  params: {
+    code: string;
+    codeVerifier: string;
+    redirectUri: string;
+    language: string;
+    country: string;
+  },
+): Promise<OsmBeginResult> {
   const accessToken = await exchangeOsmCode(
     config,
     params.code,
@@ -194,6 +213,25 @@ export async function beginOsmAuthorization(
     params.redirectUri,
   );
   const identity = await fetchOsmUser(accessToken);
+
+  try {
+    const session = await createCivicAuthSession(config, {
+      provider: "openstreetmap",
+      provider_subject: identity.subject,
+      // Empty: Rovas mints on HybridAuth hit; 409 when identity is new.
+      email: "",
+      email_verified: false,
+      display_name: identity.displayName,
+      user_language: params.language,
+      user_country: params.country,
+    });
+    return toExpoTokenPayload(session);
+  } catch (err) {
+    if (!(err instanceof RovasCivicAuthError) || err.status !== 409) {
+      throw err;
+    }
+  }
+
   const pending_token = await signOsmPendingToken(config, identity);
   return {
     needs_email: true,

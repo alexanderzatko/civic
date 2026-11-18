@@ -90,14 +90,18 @@ Production-like backend for phones and remote testing. SSH host alias: `sano-vps
 
 What it does:
 
-1. Rsyncs `services/api`, `packages/shared`, and deploy packaging to
-
+1. Stops sibling Docker stacks on the VPS (`lepidoptera`, `zajezka`,
+   `copyfast-print`) to free RAM for the build
+2. Waits until ≥ ~1GB is available (retries; aborts if still short — e.g. a
+   heavy image job elsewhere)
+3. Rsyncs `services/api`, `packages/shared`, and deploy packaging to
    `/opt/docker/civic-api`
-2. Seeds `/opt/docker/civic-api/.env` from `.env.example` on first run only
-
+4. Seeds `/opt/docker/civic-api/.env` from `.env.example` on first run only
    (later deploys keep the remote `.env`)
-3. Ensures Let’s Encrypt + nginx-proxy for **civic-api.rovas.app**
-4. `docker compose build && up -d` (host port **3001**, SQLite in `./data`)
+5. `docker compose build && up -d` (host port **3001**, SQLite in `./data`)
+6. Restarts the sibling stacks (also on failure via EXIT trap)
+7. Reloads nginx-proxy for **civic-api.rovas.app** only after siblings are up
+   (nginx `-t` loads all `conf.d` hosts, including `zajezka-web`)
 
 Smoke-check:
 

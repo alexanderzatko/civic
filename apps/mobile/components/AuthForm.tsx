@@ -18,6 +18,7 @@ import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
 import { getRovasPasswordResetUrl } from "@/lib/legal-urls";
+import { setIdpAuthReturnPath } from "@/lib/oauth-browser";
 import { PasswordAuthError } from "@/lib/password-auth";
 import { seedProfileIdentity } from "@/lib/profile-identity-seed";
 import { isAppleAuthAvailable } from "@/lib/social-auth";
@@ -71,6 +72,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
     signInWithFacebook,
     signInWithNabezky,
     beginOpenStreetMapSignIn,
+    osmPending,
+    clearOsmPending,
     completeOpenStreetMapSignIn,
     signInWithPassword,
     registerWithPassword,
@@ -86,10 +89,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [passwordConfirm, setPasswordConfirm] = useState("");
 
   /** After OSM OAuth — collect email before minting. */
-  const [osmPending, setOsmPending] = useState<{
-    pendingToken: string;
-    displayName: string | null;
-  } | null>(null);
   const [osmEmail, setOsmEmail] = useState("");
 
   const scrollRef = useRef<ScrollView>(null);
@@ -144,6 +143,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
   ) {
     setError(null);
     setBusy(provider);
+    setIdpAuthReturnPath(
+      mode === "register" ? "/(auth)/register" : "/(auth)/login",
+    );
     try {
       const ok = await action();
       if (ok) {
@@ -162,10 +164,19 @@ export function AuthForm({ mode }: { mode: Mode }) {
   async function runOpenStreetMap() {
     setError(null);
     setBusy("openstreetmap");
+    setIdpAuthReturnPath(
+      mode === "register" ? "/(auth)/register" : "/(auth)/login",
+    );
     try {
-      const pending = await beginOpenStreetMapSignIn();
-      if (pending) {
-        setOsmPending(pending);
+      const result = await beginOpenStreetMapSignIn();
+      if (result === "signed_in") {
+        if (mode === "register") {
+          await markUsernameHintPending();
+        }
+        await afterSuccess(mode === "register");
+        return;
+      }
+      if (result) {
         setOsmEmail("");
       }
     } catch (e) {
@@ -190,7 +201,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
         trimmed,
       );
       if (ok) {
-        setOsmPending(null);
         if (mode === "register") {
           await markUsernameHintPending();
         }
@@ -439,7 +449,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <Pressable
             disabled={busyAny}
             onPress={() => {
-              setOsmPending(null);
+              clearOsmPending();
               setOsmEmail("");
               setError(null);
             }}

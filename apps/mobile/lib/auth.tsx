@@ -36,6 +36,7 @@ import {
   getRovasDiscovery,
   OAUTH_SCOPES,
 } from "@/lib/oauth";
+import { waitForOAuthRedirect } from "@/lib/oauth-browser";
 import { getLocale } from "@/lib/i18n";
 import {
   registerCivicPushToken,
@@ -60,6 +61,7 @@ import {
   completeOpenStreetMapEmail,
   signInWithFacebookBrowser,
   signInWithNabezkyBrowser,
+  type OsmPendingAuth,
 } from "@/lib/idp-oauth";
 import {
   SocialAuthCancelledError,
@@ -90,13 +92,13 @@ type AuthContextValue = {
   /** Nabezky OIDC PKCE → Civic API → Rovas-minted Bearer tokens. */
   signInWithNabezky: () => Promise<boolean>;
   /**
-   * OpenStreetMap OAuth → pending token for in-app email collection.
-   * Returns null when cancelled.
+   * OpenStreetMap OAuth → signed in (existing HybridAuth link) or pending
+   * email collection. Returns null when cancelled.
    */
-  beginOpenStreetMapSignIn: () => Promise<{
-    pendingToken: string;
-    displayName: string | null;
-  } | null>;
+  beginOpenStreetMapSignIn: () => Promise<"signed_in" | OsmPendingAuth | null>;
+  /** In-progress OSM email step (hoisted so deep-link return keeps it). */
+  osmPending: OsmPendingAuth | null;
+  clearOsmPending: () => void;
   /** Finish OSM sign-in after the user enters an email. */
   completeOpenStreetMapSignIn: (
     pendingToken: string,
@@ -121,8 +123,6 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-const OAUTH_REDIRECT_TIMEOUT_MS = 120_000;
 
 /** Thrown when the OAuth authorization code is stale or already used. */
 export class AuthCodeExpiredError extends Error {
@@ -210,41 +210,10 @@ async function exchangeAuthorizationCode(
   }
 }
 
-function waitForOAuthRedirect(redirectUri: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-
-    const finish = (handler: () => void) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      sub.remove();
-      handler();
-    };
-
-    const timeout = setTimeout(() => {
-      finish(() => reject(new Error("OAuth redirect timed out")));
-    }, OAUTH_REDIRECT_TIMEOUT_MS);
-
-    const handler = ({ url }: { url: string }) => {
-      if (url.startsWith(redirectUri)) {
-        finish(() => resolve(url));
-      }
-    };
-
-    const sub = Linking.addEventListener("url", handler);
-
-    void Linking.getInitialURL().then((url) => {
-      if (url?.startsWith(redirectUri)) {
-        finish(() => resolve(url));
-      }
-    });
-  });
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [tokens, setTokens] = useState<StoredTokens | null>(null);
+  const [osmPending, setOsmPending] = useState<OsmPendingAuth | null>(null);
   const tokensRef = useRef<StoredTokens | null>(null);
   tokensRef.current = tokens;
   const refreshInFlightRef = useRef<Promise<string | null> | null>(null);
@@ -259,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearPendingOAuth();
     await clearTokens();
     setTokens(null);
+    setOsmPending(null);
     setStatus("signedOut");
     capture("auth_signed_out");
     resetAnalytics();
@@ -529,17 +499,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const beginOpenStreetMapSignIn = useCallback(async () => {
     try {
-      return await beginOpenStreetMapBrowser();
+      const result = await beginOpenStreetMapBrowser();
+      if (result.kind === "signed_in") {
+        setOsmPending(null);
+        await persist(result.tokens);
+        capture("auth_signed_in", { provider: "openstreetmap" });
+        return "signed_in";
+      }
+      setOsmPending(result.pending);
+      return result.pending;
     } catch (err) {
       if (err instanceof SocialAuthCancelledError) return null;
       throw err;
     }
+  }, [persist]);
+
+  const clearOsmPending = useCallback(() => {
+    setOsmPending(null);
   }, []);
 
   const completeOpenStreetMapSignIn = useCallback(
     async (pendingToken: string, email: string): Promise<boolean> => {
       const stored = await completeOpenStreetMapEmail(pendingToken, email);
       await persist(stored);
+      setOsmPending(null);
       capture("auth_signed_in", { provider: "openstreetmap" });
       return true;
     },
@@ -652,6 +635,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithFacebook,
       signInWithNabezky,
       beginOpenStreetMapSignIn,
+      osmPending,
+      clearOsmPending,
       completeOpenStreetMapSignIn,
       signInWithPassword,
       registerWithPassword,
@@ -661,8 +646,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }),
     [
       beginOpenStreetMapSignIn,
+      clearOsmPending,
       completeOpenStreetMapSignIn,
       getAccessToken,
+      osmPending,
       registerWithPassword,
       signIn,
       signInWithApple,

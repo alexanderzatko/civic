@@ -78,6 +78,14 @@ function RootNavigator() {
             gestureEnabled: false,
           }}
         />
+        <Stack.Screen
+          name="oauth/idp-return"
+          options={{
+            headerShown: false,
+            animation: "none",
+            gestureEnabled: false,
+          }}
+        />
       </Stack>
     </>
   );

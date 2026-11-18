@@ -1,17 +1,13 @@
-import {
-  AuthRequest,
-  ResponseType,
-  makeRedirectUri,
-  type AuthSessionResult,
-} from "expo-auth-session";
+import { makeRedirectUri } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { getApiBaseUrl } from "@/lib/api";
 import { getLocale } from "@/lib/i18n";
 import type { StoredTokens } from "@/lib/auth-storage";
 import {
-  SocialAuthCancelledError,
-  SocialAuthError,
-} from "@/lib/social-auth";
+  authorizeWithBrowserCode,
+  authorizeWithBrowserToken,
+} from "@/lib/oauth-browser";
+import { SocialAuthError } from "@/lib/social-auth";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -25,11 +21,10 @@ type AuthApiTokenResponse = {
   error?: string;
 };
 
-type OsmPendingResponse = {
+type OsmBeginResponse = AuthApiTokenResponse & {
   needs_email?: boolean;
   pending_token?: string;
   display_name?: string | null;
-  error?: string;
 };
 
 function toStoredTokens(body: AuthApiTokenResponse): StoredTokens {
@@ -126,51 +121,17 @@ export function getFacebookRedirectUri(): string {
   });
 }
 
-type AuthSuccessResult = {
-  type: "success";
-  params: Record<string, string>;
-  authentication: { accessToken?: string } | null;
-};
-
-function requireSuccessResult(result: AuthSessionResult): AuthSuccessResult {
-  if (result.type === "cancel" || result.type === "dismiss") {
-    throw new SocialAuthCancelledError();
-  }
-  if (result.type !== "success") {
-    throw new SocialAuthError("Authorization failed");
-  }
-  return result as AuthSuccessResult;
-}
-
 /**
  * Facebook Login via system browser (access token) → Civic API.
  */
 export async function signInWithFacebookBrowser(): Promise<StoredTokens> {
-  const clientId = getFacebookAppId();
-  const redirectUri = getFacebookRedirectUri();
-  const request = new AuthRequest({
-    clientId,
-    redirectUri,
+  const accessToken = await authorizeWithBrowserToken({
+    clientId: getFacebookAppId(),
+    redirectUri: getFacebookRedirectUri(),
     scopes: ["public_profile", "email"],
-    responseType: ResponseType.Token,
-    usePKCE: false,
+    authorizationEndpoint: "https://www.facebook.com/v21.0/dialog/oauth",
     extraParams: { display: "popup" },
   });
-  await request.getAuthRequestConfigAsync();
-
-  const result = requireSuccessResult(
-    await request.promptAsync({
-      authorizationEndpoint: "https://www.facebook.com/v21.0/dialog/oauth",
-    }),
-  );
-
-  const accessToken =
-    result.params.access_token ??
-    (result as { authentication?: { accessToken?: string } }).authentication
-      ?.accessToken;
-  if (!accessToken) {
-    throw new SocialAuthError("Facebook did not return an access token");
-  }
 
   const { ok, json } = await postJson<AuthApiTokenResponse>("/auth/facebook", {
     access_token: accessToken,
@@ -187,32 +148,18 @@ export async function signInWithFacebookBrowser(): Promise<StoredTokens> {
  * Nabezky OIDC authorization code + PKCE → Civic API exchange.
  */
 export async function signInWithNabezkyBrowser(): Promise<StoredTokens> {
-  const clientId = getNabezkyClientId();
-  const base = getNabezkyBaseUrl();
   const redirectUri = getNabezkyRedirectUri();
-  const request = new AuthRequest({
-    clientId,
+  const base = getNabezkyBaseUrl();
+  const { code, codeVerifier } = await authorizeWithBrowserCode({
+    clientId: getNabezkyClientId(),
     redirectUri,
     scopes: ["openid", "email", "profile"],
-    responseType: ResponseType.Code,
-    usePKCE: true,
+    authorizationEndpoint: `${base}/oauth2/authorize`,
   });
-  await request.getAuthRequestConfigAsync();
-
-  const result = requireSuccessResult(
-    await request.promptAsync({
-      authorizationEndpoint: `${base}/oauth2/authorize`,
-    }),
-  );
-
-  const code = result.params.code;
-  if (!code || !request.codeVerifier) {
-    throw new SocialAuthError("Nabezky authorization code missing");
-  }
 
   const { ok, json } = await postJson<AuthApiTokenResponse>("/auth/nabezky", {
     code,
-    code_verifier: request.codeVerifier,
+    code_verifier: codeVerifier,
     redirect_uri: redirectUri,
   });
   if (!ok) {
@@ -228,47 +175,49 @@ export type OsmPendingAuth = {
   displayName: string | null;
 };
 
+/** Returning OSM user (HybridAuth hit) or first-time email collection. */
+export type OsmBeginAuthResult =
+  | { kind: "signed_in"; tokens: StoredTokens }
+  | { kind: "needs_email"; pending: OsmPendingAuth };
+
 /**
- * OpenStreetMap OAuth2 PKCE → Civic pending token (email collected in-app).
+ * OpenStreetMap OAuth2 PKCE → Civic.
+ * Existing OSM HybridAuth link mints immediately; otherwise email is collected
+ * in-app before `/auth/openstreetmap/complete`.
  */
-export async function beginOpenStreetMapBrowser(): Promise<OsmPendingAuth> {
-  const clientId = getOsmClientId();
+export async function beginOpenStreetMapBrowser(): Promise<OsmBeginAuthResult> {
   const redirectUri = getOsmRedirectUri();
-  const request = new AuthRequest({
-    clientId,
+  const { code, codeVerifier } = await authorizeWithBrowserCode({
+    clientId: getOsmClientId(),
     redirectUri,
     scopes: ["openid", "read_prefs"],
-    responseType: ResponseType.Code,
-    usePKCE: true,
+    authorizationEndpoint: "https://www.openstreetmap.org/oauth2/authorize",
   });
-  await request.getAuthRequestConfigAsync();
 
-  const result = requireSuccessResult(
-    await request.promptAsync({
-      authorizationEndpoint: "https://www.openstreetmap.org/oauth2/authorize",
-    }),
-  );
-
-  const code = result.params.code;
-  if (!code || !request.codeVerifier) {
-    throw new SocialAuthError("OpenStreetMap authorization code missing");
-  }
-
-  const { ok, json } = await postJson<OsmPendingResponse>("/auth/openstreetmap", {
+  const { ok, json } = await postJson<OsmBeginResponse>("/auth/openstreetmap", {
     code,
-    code_verifier: request.codeVerifier,
+    code_verifier: codeVerifier,
     redirect_uri: redirectUri,
   });
-  if (!ok || !json.pending_token) {
+  if (!ok) {
     throw new SocialAuthError(
       typeof json.error === "string" ? json.error : "OpenStreetMap auth failed",
     );
   }
-  return {
-    pendingToken: json.pending_token,
-    displayName:
-      typeof json.display_name === "string" ? json.display_name : null,
-  };
+  if (json.accessToken) {
+    return { kind: "signed_in", tokens: toStoredTokens(json) };
+  }
+  if (json.needs_email && json.pending_token) {
+    return {
+      kind: "needs_email",
+      pending: {
+        pendingToken: json.pending_token,
+        displayName:
+          typeof json.display_name === "string" ? json.display_name : null,
+      },
+    };
+  }
+  throw new SocialAuthError("OpenStreetMap auth failed");
 }
 
 export async function completeOpenStreetMapEmail(
