@@ -22,6 +22,19 @@ export interface ApiConfig {
   googleClientIds: string[];
   /** Allowed Apple audiences (usually iOS bundle id). */
   appleClientIds: string[];
+  /** Meta Facebook App ID (JWT aud / Graph app). */
+  facebookAppId: string;
+  /** Meta Facebook App Secret (Graph debug_token). */
+  facebookAppSecret: string;
+  /** Nabezky OAuth2/OIDC base (e.g. https://nabezky.sk). */
+  nabezkyBaseUrl: string;
+  nabezkyClientId: string;
+  nabezkyClientSecret: string;
+  /** OpenStreetMap OAuth2 client. */
+  osmClientId: string;
+  osmClientSecret: string;
+  /** HS256 secret for OSM email-complete pending tokens. */
+  osmPendingJwtSecret: string;
   settings: CivicSettings;
 }
 
@@ -40,6 +53,19 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     appleClientIds: splitCsv(
       env.APPLE_CLIENT_IDS ?? env.APPLE_BUNDLE_ID ?? "app.civic.mobile",
     ),
+    facebookAppId: env.FACEBOOK_APP_ID?.trim() ?? "",
+    facebookAppSecret: env.FACEBOOK_APP_SECRET?.trim() ?? "",
+    nabezkyBaseUrl: (
+      env.NABEZKY_BASE_URL?.trim() || "https://nabezky.sk"
+    ).replace(/\/$/, ""),
+    nabezkyClientId: env.NABEZKY_CLIENT_ID?.trim() ?? "",
+    nabezkyClientSecret: env.NABEZKY_CLIENT_SECRET?.trim() ?? "",
+    osmClientId: env.OSM_CLIENT_ID?.trim() ?? "",
+    osmClientSecret: env.OSM_CLIENT_SECRET?.trim() ?? "",
+    osmPendingJwtSecret:
+      env.OSM_PENDING_JWT_SECRET?.trim() ||
+      env.OSM_CLIENT_SECRET?.trim() ||
+      "",
     settings: loadSettings(env),
   };
 }

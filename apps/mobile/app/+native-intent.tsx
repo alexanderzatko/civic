@@ -29,6 +29,9 @@ function isOAuthCallbackPath(path: string): boolean {
   const normalized = path.toLowerCase();
   return (
     normalized.includes("oauth/callback") ||
+    normalized.includes("oauth/nabezky") ||
+    normalized.includes("oauth/openstreetmap") ||
+    normalized.includes("oauth/facebook") ||
     // Rare parsers: host `oauth`, path `/callback`
     (normalized.includes("://oauth") && normalized.includes("callback"))
   );

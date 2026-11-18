@@ -2,6 +2,15 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import type { AppContext } from "../context.js";
 import {
+  verifyFacebookAccessToken,
+  verifyFacebookAuthenticationToken,
+} from "../idp-facebook.js";
+import { verifyNabezkyAuthorizationCode } from "../idp-nabezky.js";
+import {
+  beginOsmAuthorization,
+  verifyOsmPendingToken,
+} from "../idp-openstreetmap.js";
+import {
   IdTokenVerifyError,
   verifyAppleIdentityToken,
   verifyGoogleIdToken,
@@ -68,6 +77,48 @@ const registerBodySchema = z.object({
 const loginBodySchema = z.object({
   login: z.string().trim().min(1).max(254),
   password: z.string().min(1).max(128),
+});
+
+const facebookBodySchema = z
+  .object({
+    /** Facebook Limited Login OIDC JWT. */
+    authentication_token: z.string().min(20).optional(),
+    /** Classic Facebook Login user access token. */
+    access_token: z.string().min(20).optional(),
+    language: languageSchema,
+    country: countrySchema,
+  })
+  .refine((b) => Boolean(b.authentication_token || b.access_token), {
+    message: "authentication_token or access_token required",
+  });
+
+const redirectUriSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (s) => s.startsWith("civic://") || /^https?:\/\//i.test(s),
+    "redirect_uri must be civic:// or https",
+  );
+
+const oauthCodeBodySchema = z.object({
+  code: z.string().min(1),
+  code_verifier: z.string().min(1),
+  redirect_uri: redirectUriSchema,
+  language: languageSchema,
+  country: countrySchema,
+});
+
+const osmBeginBodySchema = z.object({
+  code: z.string().min(1),
+  code_verifier: z.string().min(1),
+  redirect_uri: redirectUriSchema,
+});
+
+const osmCompleteBodySchema = z.object({
+  pending_token: z.string().min(20),
+  email: z.string().trim().email().max(254),
+  language: languageSchema,
+  country: countrySchema,
 });
 
 function mapAuthError(err: unknown): {
@@ -168,6 +219,125 @@ export const authRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (
     } catch (err) {
       const mapped = mapAuthError(err);
       req.log.warn({ err }, "Apple auth failed");
+      return reply
+        .code(mapped.status)
+        .send({ error: mapped.error, ...(mapped.code ? { code: mapped.code } : {}) });
+    }
+  });
+
+  app.post("/auth/facebook", async (req, reply) => {
+    const parsed = facebookBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid request body" });
+    }
+
+    try {
+      const verified = parsed.data.authentication_token
+        ? await verifyFacebookAuthenticationToken(
+            parsed.data.authentication_token,
+            ctx.config.facebookAppId,
+          )
+        : await verifyFacebookAccessToken(
+            parsed.data.access_token!,
+            ctx.config.facebookAppId,
+            ctx.config.facebookAppSecret,
+          );
+
+      const session = await createCivicAuthSession(ctx.config, {
+        provider: "facebook",
+        provider_subject: verified.subject,
+        email: verified.email,
+        email_verified: verified.emailVerified,
+        display_name: verified.displayName,
+        user_language: parsed.data.language,
+        user_country: parsed.data.country,
+      });
+      return toExpoTokenPayload(session);
+    } catch (err) {
+      const mapped = mapAuthError(err);
+      req.log.warn({ err }, "Facebook auth failed");
+      return reply
+        .code(mapped.status)
+        .send({ error: mapped.error, ...(mapped.code ? { code: mapped.code } : {}) });
+    }
+  });
+
+  app.post("/auth/nabezky", async (req, reply) => {
+    const parsed = oauthCodeBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid request body" });
+    }
+
+    try {
+      const verified = await verifyNabezkyAuthorizationCode(ctx.config, {
+        code: parsed.data.code,
+        codeVerifier: parsed.data.code_verifier,
+        redirectUri: parsed.data.redirect_uri,
+      });
+      const session = await createCivicAuthSession(ctx.config, {
+        provider: "nabezky",
+        provider_subject: verified.subject,
+        email: verified.email,
+        email_verified: verified.emailVerified,
+        display_name: verified.displayName,
+        user_language: parsed.data.language,
+        user_country: parsed.data.country,
+      });
+      return toExpoTokenPayload(session);
+    } catch (err) {
+      const mapped = mapAuthError(err);
+      req.log.warn({ err }, "Nabezky auth failed");
+      return reply
+        .code(mapped.status)
+        .send({ error: mapped.error, ...(mapped.code ? { code: mapped.code } : {}) });
+    }
+  });
+
+  app.post("/auth/openstreetmap", async (req, reply) => {
+    const parsed = osmBeginBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid request body" });
+    }
+
+    try {
+      return await beginOsmAuthorization(ctx.config, {
+        code: parsed.data.code,
+        codeVerifier: parsed.data.code_verifier,
+        redirectUri: parsed.data.redirect_uri,
+      });
+    } catch (err) {
+      const mapped = mapAuthError(err);
+      req.log.warn({ err }, "OpenStreetMap auth begin failed");
+      return reply
+        .code(mapped.status)
+        .send({ error: mapped.error, ...(mapped.code ? { code: mapped.code } : {}) });
+    }
+  });
+
+  app.post("/auth/openstreetmap/complete", async (req, reply) => {
+    const parsed = osmCompleteBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid request body" });
+    }
+
+    try {
+      const identity = await verifyOsmPendingToken(
+        ctx.config,
+        parsed.data.pending_token,
+      );
+      const session = await createCivicAuthSession(ctx.config, {
+        provider: "openstreetmap",
+        provider_subject: identity.subject,
+        email: parsed.data.email,
+        email_verified: false,
+        display_name: identity.displayName,
+        user_language: parsed.data.language,
+        user_country: parsed.data.country,
+      });
+      return toExpoTokenPayload(session);
+    } catch (err) {
+      const mapped = mapAuthError(err);
+      req.log.warn({ err }, "OpenStreetMap auth complete failed");
       return reply
         .code(mapped.status)
         .send({ error: mapped.error, ...(mapped.code ? { code: mapped.code } : {}) });

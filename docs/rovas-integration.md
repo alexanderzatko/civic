@@ -46,21 +46,26 @@ source.
 **Service status:** About → Status calls Civic `GET /health`, which probes Rovas
 (`civic_national_hourly_rate`) and returns `{ civic_api, rovas }` for the Status
 screen.
-## Expo client (native Google + Apple)
+## Expo client (native IdPs + password)
 
-**Primary path:** native Google / Apple Sign-In in the Expo app → Civic API
-verifies the IdP token → Rovas
+**Primary path:** native / in-app IdP Sign-In in the Expo app → Civic API
+verifies or exchanges the IdP credential → Rovas
 [`civic-native-auth-bridge`](../../rovas/docs/integration/civic_tasks/done/civic-native-auth-bridge.md)
 (`POST /rovas/civic_auth_session`) creates/links the Drupal user and **mints**
-Civic OAuth Bearer tokens. Users do not open Rovas `/user/login` for the happy
-path. Civic only forwards `display_name` when the IdP provided a human name;
-Rovas must not invent one from the email local-part — see
-**[civic-auth-display-name-idp-only](../../rovas/docs/integration/civic_tasks/active/civic-auth-display-name-idp-only.md)**.
+Civic OAuth Bearer tokens. Extra providers (Facebook, Nabezky, OpenStreetMap):
+[`civic-auth-extra-providers`](../../rovas/docs/integration/civic_tasks/active/civic-auth-extra-providers.md).
+Users do not open Rovas `/user/login` for the happy path. Civic only forwards
+`display_name` when the IdP provided a human name; Rovas must not invent one
+from the email local-part — see
+**[civic-auth-display-name-idp-only](../../rovas/docs/integration/civic_tasks/done/civic-auth-display-name-idp-only.md)**.
 
 | Step | Detail |
 |------|--------|
 | Google | `@react-native-google-signin/google-signin` → `id_token` → `POST {API}/auth/google` |
 | Apple (iOS) | `expo-apple-authentication` → `identity_token` → `POST {API}/auth/apple` |
+| Facebook | AuthSession / Limited Login → JWT or access token → `POST {API}/auth/facebook` |
+| Nabezky | `expo-auth-session` PKCE → `POST {API}/auth/nabezky` (code exchange + OIDC/UserInfo) |
+| OpenStreetMap | PKCE → `POST {API}/auth/openstreetmap` → in-app email → `POST {API}/auth/openstreetmap/complete` |
 | Register (password) | username + email + password → `POST {API}/auth/register` → Rovas `civic_auth_register` |
 | Login (password) | username or email + password → `POST {API}/auth/login` → Rovas `civic_auth_login` |
 | Password reset | Rovas web `/user/password` (`getRovasPasswordResetUrl()`); not in-app |
@@ -70,9 +75,15 @@ Rovas must not invent one from the email local-part — see
 | Client ID | `civic` (public) |
 
 Mobile env: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`,
-`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` (see `apps/mobile/.env.example`).
+`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, `EXPO_PUBLIC_FACEBOOK_APP_ID`,
+`EXPO_PUBLIC_NABEZKY_BASE_URL`, `EXPO_PUBLIC_NABEZKY_CLIENT_ID`,
+`EXPO_PUBLIC_OSM_CLIENT_ID` (see `apps/mobile/.env.example`).
 API env: `ROVAS_API_KEY`, `ROVAS_TOKEN`, `GOOGLE_CLIENT_IDS`,
-`APPLE_CLIENT_IDS` (see root `.env.example`).
+`APPLE_CLIENT_IDS`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`,
+`NABEZKY_*`, `OSM_*`, `OSM_PENDING_JWT_SECRET` (see root `.env.example`).
+
+**IdP client registration (ops):** see
+[IdP OAuth clients](#idp-oauth-clients-facebook-nabezky-osm) below.
 
 Tokens live in `expo-secure-store`. Access tokens expire after **1 hour**; the
 app silently refreshes using the refresh token (~14 days) and re-checks when
@@ -82,18 +93,39 @@ the app returns to the foreground.
 (`{ROVAS}/oauth2/authorize` → `civic://oauth/callback`) remains in
 `AuthProvider.signIn` but is not the primary AuthForm UI.
 
-**Password auth (Phase 2):** username + email + password register and
-username-or-email login via Civic `POST /auth/register` + `POST /auth/login` →
-Rovas
-[`civic-email-password-auth`](../../rovas/docs/integration/civic_tasks/active/civic-email-password-auth.md)
+**Password auth:** username + email + password register and username-or-email
+login via Civic `POST /auth/register` + `POST /auth/login` → Rovas
+[`civic-email-password-auth`](../../rovas/docs/integration/civic_tasks/done/civic-email-password-auth.md)
 (`POST /rovas/civic_auth_register`, `POST /rovas/civic_auth_login`) on the same
 mint path. Password reset is **Rovas web only** for now
-(`https://rovas.app/user/password`, via `getRovasPasswordResetUrl()`). Facebook
-later: same bridge with `provider=facebook`.
+(`https://rovas.app/user/password`, via `getRovasPasswordResetUrl()`).
 
-**Dev requirement:** native Google/Apple need a development build (not Expo
-Go). Day-to-day device session steps are in the root
+**Dev requirement:** native Google/Apple/Facebook need a development build
+(not Expo Go). Day-to-day device session steps are in the root
 [`README.md`](../README.md) under **Physical iPhone**.
+
+### IdP OAuth clients (Facebook, Nabezky, OSM)
+
+Register apps once per environment (dev / prod). Secrets stay on Civic API
+only (`FACEBOOK_APP_SECRET`, `NABEZKY_CLIENT_SECRET`, `OSM_CLIENT_SECRET`).
+
+| IdP | Where | Redirect / package notes |
+|-----|-------|--------------------------|
+| **Facebook** | [Meta developers](https://developers.facebook.com/) — Facebook Login | Valid OAuth Redirect URI `civic://oauth/facebook`; iOS bundle `app.civic.mobile`; Android package + key hashes; enable **email** + **public_profile**; App ID → `EXPO_PUBLIC_FACEBOOK_APP_ID` + `FACEBOOK_APP_ID`; App Secret → `FACEBOOK_APP_SECRET` |
+| **Nabezky** | Nabezky admin → OAuth2 Server clients (`https://nabezky.sk` / `https://devsuhel.nabezky.sk`) | Server already has **Use OpenID Connect** + **Authorization code** + refresh rotation. Add client with redirect `civic://oauth/nabezky`; scopes `openid email profile`; Client ID → `EXPO_PUBLIC_NABEZKY_CLIENT_ID` + `NABEZKY_CLIENT_ID`; secret → `NABEZKY_CLIENT_SECRET`; base → `NABEZKY_BASE_URL` / `EXPO_PUBLIC_NABEZKY_BASE_URL` |
+| **OpenStreetMap** | [OSM OAuth2 apps](https://www.openstreetmap.org/oauth2/applications) | Redirect URI `civic://oauth/openstreetmap`; scopes `openid read_prefs`; Client ID → `EXPO_PUBLIC_OSM_CLIENT_ID` + `OSM_CLIENT_ID`; secret → `OSM_CLIENT_SECRET`. Set a strong random `OSM_PENDING_JWT_SECRET` on Civic API for the email-complete step |
+
+**Provisioning checklist**
+
+1. Create/configure the three IdP clients (table above) for **dev**, then mirror for **prod**.
+2. Put public IDs in `apps/mobile/.env` (and EAS env); secrets only in Civic API
+   `.env` / `deploy/civic-api/.env` on the VPS.
+3. Rovas: finish
+   [`civic-auth-extra-providers`](../../rovas/docs/integration/civic_tasks/active/civic-auth-extra-providers.md)
+   (allowlist + OSM `email_verified: false`) and enable HybridAuth providers
+   Facebook / Nabezky / OpenStreetMap on rovdev.
+4. Smoke each button on a development build (not Expo Go for custom scheme
+   redirects).
 
 ## Civic API Bearer validation
 

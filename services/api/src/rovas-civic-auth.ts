@@ -1,6 +1,11 @@
 import type { ApiConfig } from "./config.js";
 
-export type CivicAuthProvider = "google" | "apple";
+export type CivicAuthProvider =
+  | "google"
+  | "apple"
+  | "facebook"
+  | "nabezky"
+  | "openstreetmap";
 
 export type CivicAuthSessionRequest = {
   provider: CivicAuthProvider;

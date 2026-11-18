@@ -56,6 +56,12 @@ import {
 import { capture, resetAnalytics } from "@/lib/analytics";
 import { resetSpotlightDismiss } from "@/lib/spotlight-dismiss";
 import {
+  beginOpenStreetMapBrowser,
+  completeOpenStreetMapEmail,
+  signInWithFacebookBrowser,
+  signInWithNabezkyBrowser,
+} from "@/lib/idp-oauth";
+import {
   SocialAuthCancelledError,
   signInWithAppleNative,
   signInWithGoogleNative,
@@ -79,6 +85,23 @@ type AuthContextValue = {
   signInWithGoogle: () => Promise<boolean>;
   /** Native Apple Sign-In (iOS) → Civic API → Rovas-minted Bearer tokens. */
   signInWithApple: () => Promise<boolean>;
+  /** Facebook Login (browser) → Civic API → Rovas-minted Bearer tokens. */
+  signInWithFacebook: () => Promise<boolean>;
+  /** Nabezky OIDC PKCE → Civic API → Rovas-minted Bearer tokens. */
+  signInWithNabezky: () => Promise<boolean>;
+  /**
+   * OpenStreetMap OAuth → pending token for in-app email collection.
+   * Returns null when cancelled.
+   */
+  beginOpenStreetMapSignIn: () => Promise<{
+    pendingToken: string;
+    displayName: string | null;
+  } | null>;
+  /** Finish OSM sign-in after the user enters an email. */
+  completeOpenStreetMapSignIn: (
+    pendingToken: string,
+    email: string,
+  ) => Promise<boolean>;
   /** Username/email + password → Civic API → Rovas-minted Bearer tokens. */
   signInWithPassword: (login: string, password: string) => Promise<boolean>;
   /** Register with username + email + password → mint. */
@@ -480,6 +503,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [persist]);
 
+  const signInWithFacebook = useCallback(async (): Promise<boolean> => {
+    try {
+      const stored = await signInWithFacebookBrowser();
+      await persist(stored);
+      capture("auth_signed_in", { provider: "facebook" });
+      return true;
+    } catch (err) {
+      if (err instanceof SocialAuthCancelledError) return false;
+      throw err;
+    }
+  }, [persist]);
+
+  const signInWithNabezky = useCallback(async (): Promise<boolean> => {
+    try {
+      const stored = await signInWithNabezkyBrowser();
+      await persist(stored);
+      capture("auth_signed_in", { provider: "nabezky" });
+      return true;
+    } catch (err) {
+      if (err instanceof SocialAuthCancelledError) return false;
+      throw err;
+    }
+  }, [persist]);
+
+  const beginOpenStreetMapSignIn = useCallback(async () => {
+    try {
+      return await beginOpenStreetMapBrowser();
+    } catch (err) {
+      if (err instanceof SocialAuthCancelledError) return null;
+      throw err;
+    }
+  }, []);
+
+  const completeOpenStreetMapSignIn = useCallback(
+    async (pendingToken: string, email: string): Promise<boolean> => {
+      const stored = await completeOpenStreetMapEmail(pendingToken, email);
+      await persist(stored);
+      capture("auth_signed_in", { provider: "openstreetmap" });
+      return true;
+    },
+    [persist],
+  );
+
   const signInWithPassword = useCallback(
     async (login: string, password: string): Promise<boolean> => {
       const stored = await signInWithPasswordNative({ login, password });
@@ -583,6 +649,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accessToken: tokens?.accessToken ?? null,
       signInWithGoogle,
       signInWithApple,
+      signInWithFacebook,
+      signInWithNabezky,
+      beginOpenStreetMapSignIn,
+      completeOpenStreetMapSignIn,
       signInWithPassword,
       registerWithPassword,
       signIn,
@@ -590,11 +660,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       getAccessToken,
     }),
     [
+      beginOpenStreetMapSignIn,
+      completeOpenStreetMapSignIn,
       getAccessToken,
       registerWithPassword,
       signIn,
       signInWithApple,
+      signInWithFacebook,
       signInWithGoogle,
+      signInWithNabezky,
       signInWithPassword,
       signOut,
       status,

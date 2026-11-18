@@ -55,16 +55,27 @@ function LegalAgreeLine({ preface }: { preface: string }) {
   );
 }
 
+type SocialBusy =
+  | "google"
+  | "apple"
+  | "facebook"
+  | "nabezky"
+  | "openstreetmap"
+  | "password"
+  | null;
+
 export function AuthForm({ mode }: { mode: Mode }) {
   const {
     signInWithGoogle,
     signInWithApple,
+    signInWithFacebook,
+    signInWithNabezky,
+    beginOpenStreetMapSignIn,
+    completeOpenStreetMapSignIn,
     signInWithPassword,
     registerWithPassword,
   } = useAuth();
-  const [busy, setBusy] = useState<"google" | "apple" | "password" | null>(
-    null,
-  );
+  const [busy, setBusy] = useState<SocialBusy>(null);
   const [error, setError] = useState<string | null>(null);
   const [appleAvailable, setAppleAvailable] = useState(Platform.OS === "ios");
 
@@ -73,6 +84,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+
+  /** After OSM OAuth — collect email before minting. */
+  const [osmPending, setOsmPending] = useState<{
+    pendingToken: string;
+    displayName: string | null;
+  } | null>(null);
+  const [osmEmail, setOsmEmail] = useState("");
 
   const scrollRef = useRef<ScrollView>(null);
   const scrollHostRef = useRef<View>(null);
@@ -121,7 +139,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   }
 
   async function runSocial(
-    provider: "google" | "apple",
+    provider: Exclude<SocialBusy, "password" | null>,
     action: () => Promise<boolean>,
   ) {
     setError(null);
@@ -129,6 +147,50 @@ export function AuthForm({ mode }: { mode: Mode }) {
     try {
       const ok = await action();
       if (ok) {
+        if (mode === "register") {
+          await markUsernameHintPending();
+        }
+        await afterSuccess(mode === "register");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("auth.error_generic"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runOpenStreetMap() {
+    setError(null);
+    setBusy("openstreetmap");
+    try {
+      const pending = await beginOpenStreetMapSignIn();
+      if (pending) {
+        setOsmPending(pending);
+        setOsmEmail("");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("auth.error_generic"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runOpenStreetMapComplete() {
+    if (!osmPending) return;
+    const trimmed = osmEmail.trim();
+    if (!trimmed.includes("@")) {
+      setError(t("auth.error_email_invalid"));
+      return;
+    }
+    setError(null);
+    setBusy("openstreetmap");
+    try {
+      const ok = await completeOpenStreetMapSignIn(
+        osmPending.pendingToken,
+        trimmed,
+      );
+      if (ok) {
+        setOsmPending(null);
         if (mode === "register") {
           await markUsernameHintPending();
         }
@@ -288,6 +350,103 @@ export function AuthForm({ mode }: { mode: Mode }) {
             </View>
           )}
         </Pressable>
+      ) : null}
+
+      <Pressable
+        style={[styles.socialBtn, busyAny && styles.disabled]}
+        disabled={busyAny}
+        onPress={() => void runSocial("facebook", signInWithFacebook)}
+        accessibilityRole="button"
+        accessibilityLabel={t("auth.continue_facebook")}
+      >
+        {busy === "facebook" ? (
+          <ActivityIndicator color={colors.ink} />
+        ) : (
+          <View style={styles.socialBtnInner}>
+            <MaterialCommunityIcons name="facebook" size={22} color="#1877F2" />
+            <Text style={styles.socialBtnText}>{t("auth.continue_facebook")}</Text>
+          </View>
+        )}
+      </Pressable>
+
+      <Pressable
+        style={[styles.socialBtn, busyAny && styles.disabled]}
+        disabled={busyAny}
+        onPress={() => void runSocial("nabezky", signInWithNabezky)}
+        accessibilityRole="button"
+        accessibilityLabel={t("auth.continue_nabezky")}
+      >
+        {busy === "nabezky" ? (
+          <ActivityIndicator color={colors.ink} />
+        ) : (
+          <Text style={styles.socialBtnText}>{t("auth.continue_nabezky")}</Text>
+        )}
+      </Pressable>
+
+      <Pressable
+        style={[styles.socialBtn, busyAny && styles.disabled]}
+        disabled={busyAny}
+        onPress={() => void runOpenStreetMap()}
+        accessibilityRole="button"
+        accessibilityLabel={t("auth.continue_openstreetmap")}
+      >
+        {busy === "openstreetmap" && !osmPending ? (
+          <ActivityIndicator color={colors.ink} />
+        ) : (
+          <View style={styles.socialBtnInner}>
+            <MaterialCommunityIcons name="map" size={22} color={colors.ink} />
+            <Text style={styles.socialBtnText}>
+              {t("auth.continue_openstreetmap")}
+            </Text>
+          </View>
+        )}
+      </Pressable>
+
+      {osmPending ? (
+        <View style={styles.osmEmailBox}>
+          <Text style={styles.osmEmailTitle}>{t("auth.osm_email_title")}</Text>
+          <Text style={styles.osmEmailBody}>
+            {osmPending.displayName
+              ? t("auth.osm_email_body_named").replace(
+                  "{name}",
+                  osmPending.displayName,
+                )
+              : t("auth.osm_email_body")}
+          </Text>
+          <TextInput
+            style={styles.input}
+            value={osmEmail}
+            onChangeText={setOsmEmail}
+            placeholder={t("auth.email_placeholder")}
+            placeholderTextColor={colors.muted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            editable={!busyAny}
+          />
+          <Pressable
+            style={[styles.submitBtn, busyAny && styles.disabled]}
+            disabled={busyAny}
+            onPress={() => void runOpenStreetMapComplete()}
+          >
+            {busy === "openstreetmap" ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitBtnText}>{t("auth.osm_email_continue")}</Text>
+            )}
+          </Pressable>
+          <Pressable
+            disabled={busyAny}
+            onPress={() => {
+              setOsmPending(null);
+              setOsmEmail("");
+              setError(null);
+            }}
+          >
+            <Text style={styles.forgotLink}>{t("common.close")}</Text>
+          </Pressable>
+        </View>
       ) : null}
 
       <View style={styles.dividerRow}>
@@ -536,6 +695,45 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 15,
+  },
+  socialBtn: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    minHeight: 48,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  socialBtnInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  socialBtnText: {
+    color: colors.ink,
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  osmEmailBox: {
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  osmEmailTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  osmEmailBody: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.muted,
   },
   fields: { gap: 10 },
   input: {

@@ -42,7 +42,7 @@ separate Civic password store.
 | Invest | Stub list → opens Rovas project pages |
 | Home / Community / Profile | Contribution dashboard, user lookup, Merit ledger |
 | Prínos (ME•ter) | Merit Index leaderboard + filters |
-| Auth | Native Google + Apple → Civic API → Rovas-minted OAuth Bearers |
+| Auth | Google / Apple / Facebook / Nabezky / OSM → Civic API → Rovas-minted OAuth Bearers |
 | API deploy | `https://civic-api.rovas.app` |
 | Mobile builds | Dev client (iOS) + TestFlight; release APK (Android); EAS + Firebase App Distribution |
 
