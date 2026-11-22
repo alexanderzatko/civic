@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { FacebookIcon } from "@/components/FacebookIcon";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { MeLogo } from "@/components/MeLogo";
 import { OsmLogo } from "@/components/OsmLogo";
@@ -351,27 +352,19 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <Text style={styles.title}>{title}</Text>
       </View>
 
-      {mode === "login" ? (
+      <View style={styles.disclosure}>
         <Text style={styles.subtitle}>
-          {t("auth.login_subtitle_before")}
+          {t("auth.rovas_disclosure_before")}
           <RovasLogo size={14} style={styles.inlineRovasLogo} />
           <Text style={styles.disclosureBold}>
-            {t("auth.login_subtitle_name")}
+            {t("auth.rovas_disclosure_name")}
           </Text>
-          {t("auth.login_subtitle_after")}
+          {t("auth.rovas_disclosure_after")}
         </Text>
-      ) : (
-        <View style={styles.disclosure}>
-          <Text style={styles.disclosureBody}>
-            {t("auth.register_rovas_disclosure_before")}
-            <Text style={styles.disclosureBold}>
-              {t("auth.register_rovas_disclosure_name")}
-            </Text>
-            {t("auth.register_rovas_disclosure_after")}
-          </Text>
+        {mode === "register" ? (
           <LegalAgreeLine preface={t("auth.legal_register")} />
-        </View>
-      )}
+        ) : null}
+      </View>
 
       {emailPending && emailPendingKind ? (
         <View style={styles.osmEmailBox}>
@@ -438,60 +431,48 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </View>
       ) : (
         <>
-      <Pressable
-        style={[styles.googleBtn, busyAny && styles.disabled]}
-        disabled={busyAny}
-        onPress={() => void runSocial("google", signInWithGoogle)}
-        accessibilityRole="button"
-        accessibilityLabel={t("auth.continue_google")}
-      >
-        {busy === "google" ? (
-          <ActivityIndicator color={colors.ink} />
-        ) : (
-          <View style={styles.socialBtnInner}>
-            <GoogleIcon size={22} />
-            <Text style={styles.googleBtnText}>{t("auth.continue_google")}</Text>
-          </View>
-        )}
-      </Pressable>
-
-      {appleAvailable ? (
+      <View style={styles.idpIconRow}>
         <Pressable
-          style={[styles.appleBtn, busyAny && styles.disabled]}
+          style={[styles.idpIconBtn, busyAny && styles.disabled]}
           disabled={busyAny}
-          onPress={() => void runSocial("apple", signInWithApple)}
+          onPress={() => void runSocial("google", signInWithGoogle)}
           accessibilityRole="button"
-          accessibilityLabel={t("auth.continue_apple")}
+          accessibilityLabel={t("auth.continue_google")}
         >
-          {busy === "apple" ? (
-            <ActivityIndicator color="#fff" />
+          {busy === "google" ? (
+            <ActivityIndicator color={colors.ink} />
           ) : (
-            <View style={styles.appleBtnInner}>
-              <MaterialCommunityIcons name="apple" size={22} color="#fff" />
-              <Text style={styles.appleBtnText}>{t("auth.continue_apple")}</Text>
-            </View>
+            <GoogleIcon size={28} />
           )}
         </Pressable>
-      ) : null}
-
-      <Pressable
-        style={[styles.socialBtn, busyAny && styles.disabled]}
-        disabled={busyAny}
-        onPress={() => void runFacebook()}
-        accessibilityRole="button"
-        accessibilityLabel={t("auth.continue_facebook")}
-      >
-        {busy === "facebook" ? (
-          <ActivityIndicator color={colors.ink} />
-        ) : (
-          <View style={styles.socialBtnInner}>
-            <MaterialCommunityIcons name="facebook" size={22} color="#1877F2" />
-            <Text style={styles.socialBtnText}>{t("auth.continue_facebook")}</Text>
-          </View>
-        )}
-      </Pressable>
-
-      <View style={styles.idpIconRow}>
+        {appleAvailable ? (
+          <Pressable
+            style={[styles.idpIconBtn, busyAny && styles.disabled]}
+            disabled={busyAny}
+            onPress={() => void runSocial("apple", signInWithApple)}
+            accessibilityRole="button"
+            accessibilityLabel={t("auth.continue_apple")}
+          >
+            {busy === "apple" ? (
+              <ActivityIndicator color={colors.ink} />
+            ) : (
+              <MaterialCommunityIcons name="apple" size={28} color={colors.ink} />
+            )}
+          </Pressable>
+        ) : null}
+        <Pressable
+          style={[styles.idpIconBtn, busyAny && styles.disabled]}
+          disabled={busyAny}
+          onPress={() => void runFacebook()}
+          accessibilityRole="button"
+          accessibilityLabel={t("auth.continue_facebook")}
+        >
+          {busy === "facebook" ? (
+            <ActivityIndicator color={colors.ink} />
+          ) : (
+            <FacebookIcon size={28} />
+          )}
+        </Pressable>
         <Pressable
           style={[styles.idpIconBtn, busyAny && styles.disabled]}
           disabled={busyAny}
@@ -738,74 +719,14 @@ const styles = StyleSheet.create({
     transform: [{ translateY: 2 }],
   },
   disclosure: { gap: 16 },
-  disclosureBody: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 18,
-    textAlign: "center",
-  },
   disclosureBold: { fontWeight: "700", color: colors.ink },
-  googleBtn: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    minHeight: 48,
-    paddingHorizontal: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  googleBtnText: {
-    color: colors.ink,
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  appleBtn: {
-    backgroundColor: "#000",
-    borderRadius: 12,
-    minHeight: 48,
-    paddingHorizontal: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  appleBtnInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  appleBtnText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  socialBtn: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    minHeight: 48,
-    paddingHorizontal: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  socialBtnInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  socialBtnText: {
-    color: colors.ink,
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  /** Icon-only IdPs (Nabezky + OSM), matching Rovas HybridAuth row. */
+  /** Icon-only IdP row (Google / Apple / FB / Nabezky / OSM). */
   idpIconRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "center",
-    gap: 16,
+    gap: 12,
     minHeight: 48,
   },
   idpIconBtn: {
