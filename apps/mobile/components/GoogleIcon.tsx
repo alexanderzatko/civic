@@ -5,7 +5,7 @@ type Props = {
 };
 
 /** Multicolor Google "G" mark (HybridAuth / Google brand colors). */
-export function GoogleIcon({ size = 22 }: Props) {
+export function GoogleIcon({ size = 32 }: Props) {
   return (
     <Svg
       width={size}

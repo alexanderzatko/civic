@@ -442,7 +442,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           {busy === "google" ? (
             <ActivityIndicator color={colors.ink} />
           ) : (
-            <GoogleIcon size={28} />
+            <GoogleIcon size={32} />
           )}
         </Pressable>
         {appleAvailable ? (
@@ -456,7 +456,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
             {busy === "apple" ? (
               <ActivityIndicator color={colors.ink} />
             ) : (
-              <MaterialCommunityIcons name="apple" size={28} color={colors.ink} />
+              // MCI glyph has optical padding; ~36 matches a 32px filled mark.
+              <MaterialCommunityIcons name="apple" size={36} color={colors.ink} />
             )}
           </Pressable>
         ) : null}
@@ -470,7 +471,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           {busy === "facebook" ? (
             <ActivityIndicator color={colors.ink} />
           ) : (
-            <FacebookIcon size={28} />
+            <FacebookIcon size={32} />
           )}
         </Pressable>
         <Pressable

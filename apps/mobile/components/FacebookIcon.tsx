@@ -5,7 +5,7 @@ type Props = {
 };
 
 /** Classic Facebook mark from Rovas HybridAuth icon pack. */
-export function FacebookIcon({ size = 28 }: Props) {
+export function FacebookIcon({ size = 32 }: Props) {
   return (
     <Svg
       width={size}
