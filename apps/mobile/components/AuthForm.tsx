@@ -456,8 +456,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
             {busy === "apple" ? (
               <ActivityIndicator color={colors.ink} />
             ) : (
-              // MCI glyph has optical padding; ~36 matches a 32px filled mark.
-              <MaterialCommunityIcons name="apple" size={36} color={colors.ink} />
+              // MCI glyph has optical padding; ~42 matches a 32px filled mark.
+              <MaterialCommunityIcons name="apple" size={42} color={colors.ink} />
             )}
           </Pressable>
         ) : null}
