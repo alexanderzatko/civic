@@ -181,7 +181,7 @@
   "receipts.error_claim_blocked": "This receipt can be verified, but Merits cannot be registered under the current rules.",
   "receipts.error_rovas": "The registration was not accepted. Try again later or contact support.",
   "charity.title": "Nonprofit projects",
-  "charity.intro": "Find verified nonprofit and public-benefit organisations. Tap a project to expand details and how to donate. Civic records Merits for verified gifts.",
+  "charity.intro": "A list of verified nonprofit and public-benefit organisations. If you don’t see the one you want to send money to, invite it or add it.",
   "charity.me_per_eur_label": "Merit for your gift:",
   "charity.me_per_eur": "~{{rate}} ME / €",
   "charity.search_placeholder": "Search by organisation name…",

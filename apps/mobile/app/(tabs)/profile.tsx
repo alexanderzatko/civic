@@ -505,34 +505,6 @@ export default function ProfileScreen() {
 
               <View style={styles.pillbox}>
                 <Text style={styles.pillLabel}>
-                  {t("profile.chrons_section")}
-                </Text>
-                {totalChr != null ? (
-                  <Text style={styles.balanceChr}>
-                    {t("profile.chrons_balance")}: {formatChr(totalChr)} CHR
-                  </Text>
-                ) : null}
-                <View style={styles.prefRow}>
-                  <Text style={styles.prefLabel}>
-                    {t("profile.allow_chrons")}
-                  </Text>
-                  <Switch
-                    value={allowChrons}
-                    onValueChange={(checked) => {
-                      void setAllowChrons(checked);
-                    }}
-                    trackColor={{ false: colors.border, true: colors.brandSoft }}
-                    accessibilityRole="switch"
-                    accessibilityLabel={t("profile.allow_chrons")}
-                  />
-                </View>
-                <Text style={styles.prefHint}>
-                  {t("profile.allow_chrons_hint")}
-                </Text>
-              </View>
-
-              <View style={styles.pillbox}>
-                <Text style={styles.pillLabel}>
                   {t("profile.me_sources_section")}
                 </Text>
                 <Text style={styles.prefHint}>
@@ -612,6 +584,34 @@ export default function ProfileScreen() {
                     {t("profile.taxes_privacy_link")}
                   </Text>
                 </Pressable>
+              </View>
+
+              <View style={styles.pillbox}>
+                <Text style={styles.pillLabel}>
+                  {t("profile.chrons_section")}
+                </Text>
+                {totalChr != null ? (
+                  <Text style={styles.balanceChr}>
+                    {t("profile.chrons_balance")}: {formatChr(totalChr)} CHR
+                  </Text>
+                ) : null}
+                <View style={styles.prefRow}>
+                  <Text style={styles.prefLabel}>
+                    {t("profile.allow_chrons")}
+                  </Text>
+                  <Switch
+                    value={allowChrons}
+                    onValueChange={(checked) => {
+                      void setAllowChrons(checked);
+                    }}
+                    trackColor={{ false: colors.border, true: colors.brandSoft }}
+                    accessibilityRole="switch"
+                    accessibilityLabel={t("profile.allow_chrons")}
+                  />
+                </View>
+                <Text style={styles.prefHint}>
+                  {t("profile.allow_chrons_hint")}
+                </Text>
               </View>
             </View>
           ) : null}
