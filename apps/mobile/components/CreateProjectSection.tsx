@@ -107,6 +107,11 @@ export function CreateProjectSection({
             textAlignVertical="top"
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Text style={styles.rovasHint}>
+            {t("volunteer.create_rovas_before")}
+            <RovasNameLink />
+            {t("volunteer.create_rovas_after")}
+          </Text>
           <Pressable
             style={[styles.btn, !canSubmit && styles.btnDisabled]}
             disabled={!canSubmit}
@@ -118,11 +123,6 @@ export function CreateProjectSection({
               <Text style={styles.btnText}>{t("volunteer.create_submit")}</Text>
             )}
           </Pressable>
-          <Text style={styles.rovasHint}>
-            {t("volunteer.create_rovas_before")}
-            <RovasNameLink />
-            {t("volunteer.create_rovas_after")}
-          </Text>
         </View>
       ) : null}
     </View>
@@ -166,6 +166,5 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     lineHeight: 18,
-    marginTop: 4,
   },
 });
