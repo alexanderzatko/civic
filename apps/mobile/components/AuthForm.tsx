@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -18,7 +17,7 @@ import { FacebookIcon } from "@/components/FacebookIcon";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { MeLogo } from "@/components/MeLogo";
 import { OsmLogo } from "@/components/OsmLogo";
-import { RovasLogo } from "@/components/RovasLogo";
+import { RovasNameLink } from "@/components/RovasNameLink";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { t } from "@/lib/i18n";
@@ -355,10 +354,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <View style={styles.disclosure}>
         <Text style={styles.subtitle}>
           {t("auth.rovas_disclosure_before")}
-          <RovasLogo size={14} style={styles.inlineRovasLogo} />
-          <Text style={styles.disclosureBold}>
-            {t("auth.rovas_disclosure_name")}
-          </Text>
+          <RovasNameLink />
           {t("auth.rovas_disclosure_after")}
         </Text>
         {mode === "register" ? (
@@ -638,14 +634,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
         {mode === "login" ? (
           <Text style={styles.forgotLine}>
-            <Text
-              style={styles.forgotLink}
-              onPress={() => {
-                void Linking.openURL(getRovasPasswordResetUrl());
-              }}
-            >
-              {t("auth.forgot_password")}
-            </Text>
+            {t("auth.forgot_password_before")}
+            <RovasNameLink url={getRovasPasswordResetUrl()} />
           </Text>
         ) : null}
       </View>
@@ -713,14 +703,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: "center",
   },
-  inlineRovasLogo: {
-    width: 14,
-    height: 14,
-    marginHorizontal: 3,
-    transform: [{ translateY: 2 }],
-  },
   disclosure: { gap: 16 },
-  disclosureBold: { fontWeight: "700", color: colors.ink },
   /** Icon-only IdP row (Google / Apple / FB / Nabezky / OSM). */
   idpIconRow: {
     flexDirection: "row",

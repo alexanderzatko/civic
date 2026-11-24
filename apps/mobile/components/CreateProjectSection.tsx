@@ -8,9 +8,11 @@ import {
   View,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { RovasNameLink } from "@/components/RovasNameLink";
 import { colors } from "@/constants/theme";
 import { createProject } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { useLocale } from "@/lib/locale";
 
 type Props = {
   open: boolean;
@@ -25,6 +27,7 @@ export function CreateProjectSection({
   onCreated,
   disabled = false,
 }: Props) {
+  useLocale();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
@@ -115,6 +118,11 @@ export function CreateProjectSection({
               <Text style={styles.btnText}>{t("volunteer.create_submit")}</Text>
             )}
           </Pressable>
+          <Text style={styles.rovasHint}>
+            {t("volunteer.create_rovas_before")}
+            <RovasNameLink />
+            {t("volunteer.create_rovas_after")}
+          </Text>
         </View>
       ) : null}
     </View>
@@ -154,4 +162,10 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.5 },
   btnText: { color: "#fff", fontWeight: "700" },
+  rovasHint: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
 });

@@ -22,6 +22,7 @@ import {
   type ProjectWorkReportItem,
 } from "@civic/shared";
 import { GiftPaymentForm } from "@/components/GiftPaymentForm";
+import { RovasLogo } from "@/components/RovasLogo";
 import { colors } from "@/constants/theme";
 import {
   fetchProject,
@@ -487,6 +488,7 @@ export function ProjectDetailModal({
                 style={styles.openRovas}
                 accessibilityRole="link"
               >
+                <RovasLogo size={14} style={styles.openRovasLogo} />
                 <Text style={styles.openRovasText}>
                   {t("project.open_rovas")}
                 </Text>
@@ -794,8 +796,15 @@ const styles = StyleSheet.create({
     color: colors.brandSoft,
   },
   openRovas: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
     paddingVertical: 12,
+  },
+  openRovasLogo: {
+    width: 14,
+    height: 14,
   },
   openRovasText: {
     fontSize: 14,

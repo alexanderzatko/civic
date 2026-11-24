@@ -32,6 +32,7 @@ import {
 } from "@civic/shared";
 import { CreateProjectSection } from "@/components/CreateProjectSection";
 import { NacePicker, findNaceNode } from "@/components/NacePicker";
+import { RovasNameLink } from "@/components/RovasNameLink";
 import { VolunteerMapProofSection } from "@/components/VolunteerMapProofSection";
 import { VolunteerPhotoList } from "@/components/VolunteerPhotoList";
 import { VolunteerPhotoPaintModal } from "@/components/VolunteerPhotoPaintModal";
@@ -923,13 +924,9 @@ export default function VolunteerScreen() {
           <Text style={styles.footerConnectorsLead}>
             {t("volunteer.connectors_hint_lead")}
           </Text>
-          <Text
-            style={[styles.link, styles.footerConnectorsLink]}
-            onPress={() =>
-              void Linking.openURL(getRovasConnectorsUrl(getLocale()))
-            }
-          >
-            {t("volunteer.connectors_hint_link")}
+          <Text style={[styles.footerMuted, styles.footerConnectorsLink]}>
+            {t("volunteer.connectors_hint_before")}
+            <RovasNameLink url={getRovasConnectorsUrl(getLocale())} />
           </Text>
         </View>
       </ScrollView>

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { RovasNameLink } from "@/components/RovasNameLink";
 import { colors } from "@/constants/theme";
 import { getAppVersionParts } from "@/lib/app-version";
 import { t } from "@/lib/i18n";
@@ -8,7 +9,6 @@ import {
   getGlossaryUrl,
   getNeofundSiteUrl,
   getPrivacyUrl,
-  getRovasSiteUrl,
   getTermsUrl,
 } from "@/lib/legal-urls";
 import { useLocale } from "@/lib/locale";
@@ -24,7 +24,6 @@ export default function AboutScreen() {
   const openPrivacy = useCallback(() => openExternal(getPrivacyUrl()), []);
   const openTerms = useCallback(() => openExternal(getTermsUrl()), []);
   const openGlossary = useCallback(() => openExternal(getGlossaryUrl()), []);
-  const openRovas = useCallback(() => openExternal(getRovasSiteUrl()), []);
   const openNeofund = useCallback(() => openExternal(getNeofundSiteUrl()), []);
 
   return (
@@ -34,14 +33,7 @@ export default function AboutScreen() {
       <Text style={styles.sectionTitle}>{t("about.operator_title")}</Text>
       <Text style={styles.body}>
         {t("about.operator_body_before")}
-        <Text
-          style={styles.link}
-          onPress={openRovas}
-          accessibilityRole="link"
-          accessibilityLabel={t("about.open_rovas_a11y")}
-        >
-          {t("about.operator_rovas")}
-        </Text>
+        <RovasNameLink textStyle={styles.link} />
         {t("about.operator_body_mid")}
         <Text
           style={styles.link}
