@@ -48,7 +48,10 @@ import { capture } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 import { useChronPreference } from "@/lib/chron-preference";
 import { getLocale, t } from "@/lib/i18n";
-import { getRovasConnectorsUrl } from "@/lib/legal-urls";
+import {
+  getRovasConnectorsUrl,
+  getTrustedUserGlossaryUrl,
+} from "@/lib/legal-urls";
 import { useLocale } from "@/lib/locale";
 import {
   pickVolunteerPhoto,
@@ -490,7 +493,17 @@ export default function VolunteerScreen() {
         scrollEventThrottle={16}
       >
         <Text style={styles.heading}>{t("volunteer.heading")}</Text>
-        <Text style={styles.intro}>{t("volunteer.intro")}</Text>
+        <Text style={styles.intro}>
+          <Text
+            style={styles.link}
+            onPress={() => void Linking.openURL(getTrustedUserGlossaryUrl())}
+            accessibilityRole="link"
+            accessibilityLabel={t("volunteer.intro_trusted_a11y")}
+          >
+            {t("volunteer.intro_trusted")}
+          </Text>
+          {t("volunteer.intro_after")}
+        </Text>
 
         {!signedIn ? (
           <View style={styles.authBox}>

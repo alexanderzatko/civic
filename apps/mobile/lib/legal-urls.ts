@@ -38,6 +38,11 @@ export function getRovasSiteUrl(): string {
   return trimUrl(process.env.EXPO_PUBLIC_ROVAS_SITE_URL, DEFAULT_ROVAS_SITE);
 }
 
+/** Rovas glossary entry for Trusted user (`#trustedUser`). */
+export function getTrustedUserGlossaryUrl(): string {
+  return `${getRovasSiteUrl().replace(/\/$/, "")}/glossary#trustedUser`;
+}
+
 /** Drupal password-reset form on the public Rovas site (not OAuth / API base). */
 export function getRovasPasswordResetUrl(): string {
   return `${getRovasSiteUrl().replace(/\/$/, "")}/user/password`;
