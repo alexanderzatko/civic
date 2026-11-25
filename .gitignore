@@ -10,9 +10,8 @@
 *.swp
 *.swo
 
-# Cursor (keep rules folder, ignore local-only state)
-.cursor/agents/
-.cursor/cache/
+# Cursor (local agent rules / state — not for public repo)
+.cursor/
 
 # Node / Expo / pnpm (anticipated for apps/mobile, services/api, packages/shared)
 node_modules/
