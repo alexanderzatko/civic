@@ -1,7 +1,7 @@
 # Civic
 
-Slovak-first mobile contribution hub: see and grow your **contribution to society**,
-expressed as **Merits (ME)** on your [Rovas](https://rovas.app) account.
+Civic allows you to see and grow your economic value **contribution to society (giving)**,  
+expressed as **Merits (ME)** on your [Rovas](https://rovas.app) account. See [NeoFund](https://neofund.sk) for more info.
 
 Three Merit-earning paths:
 
@@ -80,10 +80,10 @@ fallback only — see [`packages/shared/src/settings.ts`](packages/shared/src/se
 ## Brand
 
 - **Civic** — from Latin *civicus* (“of or pertaining to a citizen”); cousin of
-  *city*, *civil*, *civilization*. See [`identity/civic-linguistics.txt`](identity/civic-linguistics.txt).
+*city*, *civil*, *civilization*. See [`identity/civic-linguistics.txt`](identity/civic-linguistics.txt).
 - **ME** — the Merit unit, shown with the Civic mark in product surfaces.
 - **Rovas / Rováš** — EN: **Rovas**. SK UI: always accented **Rováš**, locative
-  **v Rováši**. Wire names stay ASCII (`rovas.app`, `ROVAS_*`).
+**v Rováši**. Wire names stay ASCII (`rovas.app`, `ROVAS_`*).
 
 ## License
 
