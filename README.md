@@ -1,7 +1,6 @@
 # Civic
 
-Civic allows you to see and grow your economic value **contribution to society (giving)**,  
-expressed as **Merits (ME)** on your [Rovas](https://rovas.app) account. See [NeoFund](https://neofund.sk) for more info.
+Civic allows you to see and grow your **economic value contribution to society** (giving), expressed as **Merits (ME)** on your [Rovas](https://rovas.app) account. See [NeoFund](https://neofund.sk) for more info.
 
 Three Merit-earning paths:
 
